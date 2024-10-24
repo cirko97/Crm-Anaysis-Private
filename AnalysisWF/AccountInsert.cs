@@ -22,8 +22,8 @@ namespace AnalysisWF
 
         #region Output Properties
 
-        [Output("Poruka")]
-        public OutArgument<string> Poruka { get; set; }
+        [Output("PantheonID")]
+        public OutArgument<string> PantheonID { get; set; }
 
         #endregion
 
@@ -53,8 +53,8 @@ namespace AnalysisWF
                 //tracingService.Trace("API Response: {0}", responseMessage);
 
                 // Postavljanje poruke o uspehu
-                //Poruka.Set(context, $"Uspešno poslato: {responseMessage}");
-                Poruka.Set(context, $"Uspešno poslato: {token}");
+                //PantheonID.Set(context, $"Uspešno poslato: {responseMessage}");
+                PantheonID.Set(context, $"{token}");
             }
             catch (Exception ex)
             {
