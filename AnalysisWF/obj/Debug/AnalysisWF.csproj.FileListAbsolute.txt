@@ -1,0 +1,2 @@
+C:\Users\vladi\source\repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.csproj.AssemblyReference.cache
+C:\Users\vladi\source\repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.csproj.CoreCompileInputs.cache
