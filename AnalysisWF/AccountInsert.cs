@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Activities;
+using System.Activities.Expressions;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Workflow;
+using Newtonsoft.Json;
 
 namespace AnalysisWF
 {
@@ -45,16 +48,31 @@ namespace AnalysisWF
                 var token = GetAuthToken(tracingService, service).GetAwaiter().GetResult();
 
                 // Priprema podataka za slanje
-                var jsonData = PrepareAccountData(account);
+                var jsonData = PrepareAccountData(account, service);
+                tracingService.Trace("JSON podaci za slanje: {0}", jsonData);
 
                 // Poziv API-ja za slanje Account zapisa
-                //var responseMessage = CallPantheonApi(token, jsonData).GetAwaiter().GetResult();
+                var responseMessage = CallPantheonApi(token, jsonData).GetAwaiter().GetResult();
 
-                //tracingService.Trace("API Response: {0}", responseMessage);
+                tracingService.Trace("API Response: {0}", responseMessage);
 
-                // Postavljanje poruke o uspehu
-                //PantheonID.Set(context, $"Uspešno poslato: {responseMessage}");
-                PantheonID.Set(context, $"{token}");
+                // Parsiranje odgovora i postavljanje PantheonID-a
+                var cleanedResponse = responseMessage.Replace("\\r", "").Replace("\\n", "");
+                string cleanedJson = cleanedResponse.Replace("\\\"", "\"").Trim('\"'); // Uklanjamo spoljašnje navodnike
+                tracingService.Trace("Cleaned API Response: {0}", cleanedJson);
+
+                dynamic response = JsonConvert.DeserializeObject(cleanedJson);
+                string pantheonId = response.usp_DEVC_AA_CreateSubject_out["@anQId"].ToString();
+                tracingService.Trace("Pantheon ID: {0}", pantheonId);
+                
+                string errorMessage = response.usp_DEVC_AA_CreateSubject_out["@acErrorMessage"].ToString();
+
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    throw new Exception($"Pantheon API Error: {errorMessage}");
+                }
+
+                PantheonID.Set(context, pantheonId);
             }
             catch (Exception ex)
             {
@@ -103,14 +121,41 @@ namespace AnalysisWF
 
 
 
-        private string PrepareAccountData(Entity account)
+        private string PrepareAccountData(Entity account, IOrganizationService service)
         {
-            return $@"
-            {{
-                ""AccountId"": ""{account.Id}"",
-                ""Name"": ""{account.GetAttributeValue<string>("name")}"",
-                ""VatNo"": ""{account.GetAttributeValue<string>("extreme_vatnumber")}""
-            }}";
+            var acBuyer = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000001 ? "T" : "F";
+            var acSupplier = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000000 ? "T" : "F";
+            var acCurrency = GetLookupFieldValue(account.GetAttributeValue<EntityReference>("transactioncurrencyid"), "isocurrencycode", service);
+            var acPost = GetLookupFieldValue(account.GetAttributeValue<EntityReference>("extreme_postalcode"), "extreme_postalcode", service);
+
+            var sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append("\"procedures\": [");
+            sb.Append("{");
+            sb.Append("\"procname\": \"usp_DEVC_AA_CreateSubject\",");
+            sb.Append("\"procparams\": {");
+            sb.AppendFormat("\"acSubject\": \"{0}\",", account.GetAttributeValue<string>("name"));
+            sb.AppendFormat("\"acName2\": \"{0}\",", account.GetAttributeValue<string>("extreme_name2"));
+            sb.AppendFormat("\"acAddress\": \"{0}\",", account.GetAttributeValue<string>("address1_line1"));
+            sb.AppendFormat("\"acEmail\": \"{0}\",", account.GetAttributeValue<string>("emailaddress1"));
+            sb.AppendFormat("\"acPhone\": \"{0}\",", account.GetAttributeValue<string>("telephone1"));
+            sb.AppendFormat("\"acPost\": \"{0}\",", acPost);
+            sb.AppendFormat("\"acCity\": \"{0}\",", account.GetAttributeValue<string>("extreme_city"));
+            sb.AppendFormat("\"acCountry\": \"{0}\",", account.GetAttributeValue<string>("extreme_country"));
+            sb.AppendFormat("\"acCode\": \"{0}\",", account.GetAttributeValue<string>("extreme_vatnumber"));
+            sb.AppendFormat("\"acRegNo\": \"{0}\",", account.GetAttributeValue<string>("extreme_registrationnumber"));
+            sb.AppendFormat("\"acBuyer\": \"{0}\",", acBuyer);
+            sb.AppendFormat("\"acSupplier\": \"{0}\",", acSupplier);
+            sb.Append("\"acWayOfSale\": \"Z\",");
+            sb.AppendFormat("\"acCurrency\": \"{0}\",", acCurrency);
+            sb.Append("\"acSuppSaleMet\": \"D\",");
+            sb.AppendFormat("\"acSuppCurr\": \"{0}\"", acCurrency);
+            sb.Append("}");
+            sb.Append("}");
+            sb.Append("]");
+            sb.Append("}");
+
+            return sb.ToString();
         }
 
         private async Task<string> CallPantheonApi(string token, string jsonData)
@@ -121,11 +166,20 @@ namespace AnalysisWF
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
 
                 var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
-                var response = await client.PostAsync("https://pantheon.example.com/api/accounts", content);
+                var response = await client.PostAsync("https://paws.telekom.si/api/DBObjects/execproc", content);
 
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync();
             }
+        }
+
+        private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
+        {
+            if (lookup == null)
+                return string.Empty;
+
+            var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
+            return entity.GetAttributeValue<string>(fieldName);
         }
 
         private string GetConfigurationValue(string key, IOrganizationService service)
