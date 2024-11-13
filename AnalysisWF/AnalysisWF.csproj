@@ -65,6 +65,8 @@
     <Compile Include="AccountInsert.cs" />
     <Compile Include="AuthHelper.cs" />
     <Compile Include="CostDriveInsert.cs" />
+    <Compile Include="DeliveryMethodInsert.cs" />
+    <Compile Include="PaymentMethodInsert.cs" />
     <Compile Include="ProductInsert.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
