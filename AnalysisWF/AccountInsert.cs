@@ -45,7 +45,7 @@ namespace AnalysisWF
                 tracingService.Trace("Preuzet Account zapis sa ID: {0}", account.Id);
 
                 // Poziv API-ja za autentifikaciju i pribavljanje tokena
-                var token = GetAuthToken(tracingService, service).GetAwaiter().GetResult();
+                var token = AuthHelper.GetAuthToken(tracingService, service).GetAwaiter().GetResult();
 
                 // Priprema podataka za slanje
                 var jsonData = PrepareAccountData(account, service);
@@ -80,46 +80,6 @@ namespace AnalysisWF
                 throw new InvalidPluginExecutionException($"Greška prilikom slanja Account zapisa: {ex.Message}");
             }
         }
-
-        private async Task<string> GetAuthToken(ITracingService tracingService, IOrganizationService service)
-        {
-            using (var client = new HttpClient())
-            {
-                // Preuzimanje konfiguracionih vrednosti
-                var url = GetConfigurationValue("PAWS_AUTHENDPOINT", service);
-                var username = GetConfigurationValue("PAWS_username", service);
-                var password = GetConfigurationValue("PAWS_password", service);
-                var companyDB = GetConfigurationValue("PAWS_companyDB", service);
-
-                var body = new
-                {
-                    Username = username,
-                    Password = password,
-                    companyDB = companyDB
-                };
-
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(body);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                tracingService.Trace("Šaljem zahtev za autentifikaciju...");
-
-                var response = await client.PostAsync(url, content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var error = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"Greška prilikom autentifikacije: {error}");
-                }
-
-                var responseData = await response.Content.ReadAsStringAsync();
-                dynamic result = Newtonsoft.Json.JsonConvert.DeserializeObject(responseData);
-
-                tracingService.Trace("Token uspešno preuzet.");
-                return result.token.ToString();  // Iz odgovora uzimamo polje 'token'
-            }
-        }
-
-
 
         private string PrepareAccountData(Entity account, IOrganizationService service)
         {
@@ -182,25 +142,63 @@ namespace AnalysisWF
             return entity.GetAttributeValue<string>(fieldName);
         }
 
-        private string GetConfigurationValue(string key, IOrganizationService service)
-        {
-            var query = new Microsoft.Xrm.Sdk.Query.QueryExpression("extreme_configuration")
-            {
-                ColumnSet = new Microsoft.Xrm.Sdk.Query.ColumnSet("extreme_value")
-            };
-            query.Criteria.AddCondition("extreme_key", Microsoft.Xrm.Sdk.Query.ConditionOperator.Equal, key);
+        //private async Task<string> GetAuthToken(ITracingService tracingService, IOrganizationService service)
+        //{
+        //    using (var client = new HttpClient())
+        //    {
+        //        // Preuzimanje konfiguracionih vrednosti
+        //        var url = GetConfigurationValue("PAWS_AUTHENDPOINT", service);
+        //        var username = GetConfigurationValue("PAWS_username", service);
+        //        var password = GetConfigurationValue("PAWS_password", service);
+        //        var companyDB = GetConfigurationValue("PAWS_companyDB", service);
 
-            var configRecord = service.RetrieveMultiple(query).Entities.FirstOrDefault();
+        //        var body = new
+        //        {
+        //            Username = username,
+        //            Password = password,
+        //            companyDB = companyDB
+        //        };
 
-            if (configRecord != null)
-            {
-                return configRecord.GetAttributeValue<string>("extreme_value");
-            }
-            else
-            {
-                throw new InvalidPluginExecutionException($"Konfiguracioni ključ '{key}' nije pronađen.");
-            }
-        }
+        //        var json = Newtonsoft.Json.JsonConvert.SerializeObject(body);
+        //        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        //        tracingService.Trace("Šaljem zahtev za autentifikaciju...");
+
+        //        var response = await client.PostAsync(url, content);
+
+        //        if (!response.IsSuccessStatusCode)
+        //        {
+        //            var error = await response.Content.ReadAsStringAsync();
+        //            throw new Exception($"Greška prilikom autentifikacije: {error}");
+        //        }
+
+        //        var responseData = await response.Content.ReadAsStringAsync();
+        //        dynamic result = Newtonsoft.Json.JsonConvert.DeserializeObject(responseData);
+
+        //        tracingService.Trace("Token uspešno preuzet.");
+        //        return result.token.ToString();  // Iz odgovora uzimamo polje 'token'
+        //    }
+        //}
+
+        //private string GetConfigurationValue(string key, IOrganizationService service)
+        //{
+        //    var query = new Microsoft.Xrm.Sdk.Query.QueryExpression("extreme_configuration")
+        //    {
+        //        ColumnSet = new Microsoft.Xrm.Sdk.Query.ColumnSet("extreme_value")
+        //    };
+        //    query.Criteria.AddCondition("extreme_key", Microsoft.Xrm.Sdk.Query.ConditionOperator.Equal, key);
+
+        //    var configRecord = service.RetrieveMultiple(query).Entities.FirstOrDefault();
+
+        //    if (configRecord != null)
+        //    {
+        //        return configRecord.GetAttributeValue<string>("extreme_value");
+        //    }
+        //    else
+        //    {
+        //        throw new InvalidPluginExecutionException($"Konfiguracioni ključ '{key}' nije pronađen.");
+        //    }
+        //}
 
     }
 }
