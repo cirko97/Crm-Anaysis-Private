@@ -26,6 +26,9 @@ namespace AnalysisWF
         [Output("PantheonID")]
         public OutArgument<string> PantheonID { get; set; }
 
+        [Output("API Response")]
+        public OutArgument<string> ApiResponse { get; set; }
+
         #endregion
 
         protected override void Execute(CodeActivityContext context)
@@ -57,6 +60,9 @@ namespace AnalysisWF
                 var cleanedResponse = responseMessage.Replace("\r", "").Replace("\n", "");
                 string cleanedJson = cleanedResponse.Replace("\"", "\"").Trim('"'); // Uklanjamo spoljašnje navodnike
                 tracingService.Trace("Cleaned API Response: {0}", cleanedJson);
+
+                // Set output parameter for the full API response
+                ApiResponse.Set(context, cleanedJson);
 
                 dynamic response = JsonConvert.DeserializeObject(cleanedJson);
                 string pantheonId = response.usp_DEVC_AA_CreateDelMet_out["@anQId"].ToString();
