@@ -12,7 +12,7 @@ using Newtonsoft.Json;
 
 namespace AnalysisWF
 {
-    public class AccountInsert : CodeActivity //test za dzonija
+    public class AccountInsert : CodeActivity
     {
         #region Input Properties
 
