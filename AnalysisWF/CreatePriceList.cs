@@ -17,6 +17,8 @@ namespace AnalysisWF
         [RequiredArgument]
         public InArgument<EntityReference> Currency { get; set; }
 
+
+
         [Output("Created Price List")]
         [ReferenceTarget("pricelevel")]
         public OutArgument<EntityReference> CreatedPriceListEntity { get; set; }
