@@ -17,6 +17,10 @@ namespace AnalysisWF
         [RequiredArgument]
         public InArgument<EntityReference> Currency { get; set; }
 
+        [Input("Owner")]
+        [ReferenceTarget("systemuser")]
+        public InArgument<EntityReference> Owner { get; set; }
+
         [Output("Created Price List")]
         [ReferenceTarget("pricelevel")]
         public OutArgument<EntityReference> CreatedPriceListEntity { get; set; }
@@ -33,6 +37,7 @@ namespace AnalysisWF
                 // Retrieve input parameters
                 string name = PriceListName.Get(executionContext);
                 EntityReference currency = Currency.Get(executionContext);
+                EntityReference owner = Owner.Get(executionContext);
 
                 // Validate input parameters
                 if (string.IsNullOrWhiteSpace(name))
@@ -49,6 +54,12 @@ namespace AnalysisWF
                 Entity priceList = new Entity("pricelevel");
                 priceList["name"] = name;
                 priceList["transactioncurrencyid"] = currency;
+
+                // Set the owner if provided
+                if (owner != null)
+                {
+                    priceList["ownerid"] = owner;
+                }
 
                 // Create the Price List record
                 Guid priceListId = service.Create(priceList);
