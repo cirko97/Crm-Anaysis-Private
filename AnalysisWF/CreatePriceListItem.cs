@@ -44,7 +44,9 @@ namespace AnalysisWF
         [Input("Technology")]
         [ReferenceTarget("extreme_technology")]
         public InArgument<EntityReference> Technology { get; set; }
+        [Input("Area")]
         [ReferenceTarget("extreme_area")]
+        public InArgument<EntityReference> Area { get; set; }
 
         [Output("Created Price List Item Id")]
         public OutArgument<string> CreatedPriceListItemId { get; set; }
@@ -57,10 +59,14 @@ namespace AnalysisWF
 
         protected override void Execute(CodeActivityContext executionContext)
         {
+            
             // Create the context service
             IWorkflowContext context = executionContext.GetExtension<IWorkflowContext>();
             IOrganizationServiceFactory serviceFactory = executionContext.GetExtension<IOrganizationServiceFactory>();
             IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
+
+            // Retrieve the record on which the workflow is running
+            Entity targetEntity = service.Retrieve(context.PrimaryEntityName, context.PrimaryEntityId, new ColumnSet(true));
 
             try
             {
@@ -180,6 +186,11 @@ namespace AnalysisWF
 
                 // Create the Price List Item record
                 Guid priceListItemId = service.Create(priceListItem);
+
+                targetEntity["extreme_product"] = product.ToEntityReference();
+                targetEntity["extreme_uom"] = uom;
+                targetEntity["extreme_pricelist"] = priceList;
+                service.Update(targetEntity);
 
                 // Set output parameters
                 CreatedPriceListItemId.Set(executionContext, priceListItemId.ToString());
