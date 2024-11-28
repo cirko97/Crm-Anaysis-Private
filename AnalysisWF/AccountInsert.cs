@@ -85,8 +85,8 @@ namespace AnalysisWF
         {
             var acBuyer = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000001 ? "T" : "F";
             var acSupplier = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000000 ? "T" : "F";
-            var acCurrency = GetLookupFieldValue(account.GetAttributeValue<EntityReference>("transactioncurrencyid"), "isocurrencycode", service);
-            var acPost = GetLookupFieldValue(account.GetAttributeValue<EntityReference>("extreme_postalcode"), "extreme_postalcode", service);
+            var acCurrency = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("transactioncurrencyid"), "isocurrencycode", service);
+            var acPost = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("extreme_postalcode"), "extreme_postalcode", service);
 
             var sb = new StringBuilder();
             sb.Append("{");
@@ -133,14 +133,14 @@ namespace AnalysisWF
             }
         }
 
-        private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
-        {
-            if (lookup == null)
-                return string.Empty;
+        //private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
+        //{
+        //    if (lookup == null)
+        //        return string.Empty;
 
-            var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
-            return entity.GetAttributeValue<string>(fieldName);
-        }
+        //    var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
+        //    return entity.GetAttributeValue<string>(fieldName);
+        //}
 
         //private async Task<string> GetAuthToken(ITracingService tracingService, IOrganizationService service)
         //{

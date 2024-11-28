@@ -1,7 +1,16 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\vladimir.djordjevic\\source\\repos\\CRM - Analysis\\AnalysisScripts\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{BD1516F4-0528-4211-962A-A2538E6472AC}|Solution Items{BD1516F4-0528-4211-962A-A2538E6472AC}|C:\\Users\\vladimir.djordjevic\\Source\\Repos\\CRM - Analysis\\AnalysisScripts\\AccountRibbon.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{BD1516F4-0528-4211-962A-A2538E6472AC}|Solution Items{BD1516F4-0528-4211-962A-A2538E6472AC}|solutionrelative:AccountRibbon.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BD1516F4-0528-4211-962A-A2538E6472AC}|Solution Items{BD1516F4-0528-4211-962A-A2538E6472AC}|C:\\Users\\vladimir.djordjevic\\Source\\Repos\\CRM - Analysis\\AnalysisScripts\\ProductForm.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{BD1516F4-0528-4211-962A-A2538E6472AC}|Solution Items{BD1516F4-0528-4211-962A-A2538E6472AC}|solutionrelative:ProductForm.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 4,
           "Children": [
             {
               "$type": "Bookmark",
@@ -22,6 +31,36 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{99b8fa2f-ab90-4f57-9c32-949f146f1914}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "AccountRibbon.js",
+              "DocumentMoniker": "C:\\Users\\vladimir.djordjevic\\source\\repos\\CRM - Analysis\\AnalysisScripts\\AccountRibbon.js",
+              "RelativeDocumentMoniker": "AccountRibbon.js",
+              "ToolTip": "C:\\Users\\vladimir.djordjevic\\source\\repos\\CRM - Analysis\\AnalysisScripts\\AccountRibbon.js",
+              "RelativeToolTip": "AccountRibbon.js",
+              "ViewState": "AgIAABQAAAAAAAAAAAAkwBwAAAAEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2024-11-28T16:14:04.792Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ProductForm.js",
+              "DocumentMoniker": "C:\\Users\\vladimir.djordjevic\\source\\repos\\CRM - Analysis\\AnalysisScripts\\ProductForm.js",
+              "RelativeDocumentMoniker": "ProductForm.js",
+              "ToolTip": "C:\\Users\\vladimir.djordjevic\\source\\repos\\CRM - Analysis\\AnalysisScripts\\ProductForm.js",
+              "RelativeToolTip": "ProductForm.js",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAIwDMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2024-11-26T13:00:45.914Z",
+              "EditorCaption": ""
             }
           ]
         }
