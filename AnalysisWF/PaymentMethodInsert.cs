@@ -80,7 +80,7 @@ namespace AnalysisWF
 
         private string PreparePaymentMethodData(Entity paymentTerm)
         {
-            var acPayMethod = paymentTerm.GetAttributeValue<string>("extreme_id");
+            var acPayMethod = paymentTerm.GetAttributeValue<string>("extreme_code");
             var acName = paymentTerm.GetAttributeValue<string>("extreme_name");
 
             var sb = new StringBuilder();
