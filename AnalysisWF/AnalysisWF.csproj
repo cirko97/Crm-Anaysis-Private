@@ -68,6 +68,7 @@
     <Compile Include="CreatePriceList.cs" />
     <Compile Include="CreatePriceListItem.cs" />
     <Compile Include="DeliveryMethodInsert.cs" />
+    <Compile Include="Helper.cs" />
     <Compile Include="PaymentMethodInsert.cs" />
     <Compile Include="ProductInsert.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

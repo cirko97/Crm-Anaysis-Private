@@ -28,6 +28,9 @@ namespace AnalysisWF
         [Output("PantheonID")]
         public OutArgument<string> PantheonID { get; set; }
 
+        [Output("API Response")]
+        public OutArgument<string> ApiResponse { get; set; }
+
         #endregion
 
         protected override void Execute(CodeActivityContext context)
@@ -61,6 +64,10 @@ namespace AnalysisWF
                 string cleanedJson = cleanedResponse.Replace("\\\"", "\"").Trim('\"'); // Uklanjamo spoljašnje navodnike
                 tracingService.Trace("Cleaned API Response: {0}", cleanedJson);
 
+                // Set output parameter for the full API response
+                string formattedJson = JsonConvert.SerializeObject(JsonConvert.DeserializeObject(cleanedJson), Formatting.Indented);
+                ApiResponse.Set(context, formattedJson);
+
                 dynamic response = JsonConvert.DeserializeObject(cleanedJson);
                 string pantheonId = response.usp_DEVC_AA_CreateSubject_out["@anQId"].ToString();
                 tracingService.Trace("Pantheon ID: {0}", pantheonId);
@@ -85,8 +92,8 @@ namespace AnalysisWF
         {
             var acBuyer = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000001 ? "T" : "F";
             var acSupplier = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000000 ? "T" : "F";
-            var acCurrency = GetLookupFieldValue(account.GetAttributeValue<EntityReference>("transactioncurrencyid"), "isocurrencycode", service);
-            var acPost = GetLookupFieldValue(account.GetAttributeValue<EntityReference>("extreme_postalcode"), "extreme_postalcode", service);
+            var acCurrency = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("transactioncurrencyid"), "isocurrencycode", service);
+            var acPost = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("extreme_postalcode"), "extreme_postalcode", service);
 
             var sb = new StringBuilder();
             sb.Append("{");
@@ -133,14 +140,14 @@ namespace AnalysisWF
             }
         }
 
-        private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
-        {
-            if (lookup == null)
-                return string.Empty;
+        //private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
+        //{
+        //    if (lookup == null)
+        //        return string.Empty;
 
-            var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
-            return entity.GetAttributeValue<string>(fieldName);
-        }
+        //    var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
+        //    return entity.GetAttributeValue<string>(fieldName);
+        //}
 
         //private async Task<string> GetAuthToken(ITracingService tracingService, IOrganizationService service)
         //{
