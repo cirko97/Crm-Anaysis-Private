@@ -2,6 +2,7 @@
 using System.Activities;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xrm.Sdk;
@@ -26,6 +27,8 @@ namespace AnalysisWF
         [Output("PantheonID")]
         public OutArgument<string> PantheonID { get; set; }
 
+        [Output("API Response")]
+        public OutArgument<string> ApiResponse { get; set; }
         #endregion
 
         protected override void Execute(CodeActivityContext context)
@@ -45,7 +48,7 @@ namespace AnalysisWF
                 var token = AuthHelper.GetAuthToken(tracingService, service).GetAwaiter().GetResult();
 
                 // Priprema podataka za slanje
-                var jsonData = PrepareCostDriveData(opportunity);
+                var jsonData = PrepareCostDriveData(opportunity, service);
                 tracingService.Trace("JSON podaci za slanje: {0}", jsonData);
 
                 // Poziv API-ja za slanje CostDrive zapisa
@@ -54,9 +57,13 @@ namespace AnalysisWF
                 tracingService.Trace("API Response: {0}", responseMessage);
 
                 // Parsiranje odgovora i postavljanje PantheonID-a
-                var cleanedResponse = responseMessage.Replace("\r", "").Replace("\n", "");
-                string cleanedJson = cleanedResponse.Replace("\"", "\"").Trim('"'); // Uklanjamo spoljašnje navodnike
+                var cleanedResponse = responseMessage.Replace("\\r", "").Replace("\\n", "");
+                string cleanedJson = cleanedResponse.Replace("\\\"", "\"").Trim('\"'); // Uklanjamo spoljašnje navodnike
                 tracingService.Trace("Cleaned API Response: {0}", cleanedJson);
+
+                // Set output parameter for the full API response
+                string formattedJson = JsonConvert.SerializeObject(JsonConvert.DeserializeObject(cleanedJson), Formatting.Indented);
+                ApiResponse.Set(context, formattedJson);
 
                 dynamic response = JsonConvert.DeserializeObject(cleanedJson);
                 string pantheonId = response.usp_DEVC_AA_CreateCostDrv_out["@anQId"].ToString();
@@ -78,9 +85,17 @@ namespace AnalysisWF
             }
         }
 
-        private string PrepareCostDriveData(Entity opportunity)
+        private string PrepareCostDriveData(Entity opportunity, IOrganizationService service)
         {
             var acCostDrv = opportunity.GetAttributeValue<string>("extreme_costprofitcentercode");
+            var acName = opportunity.GetAttributeValue<string>("name");
+            var acConsignee = "";
+            var acConsigneeSynced = Helper.GetLookupFieldValue(opportunity.GetAttributeValue<EntityReference>("customerid"), "extreme_synchronized", service).ToString();
+
+            if ((string)acConsigneeSynced == "Yes")
+            {
+                acConsignee = (string)Helper.GetLookupFieldValue(opportunity.GetAttributeValue<EntityReference>("customerid"), "name", service);
+            }
 
             var sb = new StringBuilder();
             sb.Append("{");
@@ -89,9 +104,9 @@ namespace AnalysisWF
             sb.Append("\"procname\": \"usp_DEVC_AA_CreateCostDrv\",");
             sb.Append("\"procparams\": {");
             sb.AppendFormat("\"acCostDrv\": \"{0}\",", acCostDrv);
-            sb.AppendFormat("\"acName\": \"{0}\",", acCostDrv);
+            sb.AppendFormat("\"acName\": \"{0}\",", acName);
             sb.AppendFormat("\"acClassif\": \"{0}\",", "");
-            sb.AppendFormat("\"acConsignee\": \"{0}\",", acCostDrv);
+            sb.AppendFormat("\"acConsignee\": \"{0}\",", acConsignee);
             sb.AppendFormat("\"acDept\": \"{0}\"", "");
             sb.Append("}");
             sb.Append("}");
