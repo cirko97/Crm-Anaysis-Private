@@ -26,6 +26,8 @@ namespace AnalysisWF
         [Output("PantheonID")]
         public OutArgument<string> PantheonID { get; set; }
 
+        [Output("API Response")]
+        public OutArgument<string> ApiResponse { get; set; }
         #endregion
 
         protected override void Execute(CodeActivityContext context)
@@ -54,9 +56,13 @@ namespace AnalysisWF
                 tracingService.Trace("API Response: {0}", responseMessage);
 
                 // Parsiranje odgovora i postavljanje PantheonID-a
-                var cleanedResponse = responseMessage.Replace("\r", "").Replace("\n", "");
-                string cleanedJson = cleanedResponse.Replace("\"", "\"").Trim('"'); // Uklanjamo spoljašnje navodnike
+                var cleanedResponse = responseMessage.Replace("\\r", "").Replace("\\n", "");
+                string cleanedJson = cleanedResponse.Replace("\\\"", "\"").Trim('\"'); // Uklanjamo spoljašnje navodnike
                 tracingService.Trace("Cleaned API Response: {0}", cleanedJson);
+
+                // Set output parameter for the full API response
+                string formattedJson = JsonConvert.SerializeObject(JsonConvert.DeserializeObject(cleanedJson), Formatting.Indented);
+                ApiResponse.Set(context, formattedJson);
 
                 dynamic response = JsonConvert.DeserializeObject(cleanedJson);
                 string pantheonId = response.usp_DEVC_AA_CreatePayMet_out["@anQId"].ToString();
