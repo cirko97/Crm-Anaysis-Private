@@ -17,8 +17,8 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		Xrm.Utility.showProgressIndicator(
 			'Synchronizing Data... Please Wait.');
 		//isAccountSynced
-		var accountId = formContext.getAttribute("customerid").getValue()[0].id;
-		if (isAccountSynced(accountId)) {
+		var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
+		if (!isAccountSynced(accountId)) {
 			Xrm.Utility.showProgressIndicator(
 				'Account Sync In Progress... Please Wait.');
 			await syncAccount(accountId);
@@ -195,7 +195,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 						'Products Sync In Progress... Please Wait.');
 
 					await syncProduct(newProductId);
-					
+
 					await updateQuoteLine(newProductId, quotedetailid);
 					//Update QuoteLine
 				} else {

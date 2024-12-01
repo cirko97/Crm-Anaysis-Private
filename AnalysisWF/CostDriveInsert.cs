@@ -90,9 +90,9 @@ namespace AnalysisWF
             var acCostDrv = opportunity.GetAttributeValue<string>("extreme_costprofitcentercode");
             var acName = opportunity.GetAttributeValue<string>("name");
             var acConsignee = "";
-            var acConsigneeSynced = Helper.GetLookupFieldValue(opportunity.GetAttributeValue<EntityReference>("customerid"), "extreme_synchronized", service).ToString();
+            var acConsigneeSynced = (bool)Helper.GetLookupFieldValue(opportunity.GetAttributeValue<EntityReference>("customerid"), "extreme_synchronized", service);
 
-            if ((string)acConsigneeSynced == "Yes")
+            if (acConsigneeSynced)
             {
                 acConsignee = (string)Helper.GetLookupFieldValue(opportunity.GetAttributeValue<EntityReference>("customerid"), "name", service);
             }
