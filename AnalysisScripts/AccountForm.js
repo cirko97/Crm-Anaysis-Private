@@ -9,97 +9,151 @@ var AccountForm = window.AccountForm || {};
         formContext = executionContext.getFormContext();
 
         // eslint-disable-next-line no-undef
-        //vscode change 2
-        //vscode change
-        //vs change
         var countryCode = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'countryCode'&$top=1").then(
-	        function success(results) {
+            function success(results) {
                 return results.entities[0]["extreme_value"];
-	        },
-	        function(error) {
-		        console.log(error.message);
-	        }
+            },
+            function (error) {
+                console.log(error.message);
+            }
         );
 
         const formType = formContext.ui.getFormType();
         if (formType === FORM_NEW) {
-
             await setDefaults(formContext);
-            
-        }else if (formType === FORM_EDIT && formContext.getAttribute("extreme_tax").getValue() == null){
+        } else if (formType === FORM_EDIT && formContext.getAttribute("extreme_tax").getValue() == null) {
             await setDefaults(formContext);
         }
 
         formContext.getAttribute("extreme_vatnumber").addOnChange(validateVAT);
+        formContext.getAttribute("telephone1").addOnChange(() => formatPhoneNumber("telephone1"));
+        formContext.getAttribute("telephone2").addOnChange(() => formatPhoneNumber("telephone2"));
+    };
 
-        const validateVAT = async function () {
-            
-            if(formContext.getAttribute("extreme_vatnumber").getValue() !== null) {
-                var vatNumber = formContext.getAttribute("extreme_vatnumber").getValue();
-            
-                switch (countryCode.toUpperCase()) {
-                    case 'HR':
-                         if(validateCroatiaVAT(vatNumber)){
-                            formContext.getControl("extreme_vatnumber").clearNotification("VatValidation");
-                            break;
-                         }else{
-                            formContext.getControl("extreme_vatnumber").setNotification("OIB (VAT number) must contain exactly 11 digits.", "VatValidation");
-                            formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("always");
-                            break;
-                         }
-                    case 'SI':
-                        if(validateSloveniaVAT(vatNumber)){
-                            formContext.getControl("extreme_vatnumber").clearNotification("VatValidation");
-                            break;
-                         }else{
-                            formContext.getControl("extreme_vatnumber").setNotification("VAT number must contain exactly 8 digits.", "VatValidation");
-                            formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("always");
-                            break;
-                         }
-                    case 'RS':
-                        if(validateSerbiaVAT(vatNumber)){
-                            formContext.getControl("extreme_vatnumber").clearNotification("VatValidation");
-                            break;
-                         }else{
-                            formContext.getControl("extreme_vatnumber").setNotification("PIB (VAT number) must contain exactly 9 digits.", "VatValidation");
-                            formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("always");
-                            break;
-                         }
-                    case 'MK':
-                        if(validateMacedoniaVAT(vatNumber)){
-                            formContext.getControl("extreme_vatnumber").clearNotification("VatValidation");
-                            break;
-                         }else{
-                            formContext.getControl("extreme_vatnumber").setNotification("VAT number must contain exactly 13 digits.", "VatValidation");
-                            formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("always");
-                            break;
-                         }
-                    default:
-                        return false;
-                }
+    async function validateVAT() {
+        if (formContext.getAttribute("extreme_vatnumber").getValue() !== null) {
+            var vatNumber = formContext.getAttribute("extreme_vatnumber").getValue();
+            var lengthValid = false;
+            var logicValid = false;
+            var errorMessage = "";
+
+            switch (countryCode.toUpperCase()) {
+                case 'HR':
+                    lengthValid = vatNumber.length === 11;
+                    logicValid = validateCroatiaVAT(vatNumber);
+                    if (!lengthValid) {
+                        errorMessage = "OIB (VAT number) must contain exactly 11 digits.";
+                    } else if (!logicValid) {
+                        errorMessage = "OIB (VAT number) is not valid.";
+                    }
+                    break;
+                case 'SI':
+                    lengthValid = vatNumber.length === 8;
+                    logicValid = validateSloveniaVAT(vatNumber);
+                    if (!lengthValid) {
+                        errorMessage = "VAT number must contain exactly 8 digits.";
+                    } else if (!logicValid) {
+                        errorMessage = "VAT number is not valid.";
+                    }
+                    break;
+                case 'RS':
+                    lengthValid = vatNumber.length === 9;
+                    logicValid = validateSerbiaVAT(vatNumber);
+                    if (!lengthValid) {
+                        errorMessage = "PIB (VAT number) must contain exactly 9 digits.";
+                    } else if (!logicValid) {
+                        errorMessage = "PIB (VAT number) is not valid.";
+                    }
+                    break;
+                case 'MK':
+                    lengthValid = vatNumber.length === 13;
+                    logicValid = validateMacedoniaVAT(vatNumber);
+                    if (!lengthValid) {
+                        errorMessage = "VAT number must contain exactly 13 digits.";
+                    } else if (!logicValid) {
+                        errorMessage = "VAT number is not valid.";
+                    }
+                    break;
+                default:
+                    return false;
             }
-            
+
+            if (!lengthValid || !logicValid) {
+                formContext.getControl("extreme_vatnumber").setNotification(errorMessage, "VatValidation");
+                formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("always");
+            } else {
+                formContext.getControl("extreme_vatnumber").clearNotification("VatValidation");
+                formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("dirty");
+            }
         }
     }
 
+    function formatPhoneNumber(fieldName) {
+        var phoneNumber = formContext.getAttribute(fieldName);
+        if (phoneNumber.getValue() != null) {
+            var phoneNo = phoneNumber.getValue().replace(/[^0-9]/g, "");
+            var formattedNumber = "";
+
+            if (phoneNo.length < 6 || phoneNo.length > 15) {
+                formContext.getControl(fieldName).setNotification("Phone number must be between 6 and 15 digits.", "PhoneValidation");
+                return;
+            } else {
+                formContext.getControl(fieldName).clearNotification("PhoneValidation");
+            }
+
+            if (phoneNo.startsWith("381")) {
+                formattedNumber = formatSerbianPhone(phoneNo);
+            } else if (phoneNo.startsWith("386")) {
+                formattedNumber = formatSlovenianPhone(phoneNo);
+            } else if (phoneNo.startsWith("385")) {
+                formattedNumber = formatCroatianPhone(phoneNo);
+            } else {
+                formattedNumber = formatInternationalPhone(phoneNo);
+            }
+
+            phoneNumber.setValue(formattedNumber);
+        }
+    }
+    function formatSerbianPhone(phoneNo) {
+        if (phoneNo.length === 9) {
+            return "+381 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+        } else if (phoneNo.length === 10) {
+            return "+381 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+        }
+        return phoneNo;
+    }
+
+    function formatSlovenianPhone(phoneNo) {
+        if (phoneNo.length === 9) {
+            return "+386 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+        }
+        return phoneNo;
+    }
+
+    function formatCroatianPhone(phoneNo) {
+        if (phoneNo.length === 9) {
+            return "+385 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+        }
+        return phoneNo;
+    }
+
+    function formatInternationalPhone(phoneNo) {
+        return /*"+" +*/ phoneNo;
+    }
     const setDefaults = async function (formContext) {
         // eslint-disable-next-line no-undef
         var defaultTax = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'defaultTax'&$top=1").then(
-	        function success(results) {
+            function success(results) {
                 return results.entities[0]["extreme_value"];
-	        },
-	        function(error) {
-		        console.log(error.message);
-	        }
+            },
+            function (error) {
+                console.log(error.message);
+            }
         );
 
-        formContext.getAttribute("extreme_tax").setValue(parseInt(defaultTax));            
-    }
+        formContext.getAttribute("extreme_tax").setValue(parseInt(defaultTax));
+    };
 
-
-
-
-    
     const validateSloveniaVAT = function (vat) {
         vat = vat.replace(/\D/g, '');
 
@@ -117,7 +171,7 @@ var AccountForm = window.AccountForm || {};
         else if (modulus === 11) modulus = 1;
 
         return modulus === parseInt(vat.charAt(7), 10);
-    }
+    };
 
     const validateSerbiaVAT = function (vat) {
         vat = vat.replace(/\D/g, '');
@@ -132,10 +186,9 @@ var AccountForm = window.AccountForm || {};
         }
         let checkDigit = (11 - sum) % 10;
         return checkDigit === parseInt(vat.charAt(8), 10);
-    }
+    };
 
     const validateCroatiaVAT = function (vat) {
-        // Uklonite sve ne-cifrene karaktere
         vat = vat.replace(/\D/g, '');
 
         if (vat.length !== 11) return false;
@@ -148,14 +201,13 @@ var AccountForm = window.AccountForm || {};
         }
         let control = (11 - b) % 10;
         return control === parseInt(vat.charAt(10), 10);
-    }
+    };
 
     const validateMacedoniaVAT = function (vat) {
         vat = vat.replace(/\D/g, '');
 
-        // Pretpostavka da VAT broj ima 8 cifara
-        return vat.length === 8;
-    }
+        // Assuming VAT number must be 13 digits long for Macedonia
+        return vat.length === 13;
+    };
 
 }).call(AccountForm);
-

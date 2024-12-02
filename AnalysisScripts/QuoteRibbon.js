@@ -138,6 +138,8 @@ const isCostDriveNeeded = async function (formContext) {
 				isNeeded = true;
 				break;
 			};
+		default:
+			break;
 	}
 	return isNeeded;
 }
