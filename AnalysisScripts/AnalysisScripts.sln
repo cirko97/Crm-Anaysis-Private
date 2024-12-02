@@ -29,6 +29,7 @@ Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "devExtremeGrids", "devExtre
 		Release.AspNetCompiler.FixedNames = "false"
 		Release.AspNetCompiler.Debug = "False"
 		VWDPort = "22928"
+		SlnRelativePath = "devExtremeGrids\"
 	EndProjectSection
 EndProject
 Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "node_modules", "node_modules\", "{FC61AAC1-C8C9-48D7-B98A-B3779FFEBE83}"
@@ -49,6 +50,7 @@ Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "node_modules", "node_module
 		Release.AspNetCompiler.FixedNames = "false"
 		Release.AspNetCompiler.Debug = "False"
 		VWDPort = "22929"
+		SlnRelativePath = "node_modules\"
 	EndProjectSection
 EndProject
 Global
