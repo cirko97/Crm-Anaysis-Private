@@ -26,6 +26,9 @@ namespace AnalysisWF
         [Output("PantheonID")]
         public OutArgument<string> PantheonID { get; set; }
 
+        [Output("Shortened Product ID")]
+        public OutArgument<string> ShortenedProductID { get; set; }
+
         [Output("API Response")]
         public OutArgument<string> ApiResponse { get; set; }
         #endregion
@@ -47,7 +50,7 @@ namespace AnalysisWF
                 var token = AuthHelper.GetAuthToken(tracingService, service).GetAwaiter().GetResult();
 
                 // Priprema podataka za slanje
-                var jsonData = PrepareProductData(product, service);
+                var jsonData = PrepareProductData(product, service, context);
                 tracingService.Trace("JSON podaci za slanje: {0}", jsonData);
 
                 // Poziv API-ja za slanje Product zapisa
@@ -84,9 +87,16 @@ namespace AnalysisWF
             }
         }
 
-        private string PrepareProductData(Entity product, IOrganizationService service)
+        private string PrepareProductData(Entity product, IOrganizationService service, CodeActivityContext context)
         {
+            // Ensure acIdent is always the first 16 characters of the product number
             var acIdent = product.GetAttributeValue<string>("productnumber");
+            if (acIdent != null && acIdent.Length > 16)
+            {
+                acIdent = acIdent.Substring(0, 16);
+                ShortenedProductID.Set(context, acIdent);
+            }
+
             var acName = product.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
             var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_primaryclassification"), "name", service);
