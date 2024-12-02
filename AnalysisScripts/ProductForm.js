@@ -10,10 +10,20 @@ var ProductForm = window.ProductForm || {};
         if (formType === FORM_NEW) {
 
             setDefaults(formContext);
-            
+
         }
 
+        formContext.getAttribute("extreme_synchronized").addOnChange(lockProductID);
+        lockProductID();
+        
+        function lockProductID() {
+            if (formContext.getAttribute("extreme_synchronized").getValue()) {
+                formContext.getControl("productnumber").setDisabled(true);
+            }
+        }
     }
+
+    
 
     setDefaults = async function (formContext) {
         var DefaultUomSchedule = await Xrm.WebApi.retrieveMultipleRecords("uomschedule", "?$select=name&$filter=name eq 'Default Unit'&$top=1").then(

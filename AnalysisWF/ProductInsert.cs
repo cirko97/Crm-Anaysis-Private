@@ -19,12 +19,19 @@ namespace AnalysisWF
         [ReferenceTarget("product")]
         public InArgument<EntityReference> Product { get; set; }
 
+        [RequiredArgument]
+        [Input("Price")]
+        public InArgument<decimal> Price { get; set; }
+
         #endregion
 
         #region Output Properties
 
         [Output("PantheonID")]
         public OutArgument<string> PantheonID { get; set; }
+
+        [Output("Shortened Product ID")]
+        public OutArgument<string> ShortenedProductID { get; set; }
 
         [Output("API Response")]
         public OutArgument<string> ApiResponse { get; set; }
@@ -47,7 +54,7 @@ namespace AnalysisWF
                 var token = AuthHelper.GetAuthToken(tracingService, service).GetAwaiter().GetResult();
 
                 // Priprema podataka za slanje
-                var jsonData = PrepareProductData(product, service);
+                var jsonData = PrepareProductData(product, service, context);
                 tracingService.Trace("JSON podaci za slanje: {0}", jsonData);
 
                 // Poziv API-ja za slanje Product zapisa
@@ -84,13 +91,21 @@ namespace AnalysisWF
             }
         }
 
-        private string PrepareProductData(Entity product, IOrganizationService service)
+        private string PrepareProductData(Entity product, IOrganizationService service, CodeActivityContext context)
         {
+            // Ensure acIdent is always the first 16 characters of the product number
             var acIdent = product.GetAttributeValue<string>("productnumber");
+            if (acIdent != null && acIdent.Length > 16)
+            {
+                acIdent = acIdent.Substring(0, 16);
+                ShortenedProductID.Set(context, acIdent);
+            }
+
             var acName = product.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
             var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_primaryclassification"), "name", service);
             var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_secondaryclassification"), "name", service);
+            var anPrice = Price.Get(context);
 
             var sb = new StringBuilder();
             sb.Append("{");
@@ -103,7 +118,7 @@ namespace AnalysisWF
             sb.AppendFormat("\"acUM\": \"{0}\",", acUM);
             sb.AppendFormat("\"acClassif\": \"{0}\",", acClassif);
             sb.AppendFormat("\"acClassif2\": \"{0}\",", acClassif2);
-            sb.AppendFormat("\"anPrice\": {0},", 1300.22); // Hardkodovana vrednost cene kao primer
+            sb.AppendFormat("\"anPrice\": {0},", anPrice);
             sb.AppendFormat("\"acVATCode\": \"{0}\",", "NN");
             sb.AppendFormat("\"anVat\": \"{0}\",", "0");
             sb.AppendFormat("\"acCostDrv\": \"{0}\"", "");
