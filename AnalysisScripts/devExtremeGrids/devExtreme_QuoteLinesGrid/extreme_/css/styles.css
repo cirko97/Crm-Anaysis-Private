@@ -1,0 +1,41 @@
+#data-grid-demo {
+  min-height: 400px;
+}
+
+#gridDeleteSelected {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  margin: 1px;
+  top: 0;
+}
+
+#gridDeleteSelected .dx-button-text {
+  line-height: 0;
+}
+
+.grid-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-right: 15px;
+}
+
+.spacer {
+  margin-right: 5px;
+}
+
+/* Chrome, Safari, Edge, Opera */
+input.currencyRates::-webkit-outer-spin-button,
+input.currencyRates::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input.currencyRates[type=number] {
+  -moz-appearance: textfield;
+}
+
+.dx-datagrid-revert-tooltip {
+  display: none;
+}
