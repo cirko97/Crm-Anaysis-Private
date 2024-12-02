@@ -5,8 +5,6 @@ var ProductForm = window.ProductForm || {};
 
     this.OnLoad = async function (executionContext) {
         formContext = executionContext.getFormContext();
-        
-        const disposalDate = formContext.getAttribute("extreme_disposaldate");
 
         const formType = formContext.ui.getFormType();
         if (formType === FORM_NEW) {

@@ -5,6 +5,7 @@ VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BD1516F4-0528-4211-962A-A2538E6472AC}"
 	ProjectSection(SolutionItems) = preProject
+		AccountForm.js = AccountForm.js
 		AccountRibbon.js = AccountRibbon.js
 		ProductForm.js = ProductForm.js
 		QuoteRibbon.js = QuoteRibbon.js

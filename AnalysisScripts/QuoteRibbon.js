@@ -18,7 +18,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			'Synchronizing Data... Please Wait.');
 		//isAccountSynced
 		var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
-		if (!isAccountSynced(accountId)) {
+		if (await isAccountSynced(accountId) == false) {
 			Xrm.Utility.showProgressIndicator(
 				'Account Sync In Progress... Please Wait.');
 			await syncAccount(accountId);
@@ -44,7 +44,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			'Quote Synchronized!');
 		setTimeout(() => {
 			Xrm.Utility.closeProgressIndicator('Success!');
-		}, "3000");
+		}, "1500");
 	}
 	this.SyncQuoteButtonEnableRule = function (formContext) {
 		var statecode = formContext.getAttribute("statecode").getValue();

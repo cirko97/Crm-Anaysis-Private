@@ -9,7 +9,7 @@ var AccountRibbon = window.AccountRibbon || {};
 		var confirmOptions = { height: 300, width: 450 };
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
 		function (success) {    
-			if (success.confirmed)
+			if (success.confirmed){
 				var executeWorkflowRequest = {
 					entity: { entityType: "workflow", id: `${workflowId}` },
 					EntityId: { guid: `${accountId}` },
@@ -38,6 +38,7 @@ var AccountRibbon = window.AccountRibbon || {};
 				}).catch(function (error) {
 					console.log(error.message);
 				});
+			}
 		});
 	}
 
