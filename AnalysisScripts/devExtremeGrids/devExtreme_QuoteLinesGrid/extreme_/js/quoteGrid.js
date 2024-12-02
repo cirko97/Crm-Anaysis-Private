@@ -13,6 +13,7 @@ let newIdForCustomProducts = 100001;
 let newIdForCustomUnits = 200001;
 let heightAuto = true;
 let isAddingSet = null;
+let isDraftStatus = true;
 
 async function setClientApiContext(Xrm, formContext) {
   // Optionally set Xrm and formContext as global variables on the page.
@@ -21,13 +22,46 @@ async function setClientApiContext(Xrm, formContext) {
 
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
-
-
   const quoteIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
   const taxPercentOfAccount = await Xrm.WebApi.retrieveRecord("account", `${replaceCurlyBrackets(formContext.getAttribute('customerid').getValue()[0].id, '')}`, "?$select=extreme_tax");
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate");
 
+  await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=statecode").then(
+    function success(result) {
+      console.log(result);
+      // Columns
+      var quoteid = result["quoteid"]; // Guid
+      var statecode = result["statecode"]; // State
+      var statecode_formatted = result["statecode@OData.Community.Display.V1.FormattedValue"];
+
+      isDraftStatus = statecode === 0 ? true : false;
+
+    },
+    function (error) {
+      console.log(error.message);
+    }
+  );
+
+  formContext.getAttribute('transactioncurrencyid').addOnChange(async () => {
+    var record = {};
+    record.extreme_chfexchangerate = null; // Decimal
+    record.extreme_dollarexchangerate = null; // Decimal
+    record.extreme_euroexchangerate = null; // Decimal
+    record.extreme_gbpexchangerate = null; // Decimal
+    record.extreme_macedoniandenarexchangerate = null; // Decimal
+    record.extreme_rsdexchangerate = null; // Decimal
+
+    await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record).then(
+      function success(result) {
+        var updatedId = result.id;
+        console.log(updatedId);
+      },
+      function (error) {
+        console.log(error.message);
+      }
+    );
+  });
 
   let quoteCurrency = null;
   let quoteCurrencySymbol = null;
@@ -616,9 +650,9 @@ async function setClientApiContext(Xrm, formContext) {
         // },
         editing: {
           mode: 'cell',
-          allowUpdating: true,
-          allowAdding: true,
-          allowDeleting: true,
+          allowUpdating: isDraftStatus,
+          allowAdding: isDraftStatus,
+          allowDeleting: isDraftStatus,
           useIcons: true
         },
         // selection: {
@@ -636,12 +670,18 @@ async function setClientApiContext(Xrm, formContext) {
           scrollByThumb: true
         },
         rowDragging: {
-          allowReordering: true,
+          allowReordering: isDraftStatus,
           allowDropInsideItem: false,
           showDragIcons: true,
           onReorder(e) {
             console.log("reodrering e");
             console.log(e);
+
+            if (!isDraftStatus) {
+              Xrm.Navigation.openAlertDialog({ confirmButtonLabel: "Close", text: "Grid is in read-only mode.", title: "Cannot do that" });
+              return;
+            }
+
             const visibleRows = e.component.getVisibleRows();
             const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
             const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
@@ -709,9 +749,9 @@ async function setClientApiContext(Xrm, formContext) {
                 // },
                 editing: {
                   mode: 'cell',
-                  allowUpdating: true,
+                  allowUpdating: isDraftStatus,
                   allowAdding: false,
-                  allowDeleting: true,
+                  allowDeleting: isDraftStatus,
                   useIcons: true
                 },
                 // selection: {
@@ -729,12 +769,17 @@ async function setClientApiContext(Xrm, formContext) {
                   scrollByThumb: true
                 },
                 rowDragging: {
-                  allowReordering: true,
+                  allowReordering: isDraftStatus,
                   allowDropInsideItem: false,
                   showDragIcons: true,
                   onReorder(e) {
                     console.log("reodrering e");
                     console.log(e);
+
+                    if (!isDraftStatus) {
+                      Xrm.Navigation.openAlertDialog({ confirmButtonLabel: "Close", text: "Grid is in read-only mode.", title: "Cannot do that" });
+                      return;
+                    }
 
                     if (e.fromData === e.toData) {
                       console.log('inside the same child - reordering');
@@ -1622,8 +1667,6 @@ async function setClientApiContext(Xrm, formContext) {
                   newData.extreme_supplierpriceperunit = priceListItemAmount;
                 }
               };
-              
-              newData.quantity = 1;
             },
             customizeText: function (cellInfo) {
               if (cellInfo.valueText) {
@@ -1986,6 +2029,7 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_pricelist',
             caption: 'Price list',
+            white: 70,
             lookup: {
               dataSource(options) {
                 return {
@@ -2042,7 +2086,7 @@ async function setClientApiContext(Xrm, formContext) {
 
               const newOrgPrice = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).amount_num;
               const newOrgCurrency = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).currency_code;
-              const newOrgCurrencyValue = parseFloat($(`#${newOrgCurrency}`).val());
+              const newOrgCurrencyValue = $(`#${newOrgCurrency}`).val() ? parseFloat($(`#${newOrgCurrency}`).val()) : 1;
               const newOrgCurrencySymbol = currenciesArray.find((item) => item.isocurrencycode == newOrgCurrency).currencysymbol;
 
               console.log(newOrgPrice);
@@ -2102,6 +2146,7 @@ async function setClientApiContext(Xrm, formContext) {
                 icon: 'plus',
                 text: 'Add a row',
                 width: 'auto',
+                disabled: !isDraftStatus,
                 onClick(e) {
                   console.log(e);
                   console.log(dataGrid);
@@ -2138,6 +2183,7 @@ async function setClientApiContext(Xrm, formContext) {
                 icon: 'plus',
                 text: 'Add new set',
                 width: 'auto',
+                disabled: !isDraftStatus,
                 onClick(e) {
                   console.log(e);
                   console.log(dataGrid);
@@ -2205,7 +2251,8 @@ async function setClientApiContext(Xrm, formContext) {
                       type: 'number',
                       id: currency,
                       class: 'currencyRates',
-                      value: rate
+                      value: rate,
+                      disabled: !isDraftStatus,
                     }).css({
                       'max-width': '80px',
                       'height': '28px',
@@ -2224,45 +2271,35 @@ async function setClientApiContext(Xrm, formContext) {
                         case "EUR":
                           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_euroexchangerate: parseFloat(newValue) });
                           await exchangeRateChange(currency, newValue);
-                          // await getQuoteProducts(quoteIdForm);
-                          // dataGrid.refresh();
 
                           break;
                         case "USD":
                           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_dollarexchangerate: parseFloat(newValue) });
                           await exchangeRateChange(currency, newValue);
-                          // await getQuoteProducts(quoteIdForm);
-                          // dataGrid.refresh();
 
                           break;
                         case "CHF":
                           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_chfexchangerate: parseFloat(newValue) });
                           await exchangeRateChange(currency, newValue);
-                          // await getQuoteProducts(quoteIdForm);
-                          // dataGrid.refresh();
 
                           break;
                         case "RSD":
                           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_rsdexchangerate: parseFloat(newValue) });
                           await exchangeRateChange(currency, newValue);
-                          // await getQuoteProducts(quoteIdForm);
-                          // dataGrid.refresh();
 
                           break;
                         case "MKD":
                           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_macedoniandenarexchangerate: parseFloat(newValue) });
                           await exchangeRateChange(currency, newValue);
-                          // await getQuoteProducts(quoteIdForm);
-                          // dataGrid.refresh();
 
                           break;
                         case "GBP":
                           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_gbpexchangerate: parseFloat(newValue) });
                           await exchangeRateChange(currency, newValue);
-                          await getQuoteProducts(quoteIdForm);
-                          dataGrid.refresh();
+
                           break;
                         default:
+
                           break;
                       }
                       Xrm.Utility.closeProgressIndicator();
@@ -2296,14 +2333,24 @@ async function setClientApiContext(Xrm, formContext) {
 
           if (e.rowType === 'data' && !e.data.extreme_isparentitem && e.data.quotedetailid) {
             console.log('REMOVED EXPAND FOR ', e.data.quotedetailid);
+            console.log(dataGrid.hasEditData());
+            console.log(e.cells[1].cellElement[0]);
             e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
             e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
+            e.cells[1].cellElement[0].style.display = "none";
+            e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
           }
 
         },
         onEditorPreparing: async (e) => {
           console.log('Editor Preparing');
           console.log(e);
+
+          if (e.dataField == "productid" && e.row.data.extreme_isparentitem === false) {
+            console.log('e.editorElement');
+            console.log(e.editorElement);
+            e.editorElement[0].parentElement.setAttribute('colspan', '2');
+          }
 
           if ((e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number')) e.editorOptions.disabled = true;
 
@@ -2695,6 +2742,11 @@ async function setClientApiContext(Xrm, formContext) {
 
       // onAdd Drag and Drop function
       async function onAdd(e) {
+
+        if (!isDraftStatus) {
+          Xrm.Navigation.openAlertDialog({ confirmButtonLabel: "Close", text: "Grid is in read-only mode.", title: "Cannot do that" });
+          return;
+        }
 
         Xrm.Utility.showProgressIndicator('');
 
