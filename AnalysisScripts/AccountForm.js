@@ -10,6 +10,8 @@ var AccountForm = window.AccountForm || {};
 
         // eslint-disable-next-line no-undef
         //vscode change 2
+        //vscode change
+        //vs change
         var countryCode = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'countryCode'&$top=1").then(
 	        function success(results) {
                 return results.entities[0]["extreme_value"];
