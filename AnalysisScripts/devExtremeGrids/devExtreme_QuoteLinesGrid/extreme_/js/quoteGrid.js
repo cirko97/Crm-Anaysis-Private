@@ -1626,6 +1626,7 @@ async function setClientApiContext(Xrm, formContext) {
             setCellValue: async function (newData, value, currentRowData) {
 
               let priceListItemInfo = [];
+              let supplierPricePerUnit = 0;
 
               if (productsStore._array.find((item) => item.id === value).pricelevelid) {
                 if (value !== null) {
@@ -1663,10 +1664,35 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log(productsStore._array.find((item) => item.id === value).priceListItemAmount);
                   console.log(currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode);
                   newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
+                  supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                 } else {
                   newData.extreme_supplierpriceperunit = priceListItemAmount;
+                  supplierPricePerUnit = priceListItemAmount;
                 }
               };
+
+              if (currentRowData.extreme_margin !== null &&
+                supplierPricePerUnit !== null &&
+                currentRowData.extreme_supplierdiscount !== null &&
+                currentRowData.extreme_discount !== null) {
+                console.log("NEW DATA FROM SELECTING PRODUCT");
+                console.log(currentRowData.extreme_margin);
+                console.log(supplierPricePerUnit);
+                console.log(currentRowData.extreme_discount);
+                console.log(1);
+                newData.quantity = 1;
+                newData.extreme_supplierbaseamount = supplierPricePerUnit * 1;
+                newData.priceperunit = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit);
+                newData.baseamount = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit) * 1;
+                newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1;
+                console.log(newData.extreme_fullpricewithdiscount);
+                newData.manualdiscountamount = (1 * (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit))) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + taxPercentOfAccount.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + taxPercentOfAccount.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                newData.extreme_pd = (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) - (supplierPricePerUnit - (supplierPricePerUnit * (1 - currentRowData.extreme_supplierdiscount / 100)));
+                newData.extreme_fullpd = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) - (supplierPricePerUnit - (supplierPricePerUnit * (1 - currentRowData.extreme_supplierdiscount / 100)))) * 1
+              }
+
             },
             customizeText: function (cellInfo) {
               if (cellInfo.valueText) {
