@@ -184,8 +184,16 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 		function(error) {
 			console.log(error.message);
 		}
-	);;
-
+	);
+	var primaryUnit = await Xrm.WebApi.retrieveMultipleRecords("uom", "?$filter=name eq 'Primary Unit'").then(
+		function success(results) {
+			console.log(results);
+			return results.entities[0]["uomid"];
+		},
+		function(error) {
+			console.log(error.message);
+		}
+	);
 	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
 		async function success(results) {
 			console.log(results);
@@ -221,14 +229,46 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 					//Create And Sync Product
 					Xrm.Utility.showProgressIndicator(
 						'Products Creation In Progress... Please Wait.');
-
+					
 					var record = {};
+					//UOM Check
+					var newUomId = null;
+				    await Xrm.WebApi.retrieveMultipleRecords("uom", `?$filter=name eq '${extreme_uomid}'`).then(
+						function success(results) {
+							console.log(results);
+							if(results.entities.length > 0)
+								newUomId = results.entities[0]["uomid"];
+						},
+						function(error) {
+							console.log(error.message);
+						}
+					);
+					if (newUomId !== null){
+						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
+					}else {
+						var uomrecord = {};
+							uomrecord["baseuom@odata.bind"] = `/uoms(${primaryUnit})`; // Lookup
+							uomrecord["uomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
+							uomrecord.name = extreme_uomid; // Text
+							uomrecord.quantity = 1; // Decimal
+
+						newUomId = await Xrm.WebApi.createRecord("uom", uomrecord).then(
+							function success(result) {
+								return result.id;
+								console.log(newId);
+							},
+							function(error) {
+								console.log(error.message);
+							}
+						);
+						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
+					}
+					
 					record.productnumber = extreme_customproductid; // Text
 					record.name = quotedetailname; // Text
 					record.description = extreme_productdescription; // Multiline Text
 					record.quantitydecimal = 2; // Whole Number
 					record["defaultuomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
-					record["defaultuomid@odata.bind"] = `/uoms(${extreme_uomid})`; // Lookup
 					record["extreme_Area@odata.bind"] = `/extreme_areas(${extreme_area})`; // Lookup
 					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
 					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
