@@ -95,7 +95,7 @@ namespace AnalysisWF
         {
             // Ensure acIdent is always the first 16 characters of the product number
             var acIdent = product.GetAttributeValue<string>("productnumber");
-            if (acIdent != null)
+            if (acIdent != null && acIdent.Length > 16)
             {
                 acIdent = acIdent.Substring(0, 16);
                 
@@ -104,8 +104,8 @@ namespace AnalysisWF
 
             var acName = product.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
-            var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_primaryclassification"), "name", service);
-            var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_secondaryclassification"), "name", service);
+            var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_technology"), "name", service);
+            var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_area"), "name", service);
             var anPrice = Price.Get(context);
 
             var sb = new StringBuilder();
