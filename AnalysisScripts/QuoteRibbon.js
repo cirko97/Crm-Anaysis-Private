@@ -175,23 +175,72 @@ const syncCostDrive = async function (oppId) {
 const areAllProductsCreatedAndSynced = async function (quoteId) {
 	Xrm.Utility.showProgressIndicator(
 		'Products Check In Progress... Please Wait.');
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_productid_value&$filter=_quoteid_value eq ${quoteId}`).then(
+
+	var defaultuomscheduleid = await Xrm.WebApi.retrieveMultipleRecords("uomschedule", "?$filter=name eq 'Default Unit'").then(
+		function success(results) {
+			console.log(results);
+			return results.entities[0]["uomscheduleid"];
+		},
+		function(error) {
+			console.log(error.message);
+		}
+	);;
+
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
 		async function success(results) {
 			console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
 				var result = results.entities[i];
 				// Columns
 				var quotedetailid = result["quotedetailid"]; // Guid
+				var extreme_area = result["_extreme_area_value"]; // Lookup
+				var extreme_area_formatted = result["_extreme_area_value@OData.Community.Display.V1.FormattedValue"];
+				var extreme_area_lookuplogicalname = result["_extreme_area_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 				var productid = result["_productid_value"]; // Lookup
 				var productid_formatted = result["_productid_value@OData.Community.Display.V1.FormattedValue"];
 				var productid_lookuplogicalname = result["_productid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+				var extreme_productdescription = result["extreme_productdescription"]; // Multiline Text
+				var extreme_customproductid = result["extreme_customproductid"]; // Text
+				var extreme_productid = result["extreme_productid"]; // Text
+				var quotedetailname = result["quotedetailname"]; // Text
+				var productname = result["productname"]; // Text
+				var productnumber = result["productnumber"]; // Text
+				var extreme_technology = result["_extreme_technology_value"]; // Lookup
+				var extreme_technology_formatted = result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"];
+				var extreme_technology_lookuplogicalname = result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+				var uomid = result["_uomid_value"]; // Lookup
+				var uomid_formatted = result["_uomid_value@OData.Community.Display.V1.FormattedValue"];
+				var uomid_lookuplogicalname = result["_uomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+				var extreme_vendorsupplier = result["_extreme_vendorsupplier_value"]; // Lookup
+				var extreme_vendorsupplier_formatted = result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"];
+				var extreme_vendorsupplier_lookuplogicalname = result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+				var productdescription = result["productdescription"]; // Text
 
 				if (productid == null) {
 					//Create And Sync Product
 					Xrm.Utility.showProgressIndicator(
 						'Products Creation In Progress... Please Wait.');
 
-					await createProduct(quoteId);
+					var record = {};
+					record.productnumber = extreme_customproductid; // Text
+					record.name = quotedetailname; // Text
+					record.description = extreme_productdescription; // Multiline Text
+					record.quantitydecimal = 2; // Whole Number
+					record["defaultuomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
+					record["defaultuomid@odata.bind"] = `/uoms(${uomid})`; // Lookup
+					record["extreme_Area@odata.bind"] = `/extreme_areas(${extreme_area})`; // Lookup
+					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
+					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
+
+					var newProductId = await Xrm.WebApi.createRecord("product", record).then(
+						function success(result) {
+							var newId = result.id;
+							console.log(newId);
+						},
+						function(error) {
+							console.log(error.message);
+						}
+					);
 
 					Xrm.Utility.showProgressIndicator(
 						'Products Sync In Progress... Please Wait.');
@@ -229,9 +278,10 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 		}
 	);
 }
+
 const syncProduct = async function (productId) {
 	// GUID  -  SYNC Product Workflow
-	var workflowId = 'GUID';
+	var workflowId = 'A1A4C887-F9B0-EF11-B8E8-6045BD898D29';
 	var executeWorkflowRequest = {
 		entity: { entityType: "workflow", id: `${workflowId}` },
 		EntityId: { guid: `${productId}` },
