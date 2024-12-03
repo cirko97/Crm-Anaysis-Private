@@ -104,8 +104,10 @@ namespace AnalysisWF
 
             var acName = product.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
-            var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_technology"), "name", service);
-            var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_area"), "name", service);
+            //var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service);
+            //var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service);
+            var acClassif = "";
+            var acClassif2 = "";
             var anPrice = Price.Get(context);
 
             var sb = new StringBuilder();
