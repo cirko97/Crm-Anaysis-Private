@@ -204,7 +204,7 @@ async function setClientApiContext(Xrm, formContext) {
           var quotedetailid = result["quotedetailid"]; // Guid
 
           if (extreme_isparentitem === true) {
-            await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${quotedetailid}`).then(
+            await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${quotedetailid}`).then(
               function success(results) {
                 console.log(results);
                 for (var i = 0; i < results.entities.length; i++) {
@@ -293,6 +293,15 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_parentquoteline = result["_extreme_parentquoteline_value"]; // Lookup
           var extreme_parentquoteline_formatted = result["_extreme_parentquoteline_value@OData.Community.Display.V1.FormattedValue"];
           var extreme_parentquoteline_lookuplogicalname = result["_extreme_parentquoteline_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+          var extreme_area = result["_extreme_area_value"]; // Lookup
+          var extreme_area_formatted = result["_extreme_area_value@OData.Community.Display.V1.FormattedValue"];
+          var extreme_area_lookuplogicalname = result["_extreme_area_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+          var extreme_technology = result["_extreme_technology_value"]; // Lookup
+          var extreme_technology_formatted = result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"];
+          var extreme_technology_lookuplogicalname = result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+          var extreme_vendorsupplier = result["_extreme_vendorsupplier_value"]; // Lookup
+          var extreme_vendorsupplier_formatted = result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"];
+          var extreme_vendorsupplier_lookuplogicalname = result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
 
           let newCustomIdForUnit = 0;
@@ -343,7 +352,10 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_pricelist": extreme_pricelist,
             "sequencenumber": sequencenumber,
             "extreme_isparentitem": extreme_isparentitem,
-            "extreme_parentquoteline": extreme_parentquoteline
+            "extreme_parentquoteline": extreme_parentquoteline,
+            "extreme_area": extreme_area,
+            "extreme_technology": extreme_technology,
+            "extreme_vendorsupplier": extreme_vendorsupplier
           });
 
           if (!productid) {
@@ -639,7 +651,7 @@ async function setClientApiContext(Xrm, formContext) {
         wordWrapEnabled: true,
         showColumnLines: true,
         showRowLines: true,
-        rowAlternationEnabled: true,
+        rowAlternationEnabled: false,
         showBorders: true,
         // headerFilter: {
         //   visible: true,
@@ -809,11 +821,12 @@ async function setClientApiContext(Xrm, formContext) {
                     caption: 'Order',
                     dataType: 'number',
                     sortOrder: 'asc',
-                    visible: false
+                    visible: dataGrid.columnOption('sequencenumber', 'visible')
                   },
                   {
                     dataField: 'productid',
                     caption: 'Product ID',
+                    visible: dataGrid.columnOption('productid', 'visible'),
                     lookup: {
                       dataSource: {
                         store: productsStore,
@@ -921,17 +934,20 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'quotedetailname',
                     caption: 'Name',
-                    dataType: 'string'
+                    dataType: 'string',
+                    visible: dataGrid.columnOption('quotedetailname', 'visible')
                   },
                   {
                     dataField: 'extreme_productdescription',
                     caption: 'Description',
-                    dataType: 'string'
+                    dataType: 'string',
+                    visible: dataGrid.columnOption('extreme_productdescription', 'visible')
                   },
                   {
                     dataField: 'quantity',
                     caption: 'Qty',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('quantity', 'visible'),
                     setCellValue: async function (newData, value, currentRowData) {
 
                       console.log('currentRowData');
@@ -969,6 +985,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'uomid',
                     caption: 'Unit',
+                    visible: dataGrid.columnOption('uomid', 'visible'),
                     lookup: {
                       dataSource: {
                         store: unitsStore,
@@ -1019,20 +1036,21 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log(container, info);
                       return info.data.extreme_pricelistpriceperunit !== null ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
                     },
-                    visible: dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? true : false,
+                    visible: dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible'),
                     allowEditing: false
                   },
                   {
                     dataField: 'extreme_pricelistcurrency',
                     caption: 'Original Currency',
                     dataType: 'string',
-                    visible: false,
+                    visible: dataGrid.columnOption('extreme_pricelistcurrency', 'visible'),
                     allowEditing: false
                   },
                   {
                     dataField: 'extreme_supplierpriceperunit',
                     caption: 'PPU',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('extreme_supplierpriceperunit', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1050,6 +1068,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_supplierbaseamount',
                     caption: 'Base Amount',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('extreme_supplierbaseamount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1077,12 +1096,13 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.extreme_fullpd = (currentRowData.priceperunit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (1 - value / 100)))) * currentRowData.quantity;
                       }
                     },
-                    visible: dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? true : false
+                    visible: dataGrid.columnOption('extreme_supplierdiscount', 'visible')
                   },
                   {
                     dataField: 'extreme_margin',
                     caption: 'Margin',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('extreme_margin', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 1
@@ -1107,6 +1127,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'priceperunit',
                     caption: 'Sales PPU',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('priceperunit', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1120,6 +1141,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'baseamount',
                     caption: 'Sales Amount',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('baseamount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1133,6 +1155,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_discount',
                     caption: 'Disc. %',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('extreme_discount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1163,7 +1186,7 @@ async function setClientApiContext(Xrm, formContext) {
                       precision: 2
                     },
                     allowEditing: false,
-                    visible: dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? true : false,
+                    visible: dataGrid.columnOption('manualdiscountamount', 'visible'),
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
@@ -1181,6 +1204,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_fullpricewithdiscount',
                     caption: 'Amount',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('extreme_fullpricewithdiscount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1204,6 +1228,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_tax',
                     caption: 'VAT %',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('extreme_tax', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1217,6 +1242,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'tax',
                     caption: 'VAT Amount',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('tax', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1237,7 +1263,7 @@ async function setClientApiContext(Xrm, formContext) {
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
-                    visible: dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? true : false
+                    visible: dataGrid.columnOption('extreme_pd', 'visible')
                   },
                   {
                     dataField: 'extreme_fullpd',
@@ -1250,12 +1276,13 @@ async function setClientApiContext(Xrm, formContext) {
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
-                    visible: dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? true : false
+                    visible: dataGrid.columnOption('extreme_fullpd', 'visible')
                   },
                   {
                     dataField: 'extendedamount',
                     caption: 'Total Amount',
                     dataType: 'number',
+                    visible: dataGrid.columnOption('extendedamount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1268,6 +1295,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'extreme_pricelist',
                     caption: 'Price list',
+                    visible: dataGrid.columnOption('extreme_pricelist', 'visible'),
                     lookup: {
                       dataSource(options) {
                         return {
@@ -1323,13 +1351,31 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_parentquoteline',
                     caption: 'Parent QL',
                     dataType: 'string',
-                    visible: false
+                    visible: dataGrid.columnOption('extreme_parentquoteline', 'visible')
                   },
                   {
                     dataField: 'extreme_isparentitem',
                     caption: 'Is Parent',
                     dataType: 'boolean',
-                    visible: false
+                    visible: dataGrid.columnOption('extreme_isparentitem', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_area',
+                    caption: 'Area',
+                    dataType: 'string',
+                    visible: dataGrid.columnOption('extreme_area', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_technology',
+                    caption: 'Technology',
+                    dataType: 'string',
+                    visible: dataGrid.columnOption('extreme_technology', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_vendorsupplier',
+                    caption: 'Vendor/Supplier',
+                    dataType: 'string',
+                    visible: dataGrid.columnOption('extreme_vendorsupplier', 'visible')
                   }
                 ],
                 onEditorPreparing: async (e) => {
@@ -2154,6 +2200,24 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Is Parent',
             dataType: 'boolean',
             visible: false
+          },
+          {
+            dataField: 'extreme_area',
+            caption: 'Area',
+            dataType: 'string',
+            visible: false
+          },
+          {
+            dataField: 'extreme_technology',
+            caption: 'Technology',
+            dataType: 'string',
+            visible: false
+          },
+          {
+            dataField: 'extreme_vendorsupplier',
+            caption: 'Vendor/Supplier',
+            dataType: 'string',
+            visible: false
           }
         ],
         toolbar: {
@@ -2246,19 +2310,165 @@ async function setClientApiContext(Xrm, formContext) {
               options: {
                 text: 'Compact',
                 width: 'auto',
+                elementAttr: {
+                  id: "compactBtn",
+                },
+                disabled: true,
                 onClick(e) {
                   console.log(e);
                   console.log(dataGrid);
-                  dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible', !dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible'));
+                  dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible', false);
                   // dataGrid.columnOption('extreme_pricelistcurrency', 'visible', !dataGrid.columnOption('extreme_pricelistcurrency', 'visible'));
-                  dataGrid.columnOption('extreme_supplierdiscount', 'visible', !dataGrid.columnOption('extreme_supplierdiscount', 'visible'));
-                  dataGrid.columnOption('extreme_pd', 'visible', !dataGrid.columnOption('extreme_pd', 'visible'));
-                  dataGrid.columnOption('extreme_fullpd', 'visible', !dataGrid.columnOption('extreme_fullpd', 'visible'));
-                  dataGrid.columnOption('manualdiscountamount', 'visible', !dataGrid.columnOption('manualdiscountamount', 'visible'));
-                  e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
+                  dataGrid.columnOption('extreme_supplierdiscount', 'visible', false);
+                  dataGrid.columnOption('extreme_pd', 'visible', false);
+                  dataGrid.columnOption('extreme_fullpd', 'visible', !false);
+                  dataGrid.columnOption('manualdiscountamount', 'visible', false);
+                  // e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
+
+                  // reset all columns after classify
+                  if ($('#classifyBtn').dxButton('instance').option('disabled') === true) {
+                    console.log('ALL COLUMNS');
+                    console.log(dataGrid.option('columns'));
+                    dataGrid.option('columns').forEach(col => {
+                      if (
+                        col.dataField !== "extreme_pricelistpriceperunit" &&
+                        col.dataField !== "extreme_supplierdiscount" &&
+                        col.dataField !== "extreme_pd" &&
+                        col.dataField !== "extreme_fullpd" &&
+                        col.dataField !== "manualdiscountamount" &&
+                        // other columns
+                        col.dataField !== "sequencenumber" &&
+                        col.dataField !== "extreme_pricelistcurrency" &&
+                        col.dataField !== "tax" &&
+                        col.dataField !== "extreme_parentquoteline" &&
+                        col.dataField !== "extreme_isparentitem"
+                      ) {
+                        dataGrid.columnOption(col.dataField, 'visible', true);
+                      }
+                    });
+
+                    dataGrid.columnOption('extreme_area', 'visible', false);
+                    dataGrid.columnOption('extreme_technology', 'visible', false);
+                    dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
+
+                  }
+
+                  $('#extendedBtn').dxButton('instance').option('disabled', false);
+                  $('#classifyBtn').dxButton('instance').option('disabled', false);
+                  e.component.option('disabled', true);
                 },
               },
             },
+            {
+              location: 'before',
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
+            {
+              location: 'before',
+              widget: 'dxButton',
+              options: {
+                text: 'Extended',
+                width: 'auto',
+                elementAttr: {
+                  id: "extendedBtn",
+                },
+                disabled: false,
+                onClick(e) {
+                  console.log(e);
+                  console.log(dataGrid);
+                  dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible', true);
+                  // dataGrid.columnOption('extreme_pricelistcurrency', 'visible', !dataGrid.columnOption('extreme_pricelistcurrency', 'visible'));
+                  dataGrid.columnOption('extreme_supplierdiscount', 'visible', true);
+                  dataGrid.columnOption('extreme_pd', 'visible', true);
+                  dataGrid.columnOption('extreme_fullpd', 'visible', true);
+                  dataGrid.columnOption('manualdiscountamount', 'visible', true);
+                  // e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
+
+                  // reset all columns after classify
+                  if ($('#classifyBtn').dxButton('instance').option('disabled') === true) {
+                    console.log('ALL COLUMNS');
+                    console.log(dataGrid.option('columns'));
+                    dataGrid.option('columns').forEach(col => {
+                      if (
+                        // col.dataField !== "extreme_pricelistpriceperunit" &&
+                        // col.dataField !== "extreme_supplierdiscount" &&
+                        // col.dataField !== "extreme_pd" &&
+                        // col.dataField !== "extreme_fullpd" &&
+                        // col.dataField !== "manualdiscountamount" &&
+                        // other columns
+                        col.dataField !== "sequencenumber" &&
+                        col.dataField !== "extreme_pricelistcurrency" &&
+                        col.dataField !== "tax" &&
+                        col.dataField !== "extreme_parentquoteline" &&
+                        col.dataField !== "extreme_isparentitem"
+                      ) {
+                        dataGrid.columnOption(col.dataField, 'visible', true);
+                      }
+                    });
+
+                    dataGrid.columnOption('extreme_area', 'visible', false);
+                    dataGrid.columnOption('extreme_technology', 'visible', false);
+                    dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
+
+                  }
+
+                  $('#compactBtn').dxButton('instance').option('disabled', false);
+                  $('#classifyBtn').dxButton('instance').option('disabled', false);
+                  e.component.option('disabled', true);
+                },
+              },
+            },
+            {
+              location: 'before',
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
+            {
+              location: 'before',
+              widget: 'dxButton',
+              options: {
+                text: 'Classify',
+                width: 'auto',
+                elementAttr: {
+                  id: "classifyBtn",
+                },
+                disabled: false,
+                onClick(e) {
+                  console.log(e);
+                  console.log(dataGrid);
+                  console.log('GET VISIBLE COLUMNS');
+                  console.log(dataGrid.getVisibleColumns());
+                  dataGrid.getVisibleColumns().forEach(col => {
+                    if (col.dataField !== 'productid' &&
+                      col.dataField !== 'quotedetailname' &&
+                      col.dataField !== 'extreme_productdescription' &&
+                      col.dataType !== 'detailExpand' &&
+                      col.dataType !== 'drag') {
+                      // console.log(col);
+                      dataGrid.columnOption(col.dataField, 'visible', false);
+                    }
+                  });
+
+                  dataGrid.columnOption('extreme_area', 'visible', true);
+                  dataGrid.columnOption('extreme_technology', 'visible', true);
+                  dataGrid.columnOption('extreme_vendorsupplier', 'visible', true);
+
+                  $('#compactBtn').dxButton('instance').option('disabled', false);
+                  $('#extendedBtn').dxButton('instance').option('disabled', false);
+                  e.component.option('disabled', true);
+                },
+              },
+            },
+
+            // BEFORE AND AFTER
+
             {
               location: 'after',
               template() {
@@ -2281,7 +2491,7 @@ async function setClientApiContext(Xrm, formContext) {
                       value: rate,
                       disabled: !isDraftStatus,
                     }).css({
-                      'max-width': '80px',
+                      'max-width': '50px',
                       'height': '28px',
                       'margin': '0 5px',
                       'padding': '0 5px',
@@ -2357,6 +2567,10 @@ async function setClientApiContext(Xrm, formContext) {
         onRowPrepared: async (e) => {
           console.log('ROW PREPARED');
           console.log(e);
+
+          if (e.rowType === "data" && (e.data.extreme_area === null || e.data.extreme_area === undefined)) {
+            e.rowElement[0].style.backgroundColor = "red";
+          }
 
           if (e.rowType === 'data' && !e.data.extreme_isparentitem && e.data.quotedetailid) {
             console.log('REMOVED EXPAND FOR ', e.data.quotedetailid);
