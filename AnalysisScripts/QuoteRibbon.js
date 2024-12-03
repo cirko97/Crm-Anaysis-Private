@@ -355,7 +355,7 @@ const updateQuoteLine = async function (productId, quoteDetailId) {
 	var record = {};
 	record["productid@odata.bind"] = `/products(${productId})`; // Lookup
 
-	await Xrm.WebApi.updateRecord("quotedetail", `${quoteDetailId}`, record).then(
+	await Xrm.WebApi.updateRecord("quotedetail", quoteDetailId, record).then(
 		function success(result) {
 			var updatedId = result.id;
 			console.log(updatedId);
