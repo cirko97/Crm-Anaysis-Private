@@ -12,55 +12,55 @@ async function form_onload(executionContext) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
     }
 
-    formContext.getAttribute("transactioncurrencyid").addOnChange(setDefaultPriceList);
-    if (formContext.getAttribute("pricelevelid").getValue() == null) {
-        await setDefaultPriceList()
-    }
+    // formContext.getAttribute("transactioncurrencyid").addOnChange(setDefaultPriceList);
+    // if (formContext.getAttribute("pricelevelid").getValue() == null) {
+    //     await setDefaultPriceList()
+    // }
 
-    async function setDefaultPriceList() {
-        if (formContext.getAttribute("transactioncurrencyid").getValue() !== null) {
-            var currencyName = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
-            var defaultPriceListLookup = [{
-                id: null,
-                entityType: "pricelevel",
-                name: null
-            }];
-            switch (currencyName) {
-                case "EUR":
-                    defaultPriceListLookup[0].id = await readConfigurationValue("defaultEURPriceListId");
-                    defaultPriceListLookup[0].name = 'defaultEURPriceListId';
-                    formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-                    break;
-                case "USD":
-                    defaultPriceListLookup[0].id = await readConfigurationValue("defaultUSDPriceListId");
-                    defaultPriceListLookup[0].name = 'defaultUSDPriceListId';
-                    formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-                    break;
-                case "RSD":
-                    defaultPriceListLookup[0].id = await readConfigurationValue("defaultRSDPriceListId");
-                    defaultPriceListLookup[0].name = 'defaultRSDPriceListId';
-                    formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-                    break;
-                case "GBP":
-                    defaultPriceListLookup[0].id = await readConfigurationValue("defaultGBPPriceListId");
-                    defaultPriceListLookup[0].name = 'defaultGBPPriceListId';
-                    formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-                    break;
-                case "CHF":
-                    defaultPriceListLookup[0].id = await readConfigurationValue("defaultCHFPriceListId");
-                    defaultPriceListLookup[0].name = 'defaultCHFPriceListId';
-                    formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-                    break;
-                case "MKD":
-                    defaultPriceListLookup[0].id = await readConfigurationValue("defaultMKDPriceListId");
-                    defaultPriceListLookup[0].name = 'defaultMKDPriceListId';
-                    formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-                    break;
-                default:
-                    break;
-            }
-        }  
-    }
+    // async function setDefaultPriceList() {
+    //     if (formContext.getAttribute("transactioncurrencyid").getValue() !== null) {
+    //         var currencyName = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
+    //         var defaultPriceListLookup = [{
+    //             id: null,
+    //             entityType: "pricelevel",
+    //             name: null
+    //         }];
+    //         switch (currencyName) {
+    //             case "EUR":
+    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultEURPriceListId");
+    //                 defaultPriceListLookup[0].name = 'defaultEURPriceListId';
+    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
+    //                 break;
+    //             case "USD":
+    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultUSDPriceListId");
+    //                 defaultPriceListLookup[0].name = 'defaultUSDPriceListId';
+    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
+    //                 break;
+    //             case "RSD":
+    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultRSDPriceListId");
+    //                 defaultPriceListLookup[0].name = 'defaultRSDPriceListId';
+    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
+    //                 break;
+    //             case "GBP":
+    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultGBPPriceListId");
+    //                 defaultPriceListLookup[0].name = 'defaultGBPPriceListId';
+    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
+    //                 break;
+    //             case "CHF":
+    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultCHFPriceListId");
+    //                 defaultPriceListLookup[0].name = 'defaultCHFPriceListId';
+    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
+    //                 break;
+    //             case "MKD":
+    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultMKDPriceListId");
+    //                 defaultPriceListLookup[0].name = 'defaultMKDPriceListId';
+    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
+    //                 break;
+    //             default:
+    //                 break;
+    //         }
+    //     }  
+    // }
 
     async function readConfigurationValue(key) {
         // eslint-disable-next-line no-undef

@@ -37,7 +37,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			}
 		}
 		//areAllProductsCreatedAndSynced
-		await areAllProductsCreatedAndSynced(quoteId);
+		await areAllProductsCreatedAndSynced(quoteId, formContext);
 		//QuoteSync
 		await syncQuote(quoteId);
 		Xrm.Utility.showProgressIndicator(
@@ -172,7 +172,7 @@ const syncCostDrive = async function (oppId) {
 		console.log(error.message);
 	});
 }
-const areAllProductsCreatedAndSynced = async function (quoteId) {
+const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 	Xrm.Utility.showProgressIndicator(
 		'Products Check In Progress... Please Wait.');
 
@@ -194,12 +194,13 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 			console.log(error.message);
 		}
 	);
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
 		async function success(results) {
 			console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
 				var result = results.entities[i];
 				// Columns
+				var priceperunit = result["priceperunit"]; // Currency
 				var quotedetailid = result["quotedetailid"]; // Guid
 				var extreme_area = result["_extreme_area_value"]; // Lookup
 				var extreme_area_formatted = result["_extreme_area_value@OData.Community.Display.V1.FormattedValue"];
@@ -269,6 +270,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 					record.description = extreme_productdescription; // Multiline Text
 					record.quantitydecimal = 2; // Whole Number
 					record["defaultuomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
+					// record["pricelevelid@odata.bind"] = `/pricelevels(${formContext.getAttribute("pricelevelid").getValue()[0].id.slice(1,-1)})`; // Lookup
 					record["extreme_Area@odata.bind"] = `/extreme_areas(${extreme_area})`; // Lookup
 					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
 					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
@@ -282,6 +284,24 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 							console.log(error.message);
 						}
 					);
+
+					// var PLIrecord = {};
+					// 	PLIrecord.amount = priceperunit; // Currency
+					// 	PLIrecord.pricingmethodcode = 1; // Choice
+					// 	PLIrecord["pricelevelid@odata.bind"] = `/pricelevels(${formContext.getAttribute("pricelevelid").getValue()[0].id.slice(1,-1)})`; // Lookup
+					// 	PLIrecord["productid@odata.bind"] = `/products(${newProductId})`; // Lookup
+					// 	PLIrecord.quantitysellingcode = 2; // Choice
+					// 	PLIrecord["uomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
+
+					// await Xrm.WebApi.createRecord("productpricelevel", PLIrecord).then(
+					// 		function success(result) {
+					// 			var newId = result.id;
+					// 			console.log(newId);
+					// 		},
+					// 		function(error) {
+					// 			console.log(error.message);
+					// 		}
+					// 	);
 
 					Xrm.Utility.showProgressIndicator(
 						'Products Sync In Progress... Please Wait.');
