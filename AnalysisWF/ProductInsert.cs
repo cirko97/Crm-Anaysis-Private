@@ -98,8 +98,9 @@ namespace AnalysisWF
             if (acIdent != null && acIdent.Length > 16)
             {
                 acIdent = acIdent.Substring(0, 16);
-                ShortenedProductID.Set(context, acIdent);
+                
             }
+            ShortenedProductID.Set(context, acIdent);
 
             var acName = product.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
