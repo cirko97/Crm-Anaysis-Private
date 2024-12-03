@@ -1674,7 +1674,8 @@ async function setClientApiContext(Xrm, formContext) {
               if (currentRowData.extreme_margin !== null &&
                 supplierPricePerUnit !== null &&
                 currentRowData.extreme_supplierdiscount !== null &&
-                currentRowData.extreme_discount !== null) {
+                currentRowData.extreme_discount !== null &&
+                !isAddingSet) {
                 console.log("NEW DATA FROM SELECTING PRODUCT");
                 console.log(currentRowData.extreme_margin);
                 console.log(supplierPricePerUnit);
