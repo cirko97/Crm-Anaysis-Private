@@ -785,17 +785,17 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log('inside the same child - reordering');
                     }
 
-                    const visibleRows = e.component.getVisibleRows();
-                    const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
-                    const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
+                    // const visibleRows = e.component.getVisibleRows();
+                    // const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
+                    // const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
 
-                    quoteLinesData._array.splice(fromIndex, 1);
-                    quoteLinesData._array.splice(toIndex, 0, e.itemData);
+                    // quoteLinesData._array.splice(fromIndex, 1);
+                    // quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-                    for (let i = 0; i < quoteLinesData._array.length; i++) {
-                      Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 });
-                      quoteLinesData._array[i].sequencenumber = i + 1;
-                    }
+                    // for (let i = 0; i < quoteLinesData._array.length; i++) {
+                    //   Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 });
+                    //   quoteLinesData._array[i].sequencenumber = i + 1;
+                    // }
 
                     e.component.refresh();
                   },
@@ -2337,8 +2337,8 @@ async function setClientApiContext(Xrm, formContext) {
             console.log(e.cells[1].cellElement[0]);
             e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
             e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
-            e.cells[1].cellElement[0].style.display = "none";
-            e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
+            // e.cells[1].cellElement[0].style.display = "none";
+            // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
           }
 
         },
@@ -2346,11 +2346,11 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('Editor Preparing');
           console.log(e);
 
-          if (e.dataField == "productid" && e.row.data.extreme_isparentitem === false) {
-            console.log('e.editorElement');
-            console.log(e.editorElement);
-            e.editorElement[0].parentElement.setAttribute('colspan', '2');
-          }
+          // if (e.dataField == "productid" && e.row.data.extreme_isparentitem === false) {
+          //   console.log('e.editorElement');
+          //   console.log(e.editorElement);
+          //   e.editorElement[0].parentElement.setAttribute('colspan', '2');
+          // }
 
           if ((e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number')) e.editorOptions.disabled = true;
 
@@ -2418,6 +2418,9 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.data.extreme_pd) record.extreme_pd = e.data.extreme_pd; // Decimal
           if (e.data.extreme_fullpd) record.extreme_fullpd = e.data.extreme_fullpd; // Decimal
           if (e.data.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.data.extreme_pricelist})`; // Lookup
+
+          // Is Price Overriden boolean to true
+          record.ispriceoverridden = true; // Boolean
 
           isAddingSet ? record.extreme_isparentitem = true : record.extreme_isparentitem = false;
 
