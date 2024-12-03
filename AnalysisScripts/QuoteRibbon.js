@@ -308,7 +308,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 
 					await syncProduct(newProductId);
 
-					await updateQuoteLine(newProductId, quotedetailid);
+					await updateQuoteLine(newProductId, quotedetailid, newUomId);
 					//Update QuoteLine
 				} else {
 					await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=productid,extreme_synchronized").then(
@@ -371,9 +371,10 @@ const syncProduct = async function (productId) {
 		console.log(error.message);
 	});
 }
-const updateQuoteLine = async function (productId, quoteDetailId) {
+const updateQuoteLine = async function (productId, quoteDetailId,uomid) {
 	var record = {};
 	record["productid@odata.bind"] = `/products(${productId})`; // Lookup
+	record["uomid@odata.bind"] = `/uoms(${uomid})`; // Lookup
 
 	await Xrm.WebApi.updateRecord("quotedetail", quoteDetailId, record).then(
 		function success(result) {
