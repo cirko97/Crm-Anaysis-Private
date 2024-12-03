@@ -7,6 +7,7 @@ async function form_onload(executionContext) {
     const maxRetries = 100;
     const retryDelay = 1000; // 1-second delay
 
+    // Check form type for quote grid
     if (formType !== FORM_NEW) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
     }
