@@ -95,7 +95,7 @@ namespace AnalysisWF
         {
             // Ensure acIdent is always the first 16 characters of the product number
             var acIdent = product.GetAttributeValue<string>("productnumber");
-            if (acIdent != null && acIdent.Length > 16)
+            if (acIdent != null)
             {
                 acIdent = acIdent.Substring(0, 16);
                 ShortenedProductID.Set(context, acIdent);
