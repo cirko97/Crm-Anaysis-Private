@@ -186,7 +186,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 		}
 	);;
 
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
 		async function success(results) {
 			console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
@@ -205,6 +205,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 				var quotedetailname = result["quotedetailname"]; // Text
 				var productname = result["productname"]; // Text
 				var productnumber = result["productnumber"]; // Text
+				var extreme_uomid = result["extreme_uomid"]; // Text
 				var extreme_technology = result["_extreme_technology_value"]; // Lookup
 				var extreme_technology_formatted = result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"];
 				var extreme_technology_lookuplogicalname = result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
@@ -227,7 +228,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId) {
 					record.description = extreme_productdescription; // Multiline Text
 					record.quantitydecimal = 2; // Whole Number
 					record["defaultuomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
-					record["defaultuomid@odata.bind"] = `/uoms(${uomid})`; // Lookup
+					record["defaultuomid@odata.bind"] = `/uoms(${extreme_uomid})`; // Lookup
 					record["extreme_Area@odata.bind"] = `/extreme_areas(${extreme_area})`; // Lookup
 					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
 					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
