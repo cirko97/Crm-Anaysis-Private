@@ -2433,6 +2433,48 @@ async function setClientApiContext(Xrm, formContext) {
               checkClassifyRows();
             },
             visible: false
+          },
+          {
+            type: 'selection',
+            width: 50,
+            cellTemplate: function ($cellElement, cellInfo) {
+              console.log('cellInfo');
+              console.log(cellInfo);
+              // Render custom cell content here
+              $('<div>')
+                .append($('<input type="checkbox">'))
+                .appendTo($cellElement);
+            },
+            headerCellTemplate: function ($headerElement, headerInfo) {
+              // Render custom header content here
+              $('<div>')
+                .html('<span>Asset</span>')
+                .appendTo($headerElement);
+            }
+          },
+          {
+            type: 'buttons',
+            width: 70,
+            buttons: [
+              {
+                hint: 'Description',
+                icon: 'edit',
+                visible(e) {
+                  return true;
+                },
+                disabled(e) {
+                  return false;
+                },
+                onClick(e) {
+                  // const clonedItem = $.extend({}, e.row.data, { ID: maxID += 1 });
+
+                  // employees.splice(e.row.rowIndex, 0, clonedItem);
+                  // e.component.refresh(true);
+                  // e.event.preventDefault();
+                },
+              },
+              'delete'
+            ],
           }
         ],
         toolbar: {
@@ -2536,7 +2578,7 @@ async function setClientApiContext(Xrm, formContext) {
                   // dataGrid.columnOption('extreme_pricelistcurrency', 'visible', !dataGrid.columnOption('extreme_pricelistcurrency', 'visible'));
                   dataGrid.columnOption('extreme_supplierdiscount', 'visible', false);
                   dataGrid.columnOption('extreme_pd', 'visible', false);
-                  dataGrid.columnOption('extreme_fullpd', 'visible', !false);
+                  dataGrid.columnOption('extreme_fullpd', 'visible', false);
                   dataGrid.columnOption('manualdiscountamount', 'visible', false);
                   // e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
 
@@ -2554,7 +2596,7 @@ async function setClientApiContext(Xrm, formContext) {
                         // other columns
                         col.dataField !== "sequencenumber" &&
                         col.dataField !== "extreme_pricelistcurrency" &&
-                        col.dataField !== "tax" &&
+                        // col.dataField !== "tax" &&
                         col.dataField !== "extreme_parentquoteline" &&
                         col.dataField !== "extreme_isparentitem"
                       ) {
@@ -2631,7 +2673,7 @@ async function setClientApiContext(Xrm, formContext) {
                         // other columns
                         col.dataField !== "sequencenumber" &&
                         col.dataField !== "extreme_pricelistcurrency" &&
-                        col.dataField !== "tax" &&
+                        // col.dataField !== "tax" &&
                         col.dataField !== "extreme_parentquoteline" &&
                         col.dataField !== "extreme_isparentitem"
                       ) {
@@ -2949,6 +2991,14 @@ async function setClientApiContext(Xrm, formContext) {
             }
             else {
               record["productid@odata.bind"] = `/products(${e.data.productid})`;
+
+              const existingProductLookups = await Xrm.WebApi.retrieveRecord("product", `${e.data.productid}`, "?$select=_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+              console.log('EXISTING PRODUCT LOOKUPS');
+              console.log(existingProductLookups);
+              if (existingProductLookups._extreme_area_value) record["extreme_Area@odata.bind"] = `/extreme_areas(${existingProductLookups._extreme_area_value})`; // Lookup
+              if (existingProductLookups._extreme_technology_value) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${existingProductLookups._extreme_technology_value})`; // Lookup
+              if (existingProductLookups._extreme_vendorsupplier_value) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${existingProductLookups._extreme_vendorsupplier_value})`; // Lookup
+
               record["uomid@odata.bind"] = `/uoms(${e.data.uomid})`; // Lookup UNIT
             }
           }; // Lookup / Custom Text
@@ -3061,18 +3111,18 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
           if (e.newData.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
 
-          if (!typeof (e.oldData.productid) === 'number') {
+          if (typeof (e.oldData.productid) !== 'number') {
             if (e.newData.uomid) record["uomid@odata.bind"] = `/uoms(${e.newData.uomid})`; // Lookup
           }
 
-          if (!typeof (e.oldData.productid) === 'number' && (e.newData.extreme_area || e.newData.extreme_technology || e.newData.extreme_vendorsupplier)) {
+          if (typeof (e.oldData.productid) !== 'number' && (!e.newData.extreme_area || !e.newData.extreme_technology || !e.newData.extreme_vendorsupplier)) {
 
-            var record = {};
-            if (e.newData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
-            if (e.newData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
-            if (e.newData.extreme_vendorsupplier) record["extreme_Supplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
+            var recordForLookups = {};
+            if (e.newData.extreme_area) recordForLookups["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
+            if (e.newData.extreme_technology) recordForLookups["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
+            if (e.newData.extreme_vendorsupplier) recordForLookups["extreme_Supplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
 
-            await Xrm.WebApi.updateRecord("product", `${e.oldData.productid}`, record).then(
+            await Xrm.WebApi.updateRecord("product", `${e.oldData.productid}`, recordForLookups).then(
               function success(result) {
                 var updatedId = result.id;
                 console.log(updatedId);
