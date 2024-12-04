@@ -29,6 +29,9 @@ namespace AnalysisWF
         [Output("PantheonID")]
         public OutArgument<string> PantheonID { get; set; }
 
+        [Output("PantheonNo")]
+        public OutArgument<string> PantheonNo { get; set; }
+
         [Output("API Response")]
         public OutArgument<string> ApiResponse { get; set; }
         #endregion
@@ -79,6 +82,7 @@ namespace AnalysisWF
 
                 dynamic response = JsonConvert.DeserializeObject(cleanedJson);
                 string pantheonId = response.usp_DEVC_AA_CreateOrder_out["@anQId"].ToString();
+                string pantheonNo = response.usp_DEVC_AA_CreateOrder_out["@acKeyView"].ToString();
                 tracingService.Trace("Pantheon ID: {0}", pantheonId);
 
                 string errorMessage = response.usp_DEVC_AA_CreateOrder_out["@acErrorMessage"].ToString();
@@ -89,6 +93,7 @@ namespace AnalysisWF
                 }
 
                 PantheonID.Set(context, pantheonId);
+                PantheonNo.Set(context, pantheonNo);
             }
             catch (Exception ex)
             {
@@ -111,6 +116,17 @@ namespace AnalysisWF
             var acReceiver = quote.GetAttributeValue<EntityReference>("customerid")?.Name;
             var acCurrency = quote.GetAttributeValue<EntityReference>("transactioncurrencyid")?.Name;
             var acCostDrive = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("opportunityid"), "extreme_costprofitcentercode", service);
+            var anDaysForPayment = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_numberofdays", service);
+            var anDaysForDelivery = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_deliverymethod"), "extreme_numberofdays", service);
+            var extreme_detailedprintoutdescription = quote.GetAttributeValue<string>("extreme_detailedprintoutdescription");
+            // Calculate number of days between effectivefrom and effectiveto
+            var effectiveFrom = quote.GetAttributeValue<DateTime?>("effectivefrom");
+            var effectiveTo = quote.GetAttributeValue<DateTime?>("effectiveto");
+            int anDaysForValid = 0;
+            if (effectiveFrom.HasValue && effectiveTo.HasValue)
+            {
+                anDaysForValid = (effectiveTo.Value - effectiveFrom.Value).Days;
+            }
 
             // Retrieve child QuoteDetail records
             var query = new QueryExpression("quotedetail")
@@ -128,18 +144,23 @@ namespace AnalysisWF
                 var product = Helper.GetLookupFieldValue(detail.GetAttributeValue<EntityReference>("productid"), "extreme_productid16characters", service);
                 var quantity = detail.GetAttributeValue<decimal>("quantity");
                 var salesPPU = detail.GetAttributeValue<Money>("priceperunit")?.Value;
-                var discountPerc = detail.GetAttributeValue<decimal>("extreme_discount") / 100;
-                var salesPPUwDisc = salesPPU - (salesPPU * discountPerc);
+                var discountPerc = detail.GetAttributeValue<decimal>("extreme_discount");
+                //var salesPPUwDisc = salesPPU - (salesPPU * discountPerc);
                 var uom = detail.GetAttributeValue<EntityReference>("uomid")?.Name;
+                var note = detail.GetAttributeValue<string>("extreme_productdescription");
+                var vatCode = Helper.GetLookupFieldValue(detail.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
 
                 lineItems.Add(new
                 {
                     acIdent = product,
                     anQty = quantity,
                     acUM = uom,
-                    anPrice = salesPPUwDisc,
+                    anPrice = salesPPU,
+                    anRebate1 = discountPerc,
+                    acNote = note,
                     acCostDrv = acCostDrive,
-                    acVatCode = "NN"
+                    acVatCode = vatCode,
+                    adDeliveryDeadline = ""
                 });
             }
 
@@ -158,11 +179,11 @@ namespace AnalysisWF
                             acReceiver,
                             acCurrency,
                             anFXRate = "1",
-                            anDaysForValid = "14",
-                            anDaysForPayment = "21",
+                            anDaysForValid,
+                            anDaysForPayment,
                             adDeliveryDate,
-                            anDaysForDelivery = "28",
-                            acStatement = "",
+                            anDaysForDelivery,
+                            extreme_detailedprintoutdescription,
                             acLinesJSON = lineItems
                         }
                     }

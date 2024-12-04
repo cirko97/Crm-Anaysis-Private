@@ -92,6 +92,7 @@ namespace AnalysisWF
         {
             var acBuyer = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000001 ? "T" : "F";
             var acSupplier = account.GetAttributeValue<OptionSetValue>("extreme_relationshiptypeext")?.Value == 424000000 ? "T" : "F";
+            var acWayOfSale = account.GetAttributeValue<decimal>("extreme_tax") == 20 ? "Z" : "I";
             var acCurrency = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("transactioncurrencyid"), "isocurrencycode", service);
             var acPost = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("extreme_postalcode"), "extreme_postalcode", service);
 
@@ -113,7 +114,7 @@ namespace AnalysisWF
             sb.AppendFormat("\"acRegNo\": \"{0}\",", account.GetAttributeValue<string>("extreme_registrationnumber"));
             sb.AppendFormat("\"acBuyer\": \"{0}\",", acBuyer);
             sb.AppendFormat("\"acSupplier\": \"{0}\",", acSupplier);
-            sb.Append("\"acWayOfSale\": \"Z\",");
+            sb.AppendFormat("\"acWayOfSale\": \"{0}\",", acWayOfSale);
             sb.AppendFormat("\"acCurrency\": \"{0}\",", acCurrency);
             sb.Append("\"acSuppSaleMet\": \"D\",");
             sb.AppendFormat("\"acSuppCurr\": \"{0}\"", acCurrency);

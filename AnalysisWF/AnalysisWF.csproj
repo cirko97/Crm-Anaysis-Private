@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AccountInsert.cs" />
+    <Compile Include="ClassifAreaInsert.cs" />
     <Compile Include="AuthHelper.cs" />
     <Compile Include="CostDriveInsert.cs" />
     <Compile Include="CreatePriceList.cs" />
@@ -73,6 +74,8 @@
     <Compile Include="ProductInsert.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QuoteInsert.cs" />
+    <Compile Include="ClassifTechnologyInsert.cs" />
+    <Compile Include="UoMInsert.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="analysisWF.snk" />

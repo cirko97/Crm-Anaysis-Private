@@ -95,8 +95,10 @@ namespace AnalysisWF
         {
             // Ensure acIdent is always the first 16 characters of the product number
             var acIdent = product.GetAttributeValue<string>("productnumber");
+            var acIdentLong = "";
             if (acIdent != null && acIdent.Length > 16)
             {
+                acIdentLong = acIdent;
                 acIdent = acIdent.Substring(0, 16);
                 
             }
@@ -104,10 +106,12 @@ namespace AnalysisWF
 
             var acName = product.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
-            //var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service);
-            //var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service);
-            var acClassif = "";
-            var acClassif2 = "";
+            acUM = acUM.Substring(0, 3);
+            var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service);
+            var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service);
+            var anVATCode = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
+            var anVat = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
+
             var anPrice = Price.Get(context);
 
             var sb = new StringBuilder();
@@ -122,9 +126,10 @@ namespace AnalysisWF
             sb.AppendFormat("\"acClassif\": \"{0}\",", acClassif);
             sb.AppendFormat("\"acClassif2\": \"{0}\",", acClassif2);
             sb.AppendFormat("\"anPrice\": {0},", anPrice);
-            sb.AppendFormat("\"acVATCode\": \"{0}\",", "NN");
-            sb.AppendFormat("\"anVat\": \"{0}\",", "0");
-            sb.AppendFormat("\"acCostDrv\": \"{0}\"", "");
+            sb.AppendFormat("\"acVATCode\": \"{0}\",", anVATCode);
+            sb.AppendFormat("\"anVat\": \"{0}\",", anVat);
+            sb.AppendFormat("\"acCostDrv\": \"{0}\",", "");
+            sb.AppendFormat("\"acCode\": \"{0}\"", acIdentLong);
             sb.Append("}");
             sb.Append("}");
             sb.Append("]");
