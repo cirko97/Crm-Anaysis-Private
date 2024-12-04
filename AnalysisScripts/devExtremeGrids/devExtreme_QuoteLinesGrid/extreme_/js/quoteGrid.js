@@ -6,6 +6,9 @@ let filterForPriceListsQuery = '';
 let priceListsArray = [];
 let unitsArray = [];
 let currenciesArray = [];
+let areasArray = [];
+let techsArray = [];
+let vensSupsArray = [];
 let defaultMargin = 0;
 let newCreateId = '';
 let newCreatedProductId = '';
@@ -14,6 +17,7 @@ let newIdForCustomUnits = 200001;
 let heightAuto = true;
 let isAddingSet = null;
 let isDraftStatus = true;
+let classifyNeededRows = 0;
 
 async function setClientApiContext(Xrm, formContext) {
   // Optionally set Xrm and formContext as global variables on the page.
@@ -153,6 +157,9 @@ async function setClientApiContext(Xrm, formContext) {
   await getUnits();
   await getCurrencies();
   await getProductsLookUp();
+  await getAreas();
+  await getTechs();
+  await getVensSups();
   await getQuoteProducts(quoteIdForm);
   await getPriceLists();
 
@@ -186,7 +193,7 @@ async function setClientApiContext(Xrm, formContext) {
     customUnitsArray = [];
     filterForPriceListsQuery = '';
 
-    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
       async function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -204,7 +211,7 @@ async function setClientApiContext(Xrm, formContext) {
           var quotedetailid = result["quotedetailid"]; // Guid
 
           if (extreme_isparentitem === true) {
-            await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${quotedetailid}`).then(
+            await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${quotedetailid}`).then(
               function success(results) {
                 console.log(results);
                 for (var i = 0; i < results.entities.length; i++) {
@@ -578,6 +585,87 @@ async function setClientApiContext(Xrm, formContext) {
     );
   }
 
+  // get areas
+  async function getAreas() {
+
+    areasArray = [];
+
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_area", "?$select=extreme_areaid,extreme_name").then(
+      function success(results) {
+        console.log(results);
+        for (var i = 0; i < results.entities.length; i++) {
+          var result = results.entities[i];
+          // Columns
+          var extreme_areaid = result["extreme_areaid"]; // Guid
+          var extreme_name = result["extreme_name"]; // Text
+
+          areasArray.push({
+            "id": extreme_areaid,
+            "name": extreme_name
+          });
+
+        }
+      },
+      function (error) {
+        console.log(error.message);
+      }
+    );
+  }
+
+  // get technologies
+  async function getTechs() {
+
+    techsArray = [];
+
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_technology", "?$select=extreme_technologyid,extreme_name").then(
+      function success(results) {
+        console.log(results);
+        for (var i = 0; i < results.entities.length; i++) {
+          var result = results.entities[i];
+          // Columns
+          var extreme_technologyid = result["extreme_technologyid"]; // Guid
+          var extreme_name = result["extreme_name"]; // Text
+
+          techsArray.push({
+            "id": extreme_technologyid,
+            "name": extreme_name
+          });
+
+        }
+      },
+      function (error) {
+        console.log(error.message);
+      }
+    );
+  }
+
+  // get vendors/suppliers
+  async function getVensSups() {
+
+    vensSupsArray = [];
+
+    await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name").then(
+      function success(results) {
+        console.log(results);
+        for (var i = 0; i < results.entities.length; i++) {
+          var result = results.entities[i];
+          // Columns
+          var accountid = result["accountid"]; // Guid
+          var name = result["name"]; // Text
+
+          vensSupsArray.push({
+            "id": accountid,
+            "name": name
+          });
+
+        }
+      },
+      function (error) {
+        console.log(error.message);
+      }
+    );
+  }
+
 
 
 
@@ -639,12 +727,6 @@ async function setClientApiContext(Xrm, formContext) {
             "and",
             ["extreme_isparentitem", "=", true]
           ],
-          // "or",
-          // [
-          //   ["extreme_parentquoteline", "=", null],
-          //   "and",
-          //   ["extreme_isparentitem", "=", null]
-          // ]
         ],
 
         width: "100%",
@@ -1362,20 +1444,74 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'extreme_area',
                     caption: 'Area',
-                    dataType: 'string',
-                    visible: dataGrid.columnOption('extreme_area', 'visible')
+                    lookup: {
+                      dataSource(options) {
+                        return {
+                          store: {
+                            type: "array",
+                            data: areasArray,
+                            key: "id"
+                          },
+                          paginate: true,
+                          pageSize: 20,
+                        }
+                      },
+                      displayExpr: 'name',
+                      valueExpr: 'id'
+                    },
+                    setCellValue: async function (newData, value, currentRowData) {
+                      newData.extreme_area = value;
+                      checkClassifyRows();
+                    },
+                    visible: false
                   },
                   {
                     dataField: 'extreme_technology',
                     caption: 'Technology',
-                    dataType: 'string',
-                    visible: dataGrid.columnOption('extreme_technology', 'visible')
+                    lookup: {
+                      dataSource(options) {
+                        return {
+                          store: {
+                            type: "array",
+                            data: techsArray,
+                            key: "id"
+                          },
+                          paginate: true,
+                          pageSize: 20,
+                        }
+                      },
+                      displayExpr: 'name',
+                      valueExpr: 'id'
+                    },
+                    setCellValue: async function (newData, value, currentRowData) {
+                      newData.extreme_technology = value;
+                      checkClassifyRows();
+                    },
+                    visible: false
                   },
                   {
                     dataField: 'extreme_vendorsupplier',
                     caption: 'Vendor/Supplier',
-                    dataType: 'string',
-                    visible: dataGrid.columnOption('extreme_vendorsupplier', 'visible')
+                    lookup: {
+                      dataSource(options) {
+                        return {
+                          store: {
+                            type: "array",
+                            data: vensSupsArray,
+                            key: "id"
+                          },
+                          paginate: true,
+                          pageSize: 20,
+                        }
+                      },
+                      displayExpr: 'name',
+                      valueExpr: 'id'
+                    },
+                    setCellValue: async function (newData, value, currentRowData) {
+                      newData.extreme_vendorsupplier = value;
+                      checkClassifyRows();
+                    },
+                    visible: false
                   }
                 ],
                 onEditorPreparing: async (e) => {
@@ -1391,6 +1527,31 @@ async function setClientApiContext(Xrm, formContext) {
 
                   if (e.dataField == 'extreme_pricelist' && (!e.row.data.productid || typeof (e.row.data.productid) === 'number') || e.row.isNewRow) {
                     e.editorOptions.disabled = true;
+                  }
+
+                },
+                onRowPrepared: async (e) => {
+                  console.log('ROW PREPARED');
+                  console.log(e);
+
+                  if (e.rowType === "data" && e.data.extreme_isparentitem === false &&
+                    (
+                      (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
+                      (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
+                      (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
+                    )
+                  ) {
+                    e.rowElement[0].style.backgroundColor = "#febf32";
+                  }
+                  else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
+                    (item.extreme_area === null || item.extreme_area === undefined) ||
+                    (item.extreme_technology === null || item.extreme_technology === undefined) ||
+                    (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
+                  )) {
+                    e.cells[1].cellElement[0].style.backgroundColor = "#febf32";
+                  }
+                  else {
+                    e.rowElement[0].style.backgroundColor = "#fff";
                   }
 
                 },
@@ -2204,19 +2365,73 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_area',
             caption: 'Area',
-            dataType: 'string',
+            lookup: {
+              dataSource(options) {
+                return {
+                  store: {
+                    type: "array",
+                    data: areasArray,
+                    key: "id"
+                  },
+                  paginate: true,
+                  pageSize: 20,
+                }
+              },
+              displayExpr: 'name',
+              valueExpr: 'id'
+            },
+            setCellValue: async function (newData, value, currentRowData) {
+              newData.extreme_area = value;
+              checkClassifyRows();
+            },
             visible: false
           },
           {
             dataField: 'extreme_technology',
             caption: 'Technology',
-            dataType: 'string',
+            lookup: {
+              dataSource(options) {
+                return {
+                  store: {
+                    type: "array",
+                    data: techsArray,
+                    key: "id"
+                  },
+                  paginate: true,
+                  pageSize: 20,
+                }
+              },
+              displayExpr: 'name',
+              valueExpr: 'id'
+            },
+            setCellValue: async function (newData, value, currentRowData) {
+              newData.extreme_technology = value;
+              checkClassifyRows();
+            },
             visible: false
           },
           {
             dataField: 'extreme_vendorsupplier',
             caption: 'Vendor/Supplier',
-            dataType: 'string',
+            lookup: {
+              dataSource(options) {
+                return {
+                  store: {
+                    type: "array",
+                    data: vensSupsArray,
+                    key: "id"
+                  },
+                  paginate: true,
+                  pageSize: 20,
+                }
+              },
+              displayExpr: 'name',
+              valueExpr: 'id'
+            },
+            setCellValue: async function (newData, value, currentRowData) {
+              newData.extreme_vendorsupplier = value;
+              checkClassifyRows();
+            },
             visible: false
           }
         ],
@@ -2347,6 +2562,20 @@ async function setClientApiContext(Xrm, formContext) {
                       }
                     });
 
+                    dataGrid.option('filterValue', [
+                      [
+                        ["extreme_parentquoteline", "=", null],
+                        "and",
+                        ["extreme_isparentitem", "=", false]
+                      ],
+                      "or",
+                      [
+                        ["extreme_parentquoteline", "=", null],
+                        "and",
+                        ["extreme_isparentitem", "=", true]
+                      ],
+                    ]);
+
                     dataGrid.columnOption('extreme_area', 'visible', false);
                     dataGrid.columnOption('extreme_technology', 'visible', false);
                     dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
@@ -2410,6 +2639,20 @@ async function setClientApiContext(Xrm, formContext) {
                       }
                     });
 
+                    dataGrid.option('filterValue', [
+                      [
+                        ["extreme_parentquoteline", "=", null],
+                        "and",
+                        ["extreme_isparentitem", "=", false]
+                      ],
+                      "or",
+                      [
+                        ["extreme_parentquoteline", "=", null],
+                        "and",
+                        ["extreme_isparentitem", "=", true]
+                      ],
+                    ]);
+
                     dataGrid.columnOption('extreme_area', 'visible', false);
                     dataGrid.columnOption('extreme_technology', 'visible', false);
                     dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
@@ -2455,6 +2698,14 @@ async function setClientApiContext(Xrm, formContext) {
                       dataGrid.columnOption(col.dataField, 'visible', false);
                     }
                   });
+
+                  dataGrid.option('filterValue', [
+                    [
+                      ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",
+                      ["extreme_technology", "=", null], "or", ["extreme_technology", "=", undefined], "or",
+                      ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
+                    ], "and", ["extreme_isparentitem", "=", false]
+                  ]);
 
                   dataGrid.columnOption('extreme_area', 'visible', true);
                   dataGrid.columnOption('extreme_technology', 'visible', true);
@@ -2568,8 +2819,27 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('ROW PREPARED');
           console.log(e);
 
-          if (e.rowType === "data" && (e.data.extreme_area === null || e.data.extreme_area === undefined)) {
-            e.rowElement[0].style.backgroundColor = "red";
+          if (e.rowType === "data" && e.data.extreme_isparentitem === false &&
+            (
+              (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
+              (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
+              (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
+            )
+          ) {
+            e.rowElement[0].style.backgroundColor = "#febf32";
+          }
+          else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
+            item.extreme_parentquoteline === e.data.quotedetailid &&
+            (
+              (item.extreme_area === null || item.extreme_area === undefined) ||
+              (item.extreme_technology === null || item.extreme_technology === undefined) ||
+              (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
+            )
+          )) {
+            e.cells[1].cellElement[0].style.backgroundColor = "#febf32";
+          }
+          else {
+            e.rowElement[0].style.backgroundColor = "#fff";
           }
 
           if (e.rowType === 'data' && !e.data.extreme_isparentitem && e.data.quotedetailid) {
@@ -2787,9 +3057,31 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_fullpd) record.extreme_fullpd = e.newData.extreme_fullpd; // Decimal
           if (e.newData.extendedamount) record.extendedamount = e.newData.extendedamount; // New total amount
           if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
+          if (e.newData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
+          if (e.newData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
+          if (e.newData.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
 
           if (!typeof (e.oldData.productid) === 'number') {
             if (e.newData.uomid) record["uomid@odata.bind"] = `/uoms(${e.newData.uomid})`; // Lookup
+          }
+
+          if (!typeof (e.oldData.productid) === 'number' && (e.newData.extreme_area || e.newData.extreme_technology || e.newData.extreme_vendorsupplier)) {
+
+            var record = {};
+            if (e.newData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
+            if (e.newData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
+            if (e.newData.extreme_vendorsupplier) record["extreme_Supplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
+
+            await Xrm.WebApi.updateRecord("product", `${e.oldData.productid}`, record).then(
+              function success(result) {
+                var updatedId = result.id;
+                console.log(updatedId);
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
           }
 
           await Xrm.WebApi.updateRecord("quotedetail", `${e.key}`, record).then(
@@ -2858,6 +3150,9 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onEditCanceled() {
           console.log('EditCanceled');
+        },
+        onContentReady() {
+          checkClassifyRows();
         }
       }).dxDataGrid('instance');
 
@@ -3089,6 +3384,36 @@ async function setClientApiContext(Xrm, formContext) {
         //     type: 'update', key, data: values,
         //   }]);
         // });
+      }
+
+      // function for checking classify needed rows
+      const checkClassifyRows = () => {
+
+        classifyNeededRows = 0;
+
+        if (quoteLinesData._array.length > 0) {
+          quoteLinesData._array.filter((item) =>
+            item.extreme_isparentitem === false &&
+            (
+              (item.extreme_area === null || item.extreme_area === undefined) ||
+              (item.extreme_technology === null || item.extreme_technology === undefined) ||
+              (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
+            )
+          ).forEach((item) => {
+            classifyNeededRows += 1;
+          })
+        }
+
+        if (classifyNeededRows > 0) {
+          $('#classifyBtn')[0].style.backgroundColor = '#febf32';
+        }
+        else {
+          $('#classifyBtn')[0].style.backgroundColor = '#fff';
+        }
+
+        console.log('CLASSIFY NEEDED ROWS');
+        console.log(classifyNeededRows);
+
       }
 
       // Dropdown template cell editor
