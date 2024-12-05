@@ -9,6 +9,7 @@ let currenciesArray = [];
 let areasArray = [];
 let techsArray = [];
 let vensSupsArray = [];
+let vatGroupsArray = [];
 let defaultMargin = 0;
 let newCreateId = '';
 let newCreatedProductId = '';
@@ -18,6 +19,7 @@ let heightAuto = true;
 let isAddingSet = null;
 let isDraftStatus = true;
 let classifyNeededRows = 0;
+let selectedDescriptionItem = null;
 
 async function setClientApiContext(Xrm, formContext) {
   // Optionally set Xrm and formContext as global variables on the page.
@@ -160,9 +162,9 @@ async function setClientApiContext(Xrm, formContext) {
   await getAreas();
   await getTechs();
   await getVensSups();
+  await getVatGroups();
   await getQuoteProducts(quoteIdForm);
   await getPriceLists();
-
 
   initDataGrid(quoteIdForm, userId);
 
@@ -193,7 +195,7 @@ async function setClientApiContext(Xrm, formContext) {
     customUnitsArray = [];
     filterForPriceListsQuery = '';
 
-    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
       async function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -309,6 +311,7 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_vendorsupplier = result["_extreme_vendorsupplier_value"]; // Lookup
           var extreme_vendorsupplier_formatted = result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"];
           var extreme_vendorsupplier_lookuplogicalname = result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+          var extreme_createasset = result["extreme_createasset"]; // Boolean
 
 
           let newCustomIdForUnit = 0;
@@ -362,7 +365,8 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_parentquoteline": extreme_parentquoteline,
             "extreme_area": extreme_area,
             "extreme_technology": extreme_technology,
-            "extreme_vendorsupplier": extreme_vendorsupplier
+            "extreme_vendorsupplier": extreme_vendorsupplier,
+            "extreme_createasset": extreme_createasset
           });
 
           if (!productid) {
@@ -656,6 +660,36 @@ async function setClientApiContext(Xrm, formContext) {
           vensSupsArray.push({
             "id": accountid,
             "name": name
+          });
+
+        }
+      },
+      function (error) {
+        console.log(error.message);
+      }
+    );
+  }
+
+  // get vat groups
+  async function getVatGroups() {
+
+    vatGroupsArray = [];
+
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_vatgroup", "?$select=extreme_vatgroupid,extreme_code,extreme_vat").then(
+      function success(results) {
+        console.log(results);
+        for (var i = 0; i < results.entities.length; i++) {
+          var result = results.entities[i];
+          // Columns
+          var extreme_vatgroupid = result["extreme_vatgroupid"]; // Guid
+          var extreme_code = result["extreme_code"]; // Text
+          var extreme_vat = result["extreme_vat"]; // Decimal
+          var extreme_vat_formatted = result["extreme_vat@OData.Community.Display.V1.FormattedValue"];
+
+          vatGroupsArray.push({
+            "id": extreme_vatgroupid,
+            "code": extreme_code,
+            "vat": extreme_vat
           });
 
         }
@@ -1512,6 +1546,106 @@ async function setClientApiContext(Xrm, formContext) {
                       checkClassifyRows();
                     },
                     visible: false
+                  },
+                  {
+                    dataField: 'extreme_createasset',
+                    caption: 'Asset?',
+                    width: 60,
+                    dataType: 'boolean'
+                  },
+                  {
+                    type: 'buttons',
+                    width: 70,
+                    buttons: [
+                      {
+                        hint: 'Description',
+                        icon: 'edit',
+                        visible(e) {
+                          return true;
+                        },
+                        disabled(e) {
+                          return false;
+                        },
+                        onClick(e) {
+                          console.log(e);
+
+                          const popupContentTemplate = function (item) {
+
+                            return $('<div data-mdb-input-init class="form-outline">')
+                              .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</textarea>`))
+
+                            return $('<div>').append(
+                              $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
+                            );
+                          };
+                          const popup = $('#popup').dxPopup({
+                            contentTemplate: popupContentTemplate,
+                            width: 500,
+                            height: 200,
+                            container: '.dx-viewport',
+                            showTitle: true,
+                            title: `Description for ${e.row.data.quotedetailname}`,
+                            visible: false,
+                            dragEnabled: false,
+                            hideOnOutsideClick: true,
+                            showCloseButton: false,
+                            position: {
+                              at: 'center',
+                              my: 'center',
+                              collision: 'fit',
+                            },
+                            toolbarItems: [{
+                              widget: 'dxButton',
+                              toolbar: 'bottom',
+                              location: 'before',
+                              options: {
+                                icon: 'save',
+                                stylingMode: 'contained',
+                                text: 'Save',
+                                async onClick() {
+                                  console.log($('#productDescription').val().trim());
+
+                                  var record = {};
+                                  record.extreme_productdescription = "test"; // Multiline Text
+
+                                  await Xrm.WebApi.updateRecord("quotedetail", `${e.row.data.quotedetailid}`, { extreme_productdescription: $('#productDescription').val().trim() });
+                                  quoteLinesData.update(e.row.data.quotedetailid, { extreme_productdescription: $('#productDescription').val().trim() });
+                                  dataGrid.refresh();
+
+                                  popup.hide();
+
+                                },
+                              },
+                            }, {
+                              widget: 'dxButton',
+                              toolbar: 'bottom',
+                              location: 'after',
+                              options: {
+                                text: 'Close',
+                                stylingMode: 'outlined',
+                                type: 'normal',
+                                onClick() {
+                                  popup.hide();
+                                },
+                              },
+                            }],
+                            onHiding: (e) => {
+                              console.log('Hidding popup event');
+                              console.log(e);
+                              selectedDescriptionItem = null;
+                            }
+                          }).dxPopup('instance');
+
+                          selectedDescriptionItem = e.row.data;
+                          popup.option({
+                            contentTemplate: () => popupContentTemplate(e.row.data)
+                          });
+                          popup.show();
+
+                        },
+                      },
+                      'delete'
+                    ],
                   }
                 ],
                 onEditorPreparing: async (e) => {
@@ -1604,6 +1738,7 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.newData.extreme_pd) record.extreme_pd = e.newData.extreme_pd; // Decimal
                   if (e.newData.extreme_fullpd) record.extreme_fullpd = e.newData.extreme_fullpd; // Decimal
                   if (e.newData.extendedamount) record.extendedamount = e.newData.extendedamount; // New total amount
+                  if (typeof e.newData.extreme_createasset === "boolean") record.extreme_createasset = e.newData.extreme_createasset; // Boolean
                   if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
 
                   if (!typeof (e.oldData.productid) === 'number') {
@@ -1921,7 +2056,8 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_productdescription',
             caption: 'Description',
-            dataType: 'string'
+            dataType: 'string',
+            visible: false
           },
           {
             dataField: 'quantity',
@@ -2435,22 +2571,10 @@ async function setClientApiContext(Xrm, formContext) {
             visible: false
           },
           {
-            type: 'selection',
-            width: 50,
-            cellTemplate: function ($cellElement, cellInfo) {
-              console.log('cellInfo');
-              console.log(cellInfo);
-              // Render custom cell content here
-              $('<div>')
-                .append($('<input type="checkbox">'))
-                .appendTo($cellElement);
-            },
-            headerCellTemplate: function ($headerElement, headerInfo) {
-              // Render custom header content here
-              $('<div>')
-                .html('<span>Asset</span>')
-                .appendTo($headerElement);
-            }
+            dataField: 'extreme_createasset',
+            caption: 'Asset?',
+            width: 60,
+            dataType: 'boolean'
           },
           {
             type: 'buttons',
@@ -2466,11 +2590,81 @@ async function setClientApiContext(Xrm, formContext) {
                   return false;
                 },
                 onClick(e) {
-                  // const clonedItem = $.extend({}, e.row.data, { ID: maxID += 1 });
+                  console.log(e);
 
-                  // employees.splice(e.row.rowIndex, 0, clonedItem);
-                  // e.component.refresh(true);
-                  // e.event.preventDefault();
+                  const popupContentTemplate = function (item) {
+
+                    return $('<div data-mdb-input-init class="form-outline">')
+                      .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</textarea>`))
+
+                    return $('<div>').append(
+                      $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
+                    );
+                  };
+                  const popup = $('#popup').dxPopup({
+                    contentTemplate: popupContentTemplate,
+                    width: 500,
+                    height: 200,
+                    container: '.dx-viewport',
+                    showTitle: true,
+                    title: `Description for ${e.row.data.quotedetailname}`,
+                    visible: false,
+                    dragEnabled: false,
+                    hideOnOutsideClick: true,
+                    showCloseButton: false,
+                    position: {
+                      at: 'center',
+                      my: 'center',
+                      collision: 'fit',
+                    },
+                    toolbarItems: [{
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'before',
+                      options: {
+                        icon: 'save',
+                        stylingMode: 'contained',
+                        text: 'Save',
+                        async onClick() {
+                          console.log($('#productDescription').val().trim());
+
+                          var record = {};
+                          record.extreme_productdescription = "test"; // Multiline Text
+
+                          await Xrm.WebApi.updateRecord("quotedetail", `${e.row.data.quotedetailid}`, { extreme_productdescription: $('#productDescription').val().trim() });
+                          quoteLinesData.update(e.row.data.quotedetailid, { extreme_productdescription: $('#productDescription').val().trim() });
+                          dataGrid.refresh();
+
+                          popup.hide();
+
+                        },
+                      },
+                    }, {
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'after',
+                      options: {
+                        text: 'Close',
+                        stylingMode: 'outlined',
+                        type: 'normal',
+                        onClick() {
+                          popup.hide();
+                        },
+                      },
+                    }],
+                    onHiding: (e) => {
+                      console.log('Hidding popup event');
+                      console.log(e);
+                      selectedDescriptionItem = null;
+                    }
+                  }).dxPopup('instance');
+
+                  selectedDescriptionItem = e.row.data;
+                  popup.option({
+                    contentTemplate: () => popupContentTemplate(e.row.data)
+                  });
+                  popup.show();
+
                 },
               },
               'delete'
@@ -2593,6 +2787,7 @@ async function setClientApiContext(Xrm, formContext) {
                         col.dataField !== "extreme_pd" &&
                         col.dataField !== "extreme_fullpd" &&
                         col.dataField !== "manualdiscountamount" &&
+                        col.dataField !== "extreme_productdescription" &&
                         // other columns
                         col.dataField !== "sequencenumber" &&
                         col.dataField !== "extreme_pricelistcurrency" &&
@@ -2670,6 +2865,7 @@ async function setClientApiContext(Xrm, formContext) {
                         // col.dataField !== "extreme_pd" &&
                         // col.dataField !== "extreme_fullpd" &&
                         // col.dataField !== "manualdiscountamount" &&
+                        col.dataField !== "extreme_productdescription" &&
                         // other columns
                         col.dataField !== "sequencenumber" &&
                         col.dataField !== "extreme_pricelistcurrency" &&
@@ -2733,7 +2929,7 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.getVisibleColumns().forEach(col => {
                     if (col.dataField !== 'productid' &&
                       col.dataField !== 'quotedetailname' &&
-                      col.dataField !== 'extreme_productdescription' &&
+                      // col.dataField !== 'extreme_productdescription' &&
                       col.dataType !== 'detailExpand' &&
                       col.dataType !== 'drag') {
                       // console.log(col);
@@ -2970,6 +3166,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.data.tax) record.tax = Number(parseFloat(e.data.tax).toFixed(4)); // Currency
           if (e.data.extreme_pd) record.extreme_pd = e.data.extreme_pd; // Decimal
           if (e.data.extreme_fullpd) record.extreme_fullpd = e.data.extreme_fullpd; // Decimal
+          if (typeof e.data.extreme_createasset === "boolean") record.extreme_createasset = e.data.extreme_createasset; // Boolean
           if (e.data.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.data.extreme_pricelist})`; // Lookup
 
           // Is Price Overriden boolean to true
@@ -3106,6 +3303,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_pd) record.extreme_pd = e.newData.extreme_pd; // Decimal
           if (e.newData.extreme_fullpd) record.extreme_fullpd = e.newData.extreme_fullpd; // Decimal
           if (e.newData.extendedamount) record.extendedamount = e.newData.extendedamount; // New total amount
+          if (typeof e.newData.extreme_createasset === "boolean") record.extreme_createasset = e.newData.extreme_createasset; // Boolean
           if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
           if (e.newData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
           if (e.newData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
