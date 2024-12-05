@@ -1584,7 +1584,7 @@ async function setClientApiContext(Xrm, formContext) {
                             height: 200,
                             container: '.dx-viewport',
                             showTitle: true,
-                            title: `Description for ${e.row.data.quotedetailname}`,
+                            title: `Description for ${e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname}`,
                             visible: false,
                             dragEnabled: false,
                             hideOnOutsideClick: true,
@@ -2334,13 +2334,60 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_tax',
             caption: 'VAT %',
-            dataType: 'number',
+            // dataType: 'number',
+            lookup: {
+              dataSource(options) {
+                return {
+                  store: {
+                    type: "array",
+                    data: vatGroupsArray,
+                    key: "id"
+                  },
+                  paginate: true,
+                  pageSize: 20,
+                }
+              },
+              displayExpr: "vat",
+              valueExpr: 'id'
+            },
+            editorOptions: {
+              acceptCustomValue: false,
+              // popupWidth: 600,
+              searchEnabled: true,
+              searchExpr: ["code", "vat"],
+              itemTemplate: function (data, index, container) {
+                var containerFluid = $("<div>").addClass("container-fluid");
+                var row = $("<div>").addClass("row text-wrap");
+                $("<div>").addClass("col-6").text(data["code"]).appendTo(row);
+                $("<div>").addClass("col-6").text(data["vat"]).appendTo(row);
+                row.appendTo(containerFluid);
+                container.append(containerFluid);
+              },
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  if (iframeCorrentHeight < 450) {
+                    wrControl.getObject().style.minHeight = "600px";
+                  }
+                }
+                e.component._popup.option('width', 150);
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            },
             format: {
               type: "fixedPoint",
               precision: 2
             },
-            allowEditing: false,
+            allowEditing: isDraftStatus,
             customizeText: function (cellInfo) {
+              console.log('cellInfo');
+              console.log(cellInfo);
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
             },
           },
@@ -2607,7 +2654,7 @@ async function setClientApiContext(Xrm, formContext) {
                     height: 200,
                     container: '.dx-viewport',
                     showTitle: true,
-                    title: `Description for ${e.row.data.quotedetailname}`,
+                    title: `Description for ${e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname}`,
                     visible: false,
                     dragEnabled: false,
                     hideOnOutsideClick: true,
