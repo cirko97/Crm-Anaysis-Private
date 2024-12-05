@@ -675,7 +675,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     vatGroupsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_vatgroup", "?$select=extreme_vatgroupid,extreme_code,extreme_vat").then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_vatgroup", "?$select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat").then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -683,13 +683,16 @@ async function setClientApiContext(Xrm, formContext) {
           // Columns
           var extreme_vatgroupid = result["extreme_vatgroupid"]; // Guid
           var extreme_code = result["extreme_code"]; // Text
+          var extreme_description = result["extreme_description"]; // Text
           var extreme_vat = result["extreme_vat"]; // Decimal
           var extreme_vat_formatted = result["extreme_vat@OData.Community.Display.V1.FormattedValue"];
 
           vatGroupsArray.push({
             "id": extreme_vatgroupid,
+            "name": extreme_description,
             "code": extreme_code,
-            "vat": extreme_vat
+            "vat": extreme_vat,
+            "varPercentFormat": extreme_vat + " %"
           });
 
         }
@@ -698,6 +701,7 @@ async function setClientApiContext(Xrm, formContext) {
         console.log(error.message);
       }
     );
+
   }
 
 
@@ -1551,11 +1555,13 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_createasset',
                     caption: 'Asset?',
                     width: 60,
-                    dataType: 'boolean'
+                    dataType: 'boolean',
+                    visible: isDraftStatus
                   },
                   {
                     type: 'buttons',
                     width: 70,
+                    visible: isDraftStatus,
                     buttons: [
                       {
                         hint: 'Description',
@@ -2347,19 +2353,20 @@ async function setClientApiContext(Xrm, formContext) {
                   pageSize: 20,
                 }
               },
-              displayExpr: "vat",
+              displayExpr: "varPercentFormat",
               valueExpr: 'id'
             },
             editorOptions: {
               acceptCustomValue: false,
               // popupWidth: 600,
               searchEnabled: true,
-              searchExpr: ["code", "vat"],
+              searchExpr: ["name", "code", "varPercentFormat"],
               itemTemplate: function (data, index, container) {
                 var containerFluid = $("<div>").addClass("container-fluid");
                 var row = $("<div>").addClass("row text-wrap");
-                $("<div>").addClass("col-6").text(data["code"]).appendTo(row);
-                $("<div>").addClass("col-6").text(data["vat"]).appendTo(row);
+                $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
+                $("<div>").addClass("col-3").text(data["code"]).appendTo(row);
+                $("<div>").addClass("col-3").text(data["varPercentFormat"]).appendTo(row);
                 row.appendTo(containerFluid);
                 container.append(containerFluid);
               },
@@ -2371,7 +2378,7 @@ async function setClientApiContext(Xrm, formContext) {
                     wrControl.getObject().style.minHeight = "600px";
                   }
                 }
-                e.component._popup.option('width', 150);
+                e.component._popup.option('width', 400);
               },
               onClosed: function (e) {
                 heightAuto = true;
@@ -2403,6 +2410,7 @@ async function setClientApiContext(Xrm, formContext) {
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             },
+            visible: false
           },
           {
             dataField: 'extreme_pd',
@@ -2563,6 +2571,25 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
+            editorOptions: {
+              acceptCustomValue: false,
+              searchEnabled: true,
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  if (iframeCorrentHeight < 450) {
+                    wrControl.getObject().style.minHeight = "600px";
+                  }
+                }
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_area = value;
               checkClassifyRows();
@@ -2586,6 +2613,25 @@ async function setClientApiContext(Xrm, formContext) {
               },
               displayExpr: 'name',
               valueExpr: 'id'
+            },
+            editorOptions: {
+              acceptCustomValue: false,
+              searchEnabled: true,
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  if (iframeCorrentHeight < 450) {
+                    wrControl.getObject().style.minHeight = "600px";
+                  }
+                }
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
             },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_technology = value;
@@ -2611,6 +2657,25 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
+            editorOptions: {
+              acceptCustomValue: false,
+              searchEnabled: true,
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  if (iframeCorrentHeight < 450) {
+                    wrControl.getObject().style.minHeight = "600px";
+                  }
+                }
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_vendorsupplier = value;
               checkClassifyRows();
@@ -2621,7 +2686,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_createasset',
             caption: 'Asset?',
             width: 60,
-            dataType: 'boolean'
+            dataType: 'boolean',
           },
           {
             type: 'buttons',
@@ -2641,8 +2706,14 @@ async function setClientApiContext(Xrm, formContext) {
 
                   const popupContentTemplate = function (item) {
 
-                    return $('<div data-mdb-input-init class="form-outline">')
-                      .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</textarea>`))
+                    if (isDraftStatus) {
+                      return $('<div data-mdb-input-init class="form-outline">')
+                        .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</textarea>`))
+                    }
+                    else {
+                      return $('<div class="overflow-auto" style="max-height: 100px;">')
+                        .append($(`<p>${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</p>`))
+                    }
 
                     return $('<div>').append(
                       $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
@@ -2672,6 +2743,7 @@ async function setClientApiContext(Xrm, formContext) {
                         icon: 'save',
                         stylingMode: 'contained',
                         text: 'Save',
+                        disabled: !isDraftStatus,
                         async onClick() {
                           console.log($('#productDescription').val().trim());
 
@@ -2821,6 +2893,7 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.columnOption('extreme_pd', 'visible', false);
                   dataGrid.columnOption('extreme_fullpd', 'visible', false);
                   dataGrid.columnOption('manualdiscountamount', 'visible', false);
+                  dataGrid.columnOption('tax', 'visible', false);
                   // e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
 
                   // reset all columns after classify
@@ -2899,6 +2972,7 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.columnOption('extreme_pd', 'visible', true);
                   dataGrid.columnOption('extreme_fullpd', 'visible', true);
                   dataGrid.columnOption('manualdiscountamount', 'visible', true);
+                  dataGrid.columnOption('tax', 'visible', true);
                   // e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
 
                   // reset all columns after classify
