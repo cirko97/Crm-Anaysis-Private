@@ -195,7 +195,7 @@ async function setClientApiContext(Xrm, formContext) {
     customUnitsArray = [];
     filterForPriceListsQuery = '';
 
-    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
       async function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -312,6 +312,9 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_vendorsupplier_formatted = result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"];
           var extreme_vendorsupplier_lookuplogicalname = result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
           var extreme_createasset = result["extreme_createasset"]; // Boolean
+          var extreme_vatgroup = result["_extreme_vatgroup_value"]; // Lookup
+          var extreme_vatgroup_formatted = result["_extreme_vatgroup_value@OData.Community.Display.V1.FormattedValue"];
+          var extreme_vatgroup_lookuplogicalname = result["_extreme_vatgroup_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
 
           let newCustomIdForUnit = 0;
@@ -366,7 +369,8 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_area": extreme_area,
             "extreme_technology": extreme_technology,
             "extreme_vendorsupplier": extreme_vendorsupplier,
-            "extreme_createasset": extreme_createasset
+            "extreme_createasset": extreme_createasset,
+            "extreme_vatgroup": extreme_vatgroup
           });
 
           if (!productid) {
@@ -1345,8 +1349,64 @@ async function setClientApiContext(Xrm, formContext) {
                     }
                   },
                   {
-                    dataField: 'extreme_tax',
+                    dataField: 'extreme_vatgroup',
                     caption: 'VAT %',
+                    lookup: {
+                      dataSource(options) {
+                        return {
+                          store: {
+                            type: "array",
+                            data: vatGroupsArray,
+                            key: "id"
+                          },
+                          paginate: true,
+                          pageSize: 20,
+                        }
+                      },
+                      displayExpr: "varPercentFormat",
+                      valueExpr: 'id'
+                    },
+                    editorOptions: {
+                      acceptCustomValue: false,
+                      // popupWidth: 600,
+                      searchEnabled: true,
+                      searchExpr: ["name", "code", "varPercentFormat"],
+                      itemTemplate: function (data, index, container) {
+                        var containerFluid = $("<div>").addClass("container-fluid");
+                        var row = $("<div>").addClass("row text-wrap");
+                        $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
+                        $("<div>").addClass("col-3").text(data["code"]).appendTo(row);
+                        $("<div>").addClass("col-3").text(data["varPercentFormat"]).appendTo(row);
+                        row.appendTo(containerFluid);
+                        container.append(containerFluid);
+                      },
+                      onOpened: function (e) {
+                        heightAuto = false;
+                        if (heightAuto === false) {
+                          const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                          if (iframeCorrentHeight < 450) {
+                            wrControl.getObject().style.minHeight = "600px";
+                          }
+                        }
+                        e.component._popup.option('width', 400);
+                      },
+                      onClosed: function (e) {
+                        heightAuto = true;
+                      },
+                      onFocusOut: function (e) {
+                        heightAuto = true;
+                      }
+                    },
+                    format: {
+                      type: "fixedPoint",
+                      precision: 2
+                    },
+                    allowEditing: isDraftStatus,
+                    visible: dataGrid.columnOption('extreme_vatgroup', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_tax',
+                    caption: 'VAT % calc',
                     dataType: 'number',
                     visible: dataGrid.columnOption('extreme_tax', 'visible'),
                     format: {
@@ -1746,6 +1806,7 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.newData.extendedamount) record.extendedamount = e.newData.extendedamount; // New total amount
                   if (typeof e.newData.extreme_createasset === "boolean") record.extreme_createasset = e.newData.extreme_createasset; // Boolean
                   if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
+                  if (e.newData.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.newData.extreme_vatgroup})`; // Lookup
 
                   if (!typeof (e.oldData.productid) === 'number') {
                     if (e.newData.uomid) record["uomid@odata.bind"] = `/uoms(${e.newData.uomid})`; // Lookup
@@ -1973,6 +2034,22 @@ async function setClientApiContext(Xrm, formContext) {
             // editCellTemplate: dropDownBoxEditorTemplateProducts,
             setCellValue: async function (newData, value, currentRowData) {
 
+              // Product types
+              let productType = null;
+              let defaultVatGroup = null;
+              let defaultTax = null;
+
+              const productTypeCode = 1;
+              const serviceTypeCode = 3;
+
+              if (typeof (value) !== 'number') {
+                if (value !== null) {
+                  productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
+                  defaultVatGroup = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=_extreme_vatgroup_value&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
+                  defaultVatGroup = defaultVatGroup.entities[0]._extreme_vatgroup_value;
+                }
+              }
+
               let priceListItemInfo = [];
               let supplierPricePerUnit = 0;
 
@@ -2001,7 +2078,11 @@ async function setClientApiContext(Xrm, formContext) {
               console.log('currentRowDataa: ');
               console.log(currentRowData);
               newData.productid = value;
-              if (!isAddingSet) newData.extreme_tax = taxPercentOfAccount.extreme_tax;
+              if (!isAddingSet) {
+                newData.extreme_tax = defaultVatGroup === null ? taxPercentOfAccount.extreme_tax : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+                defaultTax = defaultVatGroup === null ? taxPercentOfAccount.extreme_tax : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+              };
+              if (!isAddingSet && defaultVatGroup !== null) newData.extreme_vatgroup = vatGroupsArray.find(item => item.id === defaultVatGroup).id;
               newData.quotedetailname = productsStore._array.find((item) => item.id === value).productName;
               if (productsStore._array.find((item) => item.id === value).productDefaultUnit !== null) newData.uomid = productsStore._array.find((item) => item.id === value).productDefaultUnit;
               if (productsStore._array.find((item) => item.id === value).pricelevelid && !isAddingSet) {
@@ -2036,8 +2117,8 @@ async function setClientApiContext(Xrm, formContext) {
                 newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1;
                 console.log(newData.extreme_fullpricewithdiscount);
                 newData.manualdiscountamount = (1 * (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit))) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + taxPercentOfAccount.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + taxPercentOfAccount.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
                 newData.extreme_pd = (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) - (supplierPricePerUnit - (supplierPricePerUnit * (1 - currentRowData.extreme_supplierdiscount / 100)));
                 newData.extreme_fullpd = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) - (supplierPricePerUnit - (supplierPricePerUnit * (1 - currentRowData.extreme_supplierdiscount / 100)))) * 1
               }
@@ -2177,7 +2258,14 @@ async function setClientApiContext(Xrm, formContext) {
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_supplierpriceperunit = value;
               if (currentRowData.quantity !== null) newData.extreme_supplierbaseamount = value * currentRowData.quantity;
-              if (currentRowData.extreme_margin !== null) newData.priceperunit = Math.ceil(value * currentRowData.extreme_margin);
+              if (currentRowData.extreme_margin !== null) {
+                const pricePerUnit = Math.ceil(value * currentRowData.extreme_margin);
+                newData.priceperunit = Math.ceil(value * currentRowData.extreme_margin);
+                newData.baseamount = pricePerUnit * currentRowData.quantity;
+                newData.fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
+                const fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
+                newData.extendedamount = (fullPriceWithDiscount * (1 + currentRowData.extreme_tax / 100) - fullPriceWithDiscount) + fullPriceWithDiscount;
+              };
             },
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
@@ -2338,11 +2426,12 @@ async function setClientApiContext(Xrm, formContext) {
             }
           },
           {
-            dataField: 'extreme_tax',
+            dataField: 'extreme_vatgroup',
             caption: 'VAT %',
-            // dataType: 'number',
             lookup: {
               dataSource(options) {
+                console.log('OPTIONS FROM VAT GROUP LOOKUP');
+                console.log(options);
                 return {
                   store: {
                     type: "array",
@@ -2350,7 +2439,7 @@ async function setClientApiContext(Xrm, formContext) {
                     key: "id"
                   },
                   paginate: true,
-                  pageSize: 20,
+                  pageSize: 20
                 }
               },
               displayExpr: "varPercentFormat",
@@ -2387,16 +2476,42 @@ async function setClientApiContext(Xrm, formContext) {
                 heightAuto = true;
               }
             },
+            setCellValue: async function (newData, value, currentRowData) {
+              newData.extreme_vatgroup = value;
+              newData.extreme_tax = vatGroupsArray.find(item => item.id === value).vat;
+              const defaultTax = vatGroupsArray.find(item => item.id === value).vat;
+
+              if (
+                currentRowData.extreme_margin !== null &&
+                currentRowData.extreme_supplierpriceperunit !== null &&
+                currentRowData.extreme_discount !== null
+              ) {
+                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+              }
+
+            },
             format: {
               type: "fixedPoint",
               precision: 2
             },
-            allowEditing: isDraftStatus,
+            allowEditing: isDraftStatus
+          },
+          {
+            dataField: 'extreme_tax',
+            caption: 'VAT % calc',
+            dataType: 'number',
+            format: {
+              type: "fixedPoint",
+              precision: 2
+            },
+            allowEditing: false,
             customizeText: function (cellInfo) {
               console.log('cellInfo');
               console.log(cellInfo);
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
             },
+            visible: false
           },
           {
             dataField: 'tax',
@@ -2911,7 +3026,7 @@ async function setClientApiContext(Xrm, formContext) {
                         // other columns
                         col.dataField !== "sequencenumber" &&
                         col.dataField !== "extreme_pricelistcurrency" &&
-                        // col.dataField !== "tax" &&
+                        col.dataField !== "extreme_tax" &&
                         col.dataField !== "extreme_parentquoteline" &&
                         col.dataField !== "extreme_isparentitem"
                       ) {
@@ -2990,7 +3105,7 @@ async function setClientApiContext(Xrm, formContext) {
                         // other columns
                         col.dataField !== "sequencenumber" &&
                         col.dataField !== "extreme_pricelistcurrency" &&
-                        // col.dataField !== "tax" &&
+                        col.dataField !== "extreme_tax" &&
                         col.dataField !== "extreme_parentquoteline" &&
                         col.dataField !== "extreme_isparentitem"
                       ) {
@@ -3289,6 +3404,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.data.extreme_fullpd) record.extreme_fullpd = e.data.extreme_fullpd; // Decimal
           if (typeof e.data.extreme_createasset === "boolean") record.extreme_createasset = e.data.extreme_createasset; // Boolean
           if (e.data.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.data.extreme_pricelist})`; // Lookup
+          if (e.data.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.data.extreme_vatgroup})`; // Lookup
 
           // Is Price Overriden boolean to true
           record.ispriceoverridden = true; // Boolean
@@ -3429,6 +3545,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
           if (e.newData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
           if (e.newData.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
+          if (e.newData.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.newData.extreme_vatgroup})`; // Lookup
 
           if (typeof (e.oldData.productid) !== 'number') {
             if (e.newData.uomid) record["uomid@odata.bind"] = `/uoms(${e.newData.uomid})`; // Lookup
