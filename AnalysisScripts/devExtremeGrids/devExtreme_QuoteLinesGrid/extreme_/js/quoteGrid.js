@@ -679,32 +679,67 @@ async function setClientApiContext(Xrm, formContext) {
 
     vatGroupsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_vatgroup", "?$select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat").then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", "?$select=extreme_producttype&$expand=extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)").then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
-          var extreme_vatgroupid = result["extreme_vatgroupid"]; // Guid
-          var extreme_code = result["extreme_code"]; // Text
-          var extreme_description = result["extreme_description"]; // Text
-          var extreme_vat = result["extreme_vat"]; // Decimal
-          var extreme_vat_formatted = result["extreme_vat@OData.Community.Display.V1.FormattedValue"];
+          var extreme_vatsettingid = result["extreme_vatsettingid"]; // Guid
+          var extreme_producttype = result["extreme_producttype"]; // Choice
+          var extreme_producttype_formatted = result["extreme_producttype@OData.Community.Display.V1.FormattedValue"];
+          
+          // Many To One Relationships
+          if (result.hasOwnProperty("extreme_VATGroup") && result["extreme_VATGroup"] !== null) {
+            var extreme_VATGroup_extreme_vatgroupid = result["extreme_VATGroup"]["extreme_vatgroupid"]; // Guid
+            var extreme_VATGroup_extreme_code = result["extreme_VATGroup"]["extreme_code"]; // Text
+            var extreme_VATGroup_extreme_description = result["extreme_VATGroup"]["extreme_description"]; // Text
+            var extreme_VATGroup_extreme_vat = result["extreme_VATGroup"]["extreme_vat"]; // Decimal
+            var extreme_VATGroup_extreme_vat_formatted = result["extreme_VATGroup"]["extreme_vat@OData.Community.Display.V1.FormattedValue"];
 
-          vatGroupsArray.push({
-            "id": extreme_vatgroupid,
-            "name": extreme_description,
-            "code": extreme_code,
-            "vat": extreme_vat,
-            "varPercentFormat": extreme_vat + " %"
-          });
+            vatGroupsArray.push({
+              "id": extreme_VATGroup_extreme_vatgroupid,
+              "name": extreme_VATGroup_extreme_description,
+              "code": extreme_VATGroup_extreme_code,
+              "vat": extreme_VATGroup_extreme_vat,
+              "varPercentFormat": extreme_VATGroup_extreme_vat + " %",
+              "productTypeCode": extreme_producttype
+            });
 
+          }
         }
       },
-      function (error) {
+      function(error) {
         console.log(error.message);
       }
     );
+
+    // await Xrm.WebApi.retrieveMultipleRecords("extreme_vatgroup", "?$select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat").then(
+    //   function success(results) {
+    //     console.log(results);
+    //     for (var i = 0; i < results.entities.length; i++) {
+    //       var result = results.entities[i];
+    //       // Columns
+    //       var extreme_vatgroupid = result["extreme_vatgroupid"]; // Guid
+    //       var extreme_code = result["extreme_code"]; // Text
+    //       var extreme_description = result["extreme_description"]; // Text
+    //       var extreme_vat = result["extreme_vat"]; // Decimal
+    //       var extreme_vat_formatted = result["extreme_vat@OData.Community.Display.V1.FormattedValue"];
+
+    //       vatGroupsArray.push({
+    //         "id": extreme_vatgroupid,
+    //         "name": extreme_description,
+    //         "code": extreme_code,
+    //         "vat": extreme_vat,
+    //         "varPercentFormat": extreme_vat + " %"
+    //       });
+
+    //     }
+    //   },
+    //   function (error) {
+    //     console.log(error.message);
+    //   }
+    // );
 
   }
 
@@ -1786,24 +1821,24 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.newData.productid) record["productid@odata.bind"] = `/products(${e.newData.productid})`; // Lookup
                   if (e.newData.quotedetailname) record.quotedetailname = e.newData.quotedetailname; // Text
                   if (e.newData.extreme_productdescription) record.extreme_productdescription = e.newData.extreme_productdescription; // Text
-                  if (e.newData.extreme_pricelistpriceperunit) record.extreme_pricelistpriceperunit = e.newData.extreme_pricelistpriceperunit; // Decimal
+                  if (e.newData.extreme_pricelistpriceperunit || e.newData.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = e.newData.extreme_pricelistpriceperunit; // Decimal
                   if (e.newData.extreme_pricelistcurrency) record.extreme_pricelistcurrency = e.newData.extreme_pricelistcurrency; // Text
-                  if (e.newData.extreme_supplierpriceperunit) record.extreme_supplierpriceperunit = Number(parseFloat(e.newData.extreme_supplierpriceperunit).toFixed(4)); // Currency
-                  if (e.newData.quantity) record.quantity = e.newData.quantity; // Decimal
-                  if (e.newData.extreme_supplierbaseamount) record.extreme_supplierbaseamount = Number(parseFloat(e.newData.extreme_supplierbaseamount).toFixed(4)); // Currency
-                  if (e.newData.extreme_supplierdiscount) record.extreme_supplierdiscount = e.newData.extreme_supplierdiscount; // Decimal
-                  if (e.newData.extreme_margin) record.extreme_margin = e.newData.extreme_margin; // Decimal
-                  if (e.newData.priceperunit) record.priceperunit = e.newData.priceperunit; // Decimal
-                  if (e.newData.baseamount) record.baseamount = e.newData.baseamount; // Decimal
-                  if (e.newData.extreme_discount) record.extreme_discount = e.newData.extreme_discount; // Decimal
-                  if (e.newData.manualdiscountamount) record.manualdiscountamount = Number(parseFloat(e.newData.manualdiscountamount).toFixed(4)); // Currency
-                  if (e.newData.extreme_pricewithdiscount) record.extreme_pricewithdiscount = e.newData.extreme_pricewithdiscount; // Decimal
-                  if (e.newData.extreme_fullpricewithdiscount) record.extreme_fullpricewithdiscount = e.newData.extreme_fullpricewithdiscount; // Decimal
-                  if (e.newData.extreme_tax) record.extreme_tax = e.newData.extreme_tax; // Decimal
-                  if (e.newData.tax) record.tax = Number(parseFloat(e.newData.tax).toFixed(4)); // Currency
-                  if (e.newData.extreme_pd) record.extreme_pd = e.newData.extreme_pd; // Decimal
-                  if (e.newData.extreme_fullpd) record.extreme_fullpd = e.newData.extreme_fullpd; // Decimal
-                  if (e.newData.extendedamount) record.extendedamount = e.newData.extendedamount; // New total amount
+                  if (e.newData.extreme_supplierpriceperunit || e.newData.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(e.newData.extreme_supplierpriceperunit).toFixed(4)); // Currency
+                  if (e.newData.quantity || e.newData.quantity === 0) record.quantity = e.newData.quantity; // Decimal
+                  if (e.newData.extreme_supplierbaseamount || e.newData.extreme_supplierbaseamount === 0) record.extreme_supplierbaseamount = Number(parseFloat(e.newData.extreme_supplierbaseamount).toFixed(4)); // Currency
+                  if (e.newData.extreme_supplierdiscount || e.newData.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = e.newData.extreme_supplierdiscount; // Decimal
+                  if (e.newData.extreme_margin || e.newData.extreme_margin === 0) record.extreme_margin = e.newData.extreme_margin; // Decimal
+                  if (e.newData.priceperunit || e.newData.priceperunit === 0) record.priceperunit = e.newData.priceperunit; // Decimal
+                  if (e.newData.baseamount || e.newData.baseamount === 0) record.baseamount = e.newData.baseamount; // Decimal
+                  if (e.newData.extreme_discount || e.newData.extreme_discount === 0) record.extreme_discount = e.newData.extreme_discount; // Decimal
+                  if (e.newData.manualdiscountamount || e.newData.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(e.newData.manualdiscountamount).toFixed(4)); // Currency
+                  if (e.newData.extreme_pricewithdiscount || e.newData.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = e.newData.extreme_pricewithdiscount; // Decimal
+                  if (e.newData.extreme_fullpricewithdiscount || e.newData.extreme_fullpricewithdiscount === 0) record.extreme_fullpricewithdiscount = e.newData.extreme_fullpricewithdiscount; // Decimal
+                  if (e.newData.extreme_tax || e.newData.extreme_tax === 0) record.extreme_tax = e.newData.extreme_tax; // Decimal
+                  if (e.newData.tax || e.newData.tax === 0) record.tax = Number(parseFloat(e.newData.tax).toFixed(4)); // Currency
+                  if (e.newData.extreme_pd || e.newData.extreme_pd === 0) record.extreme_pd = e.newData.extreme_pd; // Decimal
+                  if (e.newData.extreme_fullpd || e.newData.extreme_fullpd === 0) record.extreme_fullpd = e.newData.extreme_fullpd; // Decimal
+                  if (e.newData.extendedamount || e.newData.extendedamount === 0) record.extendedamount = e.newData.extendedamount; // New total amount
                   if (typeof e.newData.extreme_createasset === "boolean") record.extreme_createasset = e.newData.extreme_createasset; // Boolean
                   if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
                   if (e.newData.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.newData.extreme_vatgroup})`; // Lookup
@@ -2039,8 +2074,8 @@ async function setClientApiContext(Xrm, formContext) {
               let defaultVatGroup = null;
               let defaultTax = null;
 
-              const productTypeCode = 1;
-              const serviceTypeCode = 3;
+              // const productTypeCode = 1;
+              // const serviceTypeCode = 3;
 
               if (typeof (value) !== 'number') {
                 if (value !== null) {
@@ -2051,13 +2086,24 @@ async function setClientApiContext(Xrm, formContext) {
               }
 
               let priceListItemInfo = [];
+              let classifyLookupsInfo = null;
               let supplierPricePerUnit = 0;
 
               if (productsStore._array.find((item) => item.id === value).pricelevelid) {
                 if (value !== null) {
                   priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
+                  classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
                 }
               }
+
+              if(classifyLookupsInfo !== null) {
+                if(classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
+                if(classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
+                if(classifyLookupsInfo._extreme_supplier_value) newData.extreme_vendorsupplier = classifyLookupsInfo._extreme_supplier_value;
+              }
+
+              // set create asset to false
+              newData.extreme_createasset = false;
 
               console.log('priceListItemInfo');
               console.log(priceListItemInfo);
@@ -2262,7 +2308,7 @@ async function setClientApiContext(Xrm, formContext) {
                 const pricePerUnit = Math.ceil(value * currentRowData.extreme_margin);
                 newData.priceperunit = Math.ceil(value * currentRowData.extreme_margin);
                 newData.baseamount = pricePerUnit * currentRowData.quantity;
-                newData.fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
+                newData.extreme_fullpricewithdiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
                 const fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
                 newData.extendedamount = (fullPriceWithDiscount * (1 + currentRowData.extreme_tax / 100) - fullPriceWithDiscount) + fullPriceWithDiscount;
               };
@@ -3385,25 +3431,28 @@ async function setClientApiContext(Xrm, formContext) {
           record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
           if (e.data.quotedetailname) record.quotedetailname = e.data.quotedetailname; // Text
           if (e.data.extreme_productdescription) record.extreme_productdescription = e.data.extreme_productdescription; // Text
-          if (e.data.extreme_pricelistpriceperunit) record.extreme_pricelistpriceperunit = e.data.extreme_pricelistpriceperunit; // Decimal
+          if (e.data.extreme_pricelistpriceperunit || e.data.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = e.data.extreme_pricelistpriceperunit; // Decimal
           if (e.data.extreme_pricelistcurrency) record.extreme_pricelistcurrency = e.data.extreme_pricelistcurrency; // Text
-          if (e.data.extreme_supplierpriceperunit) record.extreme_supplierpriceperunit = Number(parseFloat(e.data.extreme_supplierpriceperunit).toFixed(4)); // Currency
-          if (e.data.quantity) record.quantity = e.data.quantity; // Decimal
-          if (e.data.extreme_supplierbaseamount) record.extreme_supplierbaseamount = Number(parseFloat(e.data.extreme_supplierbaseamount).toFixed(4)); // Currency
-          if (e.data.extreme_supplierdiscount) record.extreme_supplierdiscount = e.data.extreme_supplierdiscount; // Decimal
-          if (e.data.extreme_margin) record.extreme_margin = e.data.extreme_margin; // Decimal
-          if (e.data.priceperunit) record.priceperunit = e.data.priceperunit; // Decimal
-          if (e.data.baseamount) record.baseamount = e.data.baseamount; // Decimal
-          if (e.data.extreme_discount) record.extreme_discount = e.data.extreme_discount; // Decimal
-          if (e.data.manualdiscountamount) record.manualdiscountamount = Number(parseFloat(e.data.manualdiscountamount).toFixed(4)); // Currency
-          if (e.data.extreme_pricewithdiscount) record.extreme_pricewithdiscount = e.data.extreme_pricewithdiscount; // Decimal
-          if (e.data.extreme_fullpricewithdiscount) record.extreme_fullpricewithdiscount = e.data.extreme_fullpricewithdiscount; // Decimal
-          if (e.data.extreme_tax) record.extreme_tax = e.data.extreme_tax; // Decimal
-          if (e.data.tax) record.tax = Number(parseFloat(e.data.tax).toFixed(4)); // Currency
-          if (e.data.extreme_pd) record.extreme_pd = e.data.extreme_pd; // Decimal
-          if (e.data.extreme_fullpd) record.extreme_fullpd = e.data.extreme_fullpd; // Decimal
+          if (e.data.extreme_supplierpriceperunit || e.data.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(e.data.extreme_supplierpriceperunit).toFixed(4)); // Currency
+          if (e.data.quantity || e.data.quantity === 0) record.quantity = e.data.quantity; // Decimal
+          if (e.data.extreme_supplierbaseamount || e.data.extreme_supplierbaseamount === 0) record.extreme_supplierbaseamount = Number(parseFloat(e.data.extreme_supplierbaseamount).toFixed(4)); // Currency
+          if (e.data.extreme_supplierdiscount || e.data.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = e.data.extreme_supplierdiscount; // Decimal
+          if (e.data.extreme_margin || e.data.extreme_margin === 0) record.extreme_margin = e.data.extreme_margin; // Decimal
+          if (e.data.priceperunit || e.data.priceperunit === 0) record.priceperunit = e.data.priceperunit; // Decimal
+          if (e.data.baseamount || e.data.baseamount === 0) record.baseamount = e.data.baseamount; // Decimal
+          if (e.data.extreme_discount || e.data.extreme_discount === 0) record.extreme_discount = e.data.extreme_discount; // Decimal
+          if (e.data.manualdiscountamount || e.data.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(e.data.manualdiscountamount).toFixed(4)); // Currency
+          if (e.data.extreme_pricewithdiscount || e.data.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = e.data.extreme_pricewithdiscount; // Decimal
+          if (e.data.extreme_fullpricewithdiscount || e.data.extreme_fullpricewithdiscount === 0) record.extreme_fullpricewithdiscount = e.data.extreme_fullpricewithdiscount; // Decimal
+          if (e.data.extreme_tax || e.data.extreme_tax === 0) record.extreme_tax = e.data.extreme_tax; // Decimal
+          if (e.data.tax || e.data.tax === 0) record.tax = Number(parseFloat(e.data.tax).toFixed(4)); // Currency
+          if (e.data.extreme_pd || e.data.extreme_pd === 0) record.extreme_pd = e.data.extreme_pd; // Decimal
+          if (e.data.extreme_fullpd || e.data.extreme_fullpd === 0) record.extreme_fullpd = e.data.extreme_fullpd; // Decimal
           if (typeof e.data.extreme_createasset === "boolean") record.extreme_createasset = e.data.extreme_createasset; // Boolean
           if (e.data.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.data.extreme_pricelist})`; // Lookup
+          if (e.data.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.data.extreme_vatgroup})`; // Lookup
+          if (e.data.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.data.extreme_technology})`; // Lookup
+          if (e.data.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${e.data.extreme_vendorsupplier})`; // Lookup
           if (e.data.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.data.extreme_vatgroup})`; // Lookup
 
           // Is Price Overriden boolean to true
@@ -3522,24 +3571,24 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.productid) record["productid@odata.bind"] = `/products(${e.newData.productid})`; // Lookup
           if (e.newData.quotedetailname) record.quotedetailname = e.newData.quotedetailname; // Text
           if (e.newData.extreme_productdescription) record.extreme_productdescription = e.newData.extreme_productdescription; // Text
-          if (e.newData.extreme_pricelistpriceperunit) record.extreme_pricelistpriceperunit = e.newData.extreme_pricelistpriceperunit; // Decimal
-          if (e.newData.extreme_pricelistcurrency) record.extreme_pricelistcurrency = e.newData.extreme_pricelistcurrency; // Text
-          if (e.newData.extreme_supplierpriceperunit) record.extreme_supplierpriceperunit = Number(parseFloat(e.newData.extreme_supplierpriceperunit).toFixed(4)); // Currency
-          if (e.newData.quantity) record.quantity = e.newData.quantity; // Decimal
-          if (e.newData.extreme_supplierbaseamount) record.extreme_supplierbaseamount = Number(parseFloat(e.newData.extreme_supplierbaseamount).toFixed(4)); // Currency
-          if (e.newData.extreme_supplierdiscount) record.extreme_supplierdiscount = e.newData.extreme_supplierdiscount; // Decimal
-          if (e.newData.extreme_margin) record.extreme_margin = e.newData.extreme_margin; // Decimal
-          if (e.newData.priceperunit) record.priceperunit = e.newData.priceperunit; // Decimal
-          if (e.newData.baseamount) record.baseamount = e.newData.baseamount; // Decimal
-          if (e.newData.extreme_discount) record.extreme_discount = e.newData.extreme_discount; // Decimal
-          if (e.newData.manualdiscountamount) record.manualdiscountamount = Number(parseFloat(e.newData.manualdiscountamount).toFixed(4)); // Currency
-          if (e.newData.extreme_pricewithdiscount) record.extreme_pricewithdiscount = e.newData.extreme_pricewithdiscount; // Decimal
-          if (e.newData.extreme_fullpricewithdiscount) record.extreme_fullpricewithdiscount = e.newData.extreme_fullpricewithdiscount; // Decimal
-          if (e.newData.extreme_tax) record.extreme_tax = e.newData.extreme_tax; // Decimal
-          if (e.newData.tax) record.tax = Number(parseFloat(e.newData.tax).toFixed(4)); // Currency
-          if (e.newData.extreme_pd) record.extreme_pd = e.newData.extreme_pd; // Decimal
-          if (e.newData.extreme_fullpd) record.extreme_fullpd = e.newData.extreme_fullpd; // Decimal
-          if (e.newData.extendedamount) record.extendedamount = e.newData.extendedamount; // New total amount
+          if (e.newData.extreme_pricelistpriceperunit || e.newData.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = e.newData.extreme_pricelistpriceperunit; // Decimal
+          if (e.newData.extreme_pricelistcurrency || e.newData.extreme_pricelistcurrency === 0) record.extreme_pricelistcurrency = e.newData.extreme_pricelistcurrency; // Text
+          if (e.newData.extreme_supplierpriceperunit || e.newData.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(e.newData.extreme_supplierpriceperunit).toFixed(4)); // Currency
+          if (e.newData.quantity || e.newData.quantity === 0) record.quantity = e.newData.quantity; // Decimal
+          if (e.newData.extreme_supplierbaseamount || e.newData.extreme_supplierbaseamount === 0) record.extreme_supplierbaseamount = Number(parseFloat(e.newData.extreme_supplierbaseamount).toFixed(4)); // Currency
+          if (e.newData.extreme_supplierdiscount || e.newData.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = e.newData.extreme_supplierdiscount; // Decimal
+          if (e.newData.extreme_margin || e.newData.extreme_margin === 0) record.extreme_margin = e.newData.extreme_margin; // Decimal
+          if (e.newData.priceperunit || e.newData.priceperunit === 0) record.priceperunit = e.newData.priceperunit; // Decimal
+          if (e.newData.baseamount || e.newData.baseamount === 0) record.baseamount = e.newData.baseamount; // Decimal
+          if (e.newData.extreme_discount || e.newData.extreme_discount === 0) record.extreme_discount = e.newData.extreme_discount; // Decimal
+          if (e.newData.manualdiscountamount || e.newData.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(e.newData.manualdiscountamount).toFixed(4)); // Currency
+          if (e.newData.extreme_pricewithdiscount || e.newData.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = e.newData.extreme_pricewithdiscount; // Decimal
+          if (e.newData.extreme_fullpricewithdiscount || e.newData.extreme_fullpricewithdiscount === 0) record.extreme_fullpricewithdiscount = e.newData.extreme_fullpricewithdiscount; // Decimal
+          if (e.newData.extreme_tax || e.newData.extreme_tax === 0) record.extreme_tax = e.newData.extreme_tax; // Decimal
+          if (e.newData.tax || e.newData.tax === 0) record.tax = Number(parseFloat(e.newData.tax).toFixed(4)); // Currency
+          if (e.newData.extreme_pd || e.newData.extreme_pd === 0) record.extreme_pd = e.newData.extreme_pd; // Decimal
+          if (e.newData.extreme_fullpd || e.newData.extreme_fullpd === 0) record.extreme_fullpd = e.newData.extreme_fullpd; // Decimal
+          if (e.newData.extendedamount || e.newData.extendedamount === 0) record.extendedamount = e.newData.extendedamount; // New total amount
           if (typeof e.newData.extreme_createasset === "boolean") record.extreme_createasset = e.newData.extreme_createasset; // Boolean
           if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
           if (e.newData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
@@ -3551,7 +3600,7 @@ async function setClientApiContext(Xrm, formContext) {
             if (e.newData.uomid) record["uomid@odata.bind"] = `/uoms(${e.newData.uomid})`; // Lookup
           }
 
-          if (typeof (e.oldData.productid) !== 'number' && (!e.newData.extreme_area || !e.newData.extreme_technology || !e.newData.extreme_vendorsupplier)) {
+          if (typeof (e.oldData.productid) !== 'number' && (e.newData.extreme_area || e.newData.extreme_technology || e.newData.extreme_vendorsupplier)) {
 
             var recordForLookups = {};
             if (e.newData.extreme_area) recordForLookups["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
@@ -3569,6 +3618,9 @@ async function setClientApiContext(Xrm, formContext) {
             );
 
           }
+
+          console.log('RECORD AFTER UPDATING RECORD IS CREATED');
+          console.log(record);
 
           await Xrm.WebApi.updateRecord("quotedetail", `${e.key}`, record).then(
             async function success(result) {
