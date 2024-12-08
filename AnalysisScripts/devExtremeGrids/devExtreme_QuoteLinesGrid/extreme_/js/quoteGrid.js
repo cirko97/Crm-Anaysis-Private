@@ -854,16 +854,15 @@ async function setClientApiContext(Xrm, formContext) {
             }
 
             const visibleRows = e.component.getVisibleRows();
-            const parentGridArray = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
             const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
             const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
 
             quoteLinesData._array.splice(fromIndex, 1);
             quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-            for (let i = 0; i < parentGridArray.length; i++) {
-              Xrm.WebApi.updateRecord("quotedetail", `${parentGridArray[i].quotedetailid}`, { sequencenumber: i + 1 })
-              parentGridArray[i].sequencenumber = i + 1;
+            for (let i = 0; i < quoteLinesData._array.length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 })
+              quoteLinesData._array[i].sequencenumber = i + 1;
             }
 
             e.component.refresh();
@@ -957,20 +956,19 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log('inside the same child - reordering');
                     }
 
-                    const visibleRows = e.component.getVisibleRows();
-                    const childGridArray = quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.toData);
-                    const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
-                    const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
+                    // const visibleRows = e.component.getVisibleRows();
+                    // const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
+                    // const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
 
-                    quoteLinesData._array.splice(fromIndex, 1);
-                    quoteLinesData._array.splice(toIndex, 0, e.itemData);
+                    // quoteLinesData._array.splice(fromIndex, 1);
+                    // quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-                    for (let i = 0; i < childGridArray.length; i++) {
-                      Xrm.WebApi.updateRecord("quotedetail", `${childGridArray[i].quotedetailid}`, { sequencenumber: i + 1 });
-                      childGridArray[i].sequencenumber = i + 1;
-                    }
+                    // for (let i = 0; i < quoteLinesData._array.length; i++) {
+                    //   Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 });
+                    //   quoteLinesData._array[i].sequencenumber = i + 1;
+                    // }
 
-                    e.component.refresh();
+                    // e.component.refresh();
                   },
                   data: productsData.quotedetailid,
                   group: 'QuoteLines',
