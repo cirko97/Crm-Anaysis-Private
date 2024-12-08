@@ -3950,9 +3950,11 @@ async function setClientApiContext(Xrm, formContext) {
 
         if (classifyNeededRows > 0) {
           $('#classifyBtn')[0].style.backgroundColor = '#febf32';
+          $('#classifyBtn')[0].style.display = 'inline-flex';
         }
         else {
           $('#classifyBtn')[0].style.backgroundColor = '#fff';
+          $('#classifyBtn')[0].style.display = 'none';
         }
 
         console.log('CLASSIFY NEEDED ROWS');
