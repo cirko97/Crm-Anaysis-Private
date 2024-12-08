@@ -688,7 +688,7 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_vatsettingid = result["extreme_vatsettingid"]; // Guid
           var extreme_producttype = result["extreme_producttype"]; // Choice
           var extreme_producttype_formatted = result["extreme_producttype@OData.Community.Display.V1.FormattedValue"];
-          
+
           // Many To One Relationships
           if (result.hasOwnProperty("extreme_VATGroup") && result["extreme_VATGroup"] !== null) {
             var extreme_VATGroup_extreme_vatgroupid = result["extreme_VATGroup"]["extreme_vatgroupid"]; // Guid
@@ -709,7 +709,7 @@ async function setClientApiContext(Xrm, formContext) {
           }
         }
       },
-      function(error) {
+      function (error) {
         console.log(error.message);
       }
     );
@@ -980,12 +980,11 @@ async function setClientApiContext(Xrm, formContext) {
                     caption: 'Order',
                     dataType: 'number',
                     sortOrder: 'asc',
-                    visible: dataGrid.columnOption('sequencenumber', 'visible')
+                    visible: dataGrid.columnOption("sequencenumber", "visible")
                   },
                   {
                     dataField: 'productid',
                     caption: 'Product ID',
-                    visible: dataGrid.columnOption('productid', 'visible'),
                     lookup: {
                       dataSource: {
                         store: productsStore,
@@ -993,6 +992,7 @@ async function setClientApiContext(Xrm, formContext) {
                         pageSize: 20,
                         postProcess: function (data) {
                           // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
+                          // data.unshift({ productId: "ID", productName: "Name", disabled: true });
                           return data;
                         }
                       },
@@ -1003,13 +1003,14 @@ async function setClientApiContext(Xrm, formContext) {
                       acceptCustomValue: true,
                       // popupWidth: 600,
                       searchEnabled: true,
-                      searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
+                      // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
+                      searchExpr: ["productId", "productName"],
                       itemTemplate: function (data, index, container) {
                         var row = $("<div>").addClass("row text-wrap");
                         var containerFluid = $("<div>").addClass("container-fluid");
-                        $("<div>").addClass("col-4").text(data["productId"]).appendTo(row);
-                        $("<div>").addClass("col-4").text(data["productName"]).appendTo(row);
-                        $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
+                        $("<div>").addClass("col-6").text(data["productId"]).appendTo(row);
+                        $("<div>").addClass("col-6").text(data["productName"]).appendTo(row);
+                        // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
                         row.appendTo(containerFluid);
                         container.append(containerFluid);
                       },
@@ -1056,6 +1057,55 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     // editCellTemplate: dropDownBoxEditorTemplateProducts,
                     setCellValue: async function (newData, value, currentRowData) {
+
+                      // Product types
+                      let productType = null;
+                      let defaultVatGroup = null;
+                      let defaultTax = null;
+
+                      // const productTypeCode = 1;
+                      // const serviceTypeCode = 3;
+
+                      if (typeof (value) !== 'number') {
+                        if (value !== null) {
+                          productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
+                          defaultVatGroup = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=_extreme_vatgroup_value&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
+                          defaultVatGroup = defaultVatGroup.entities[0]._extreme_vatgroup_value;
+                        }
+                      }
+
+                      let priceListItemInfo = [];
+                      let classifyLookupsInfo = null;
+                      let supplierPricePerUnit = 0;
+
+                      if (productsStore._array.find((item) => item.id === value).pricelevelid) {
+                        if (value !== null) {
+                          priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
+                          classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+                        }
+                      }
+
+                      if (classifyLookupsInfo !== null) {
+                        if (classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
+                        if (classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
+                        if (classifyLookupsInfo._extreme_supplier_value) newData.extreme_vendorsupplier = classifyLookupsInfo._extreme_supplier_value;
+                      }
+
+                      // set create asset to false
+                      newData.extreme_createasset = false;
+
+                      console.log('priceListItemInfo');
+                      console.log(priceListItemInfo);
+
+                      const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : null;
+                      const priceListItemAmountFormatted = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
+                      const priceListItemCurrency = priceListItemInfo.length !== 0 ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
+
+                      console.log('SET CELL VALUES');
+                      console.log(priceListItemAmount);
+                      console.log(priceListItemCurrency);
+                      console.log(productsStore._array.find((item) => item.id === value).pricelevelid);
+
                       console.log('newData: ');
                       console.log(newData);
                       console.log('value: ');
@@ -1063,21 +1113,51 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log('currentRowDataa: ');
                       console.log(currentRowData);
                       newData.productid = value;
-                      if (!isAddingSet) newData.extreme_tax = taxPercentOfAccount.extreme_tax;
+                      if (!isAddingSet) {
+                        newData.extreme_tax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+                        defaultTax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+                      };
+                      if (!isAddingSet && defaultVatGroup !== null) newData.extreme_vatgroup = vatGroupsArray.find(item => item.id === defaultVatGroup).id;
                       newData.quotedetailname = productsStore._array.find((item) => item.id === value).productName;
                       if (productsStore._array.find((item) => item.id === value).productDefaultUnit !== null) newData.uomid = productsStore._array.find((item) => item.id === value).productDefaultUnit;
                       if (productsStore._array.find((item) => item.id === value).pricelevelid && !isAddingSet) {
                         newData.extreme_pricelist = productsStore._array.find((item) => item.id === value).pricelevelid;
-                        newData.extreme_pricelistpriceperunit = productsStore._array.find((item) => item.id === value).priceListItemAmount;
-                        newData.extreme_pricelistcurrency = productsStore._array.find((item) => item.id === value).priceListItemCurrency;
-                        if (quoteCurrencySymbol !== productsStore._array.find((item) => item.id === value).priceListItemCurrency) {
+                        newData.extreme_pricelistpriceperunit = priceListItemAmount;
+                        newData.extreme_pricelistcurrency = priceListItemCurrency;
+                        if (quoteCurrencySymbol !== priceListItemCurrency) {
                           console.log(productsStore._array.find((item) => item.id === value).priceListItemAmount);
-                          console.log(currenciesArray.find((item) => item.currencysymbol == productsStore._array.find((item) => item.id === value).priceListItemCurrency).isocurrencycode);
-                          newData.extreme_supplierpriceperunit = productsStore._array.find((item) => item.id === value).priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == productsStore._array.find((item) => item.id === value).priceListItemCurrency).isocurrencycode}`).val();
+                          console.log(currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode);
+                          newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
+                          supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                         } else {
-                          newData.extreme_supplierpriceperunit = productsStore._array.find((item) => item.id === value).priceListItemAmount;
+                          newData.extreme_supplierpriceperunit = priceListItemAmount;
+                          supplierPricePerUnit = priceListItemAmount;
                         }
                       };
+
+                      if (currentRowData.extreme_margin !== null &&
+                        supplierPricePerUnit !== null &&
+                        currentRowData.extreme_supplierdiscount !== null &&
+                        currentRowData.extreme_discount !== null &&
+                        !isAddingSet) {
+                        console.log("NEW DATA FROM SELECTING PRODUCT");
+                        console.log(currentRowData.extreme_margin);
+                        console.log(supplierPricePerUnit);
+                        console.log(currentRowData.extreme_discount);
+                        console.log(1);
+                        newData.quantity = 1;
+                        newData.extreme_supplierbaseamount = supplierPricePerUnit * 1;
+                        newData.priceperunit = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit);
+                        newData.baseamount = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit) * 1;
+                        newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1;
+                        console.log(newData.extreme_fullpricewithdiscount);
+                        newData.manualdiscountamount = (1 * (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit))) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                        newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                        newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                        newData.extreme_pd = (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) - (supplierPricePerUnit - (supplierPricePerUnit * (1 - currentRowData.extreme_supplierdiscount / 100)));
+                        newData.extreme_fullpd = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) - (supplierPricePerUnit - (supplierPricePerUnit * (1 - currentRowData.extreme_supplierdiscount / 100)))) * 1
+                      }
+
                     },
                     customizeText: function (cellInfo) {
                       if (cellInfo.valueText) {
@@ -1088,25 +1168,25 @@ async function setClientApiContext(Xrm, formContext) {
                         return cellInfo.valueText;
                       }
                     },
-                    validationRules: [{ type: 'required' }]
+                    validationRules: [{ type: 'required' }],
+                    visible: dataGrid.columnOption("productid", "visible")
                   },
                   {
                     dataField: 'quotedetailname',
                     caption: 'Name',
                     dataType: 'string',
-                    visible: dataGrid.columnOption('quotedetailname', 'visible')
+                    visible: dataGrid.columnOption("quotedetailname", "visible")
                   },
                   {
                     dataField: 'extreme_productdescription',
                     caption: 'Description',
                     dataType: 'string',
-                    visible: dataGrid.columnOption('extreme_productdescription', 'visible')
+                    visible: dataGrid.columnOption("extreme_productdescription", "visible")
                   },
                   {
                     dataField: 'quantity',
                     caption: 'Qty',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('quantity', 'visible'),
                     setCellValue: async function (newData, value, currentRowData) {
 
                       console.log('currentRowData');
@@ -1139,12 +1219,12 @@ async function setClientApiContext(Xrm, formContext) {
                           newData.extendedamount = ((((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value)) + ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
                         }
                       }
-                    }
+                    },
+                    visible: dataGrid.columnOption("quantity", "visible")
                   },
                   {
                     dataField: 'uomid',
                     caption: 'Unit',
-                    visible: dataGrid.columnOption('uomid', 'visible'),
                     lookup: {
                       dataSource: {
                         store: unitsStore,
@@ -1182,6 +1262,7 @@ async function setClientApiContext(Xrm, formContext) {
                       }
                     },
                     // validationRules: [{ type: 'required' }],
+                    visible: dataGrid.columnOption("uomid", "visible")
                   },
                   {
                     dataField: 'extreme_pricelistpriceperunit',
@@ -1195,21 +1276,20 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log(container, info);
                       return info.data.extreme_pricelistpriceperunit !== null ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
                     },
-                    visible: dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible'),
+                    visible: dataGrid.columnOption("extreme_pricelistpriceperunit", "visible"),
                     allowEditing: false
                   },
                   {
                     dataField: 'extreme_pricelistcurrency',
                     caption: 'Original Currency',
                     dataType: 'string',
-                    visible: dataGrid.columnOption('extreme_pricelistcurrency', 'visible'),
+                    visible: dataGrid.columnOption("extreme_pricelistcurrency", "visible"),
                     allowEditing: false
                   },
                   {
                     dataField: 'extreme_supplierpriceperunit',
                     caption: 'PPU',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('extreme_supplierpriceperunit', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1217,17 +1297,24 @@ async function setClientApiContext(Xrm, formContext) {
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_supplierpriceperunit = value;
                       if (currentRowData.quantity !== null) newData.extreme_supplierbaseamount = value * currentRowData.quantity;
-                      if (currentRowData.extreme_margin !== null) newData.priceperunit = Math.ceil(value * currentRowData.extreme_margin);
+                      if (currentRowData.extreme_margin !== null) {
+                        const pricePerUnit = Math.ceil(value * currentRowData.extreme_margin);
+                        newData.priceperunit = Math.ceil(value * currentRowData.extreme_margin);
+                        newData.baseamount = pricePerUnit * currentRowData.quantity;
+                        newData.extreme_fullpricewithdiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
+                        const fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
+                        newData.extendedamount = (fullPriceWithDiscount * (1 + currentRowData.extreme_tax / 100) - fullPriceWithDiscount) + fullPriceWithDiscount;
+                      };
                     },
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
-                    }
+                    },
+                    visible: dataGrid.columnOption("extreme_supplierpriceperunit", "visible")
                   },
                   {
                     dataField: 'extreme_supplierbaseamount',
                     caption: 'Base Amount',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('extreme_supplierbaseamount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1235,7 +1322,8 @@ async function setClientApiContext(Xrm, formContext) {
                     allowEditing: false,
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
-                    }
+                    },
+                    visible: dataGrid.columnOption("extreme_supplierbaseamount", "visible")
                   },
                   {
                     dataField: 'extreme_supplierdiscount',
@@ -1255,13 +1343,12 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.extreme_fullpd = (currentRowData.priceperunit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (1 - value / 100)))) * currentRowData.quantity;
                       }
                     },
-                    visible: dataGrid.columnOption('extreme_supplierdiscount', 'visible')
+                    visible: dataGrid.columnOption("extreme_supplierdiscount", "visible")
                   },
                   {
                     dataField: 'extreme_margin',
                     caption: 'Margin',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('extreme_margin', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 1
@@ -1280,13 +1367,13 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.tax = ((((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
                         newData.extendedamount = (((((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
                       };
-                    }
+                    },
+                    visible: dataGrid.columnOption("extreme_margin", "visible")
                   },
                   {
                     dataField: 'priceperunit',
                     caption: 'Sales PPU',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('priceperunit', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1294,13 +1381,13 @@ async function setClientApiContext(Xrm, formContext) {
                     allowEditing: false,
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
-                    }
+                    },
+                    visible: dataGrid.columnOption("priceperunit", "visible")
                   },
                   {
                     dataField: 'baseamount',
                     caption: 'Sales Amount',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('baseamount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1308,13 +1395,13 @@ async function setClientApiContext(Xrm, formContext) {
                     allowEditing: false,
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
-                    }
+                    },
+                    visible: dataGrid.columnOption("baseamount", "visible")
                   },
                   {
                     dataField: 'extreme_discount',
                     caption: 'Disc. %',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('extreme_discount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1334,7 +1421,8 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
-                    }
+                    },
+                    visible: dataGrid.columnOption("extreme_discount", "visible")
                   },
                   {
                     dataField: 'manualdiscountamount',
@@ -1345,7 +1433,7 @@ async function setClientApiContext(Xrm, formContext) {
                       precision: 2
                     },
                     allowEditing: false,
-                    visible: dataGrid.columnOption('manualdiscountamount', 'visible'),
+                    visible: dataGrid.columnOption("manualdiscountamount", "visible"),
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
@@ -1363,7 +1451,6 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_fullpricewithdiscount',
                     caption: 'Amount',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('extreme_fullpricewithdiscount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1381,13 +1468,16 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
-                    }
+                    },
+                    visible: dataGrid.columnOption("extreme_fullpricewithdiscount", "visible")
                   },
                   {
                     dataField: 'extreme_vatgroup',
                     caption: 'VAT %',
                     lookup: {
                       dataSource(options) {
+                        console.log('OPTIONS FROM VAT GROUP LOOKUP');
+                        console.log(options);
                         return {
                           store: {
                             type: "array",
@@ -1395,7 +1485,7 @@ async function setClientApiContext(Xrm, formContext) {
                             key: "id"
                           },
                           paginate: true,
-                          pageSize: 20,
+                          pageSize: 20
                         }
                       },
                       displayExpr: "varPercentFormat",
@@ -1432,32 +1522,48 @@ async function setClientApiContext(Xrm, formContext) {
                         heightAuto = true;
                       }
                     },
+                    setCellValue: async function (newData, value, currentRowData) {
+                      newData.extreme_vatgroup = value;
+                      newData.extreme_tax = vatGroupsArray.find(item => item.id === value).vat;
+                      const defaultTax = vatGroupsArray.find(item => item.id === value).vat;
+
+                      if (
+                        currentRowData.extreme_margin !== null &&
+                        currentRowData.extreme_supplierpriceperunit !== null &&
+                        currentRowData.extreme_discount !== null
+                      ) {
+                        newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                        newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                      }
+
+                    },
                     format: {
                       type: "fixedPoint",
                       precision: 2
                     },
                     allowEditing: isDraftStatus,
-                    visible: dataGrid.columnOption('extreme_vatgroup', 'visible')
+                    visible: dataGrid.columnOption("extreme_vatgroup", "visible")
                   },
                   {
                     dataField: 'extreme_tax',
                     caption: 'VAT % calc',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('extreme_tax', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
                     },
                     allowEditing: false,
                     customizeText: function (cellInfo) {
+                      console.log('cellInfo');
+                      console.log(cellInfo);
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
                     },
+                    visible: dataGrid.columnOption("extreme_tax", "visible")
                   },
                   {
                     dataField: 'tax',
                     caption: 'VAT Amount',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('tax', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1466,6 +1572,7 @@ async function setClientApiContext(Xrm, formContext) {
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
+                    visible: dataGrid.columnOption("tax", "visible")
                   },
                   {
                     dataField: 'extreme_pd',
@@ -1478,7 +1585,7 @@ async function setClientApiContext(Xrm, formContext) {
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
-                    visible: dataGrid.columnOption('extreme_pd', 'visible')
+                    visible: dataGrid.columnOption("extreme_pd", "visible")
                   },
                   {
                     dataField: 'extreme_fullpd',
@@ -1491,13 +1598,12 @@ async function setClientApiContext(Xrm, formContext) {
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
-                    visible: dataGrid.columnOption('extreme_fullpd', 'visible')
+                    visible: dataGrid.columnOption("extreme_fullpd", "visible")
                   },
                   {
                     dataField: 'extendedamount',
                     caption: 'Total Amount',
                     dataType: 'number',
-                    visible: dataGrid.columnOption('extendedamount', 'visible'),
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1506,11 +1612,12 @@ async function setClientApiContext(Xrm, formContext) {
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
+                    visible: dataGrid.columnOption("extendedamount", "visible")
                   },
                   {
                     dataField: 'extreme_pricelist',
                     caption: 'Price list',
-                    visible: dataGrid.columnOption('extreme_pricelist', 'visible'),
+                    white: 70,
                     lookup: {
                       dataSource(options) {
                         return {
@@ -1560,19 +1667,55 @@ async function setClientApiContext(Xrm, formContext) {
                       onFocusOut: function (e) {
                         heightAuto = true;
                       }
-                    }
+                    },
+                    setCellValue: async function (newData, value, currentRowData) {
+                      newData.extreme_pricelist = value;
+                      console.log('NEW PRICE FROM PRICE LIST CHANGE');
+
+                      const newOrgPrice = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).amount_num;
+                      const newOrgCurrency = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).currency_code;
+                      const newOrgCurrencyValue = $(`#${newOrgCurrency}`).val() ? parseFloat($(`#${newOrgCurrency}`).val()) : 1;
+                      const newOrgCurrencySymbol = currenciesArray.find((item) => item.isocurrencycode == newOrgCurrency).currencysymbol;
+
+                      console.log(newOrgPrice);
+                      console.log(newOrgCurrency);
+                      console.log(newOrgCurrencyValue);
+                      console.log(newOrgCurrencySymbol);
+
+                      newData.extreme_pricelistpriceperunit = newOrgPrice;
+                      newData.extreme_pricelistcurrency = newOrgCurrencySymbol;
+
+
+                      var pricePerUnit = (newOrgPrice * newOrgCurrencyValue) * currentRowData.extreme_margin;
+                      var baseAmount = pricePerUnit * currentRowData.quantity;
+                      var manualDiscountAmount = baseAmount - (baseAmount * (1 - currentRowData.extreme_discount / 100));
+                      var fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
+                      var tax = ((pricePerUnit * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity * (1 + currentRowData.extreme_tax / 100)) - (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
+                      var extendedAmount = tax + (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
+
+                      newData.extreme_supplierpriceperunit = newOrgPrice * newOrgCurrencyValue;
+                      newData.extreme_supplierbaseamount = (newOrgPrice * newOrgCurrencyValue) * currentRowData.quantity;
+                      newData.priceperunit = pricePerUnit;
+                      newData.baseamount = baseAmount;
+                      newData.manualdiscountamount = manualDiscountAmount;
+                      newData.extreme_fullpricewithdiscount = fullPriceWithDiscount;
+                      newData.tax = tax;
+                      newData.extendedamount = extendedAmount;
+
+                    },
+                    visible: dataGrid.columnOption("extreme_pricelist", "visible")
                   },
                   {
                     dataField: 'extreme_parentquoteline',
                     caption: 'Parent QL',
                     dataType: 'string',
-                    visible: dataGrid.columnOption('extreme_parentquoteline', 'visible')
+                    visible: dataGrid.columnOption("extreme_parentquoteline", "visible")
                   },
                   {
                     dataField: 'extreme_isparentitem',
                     caption: 'Is Parent',
                     dataType: 'boolean',
-                    visible: dataGrid.columnOption('extreme_isparentitem', 'visible')
+                    visible: dataGrid.columnOption("extreme_isparentitem", "visible")
                   },
                   {
                     dataField: 'extreme_area',
@@ -1592,11 +1735,30 @@ async function setClientApiContext(Xrm, formContext) {
                       displayExpr: 'name',
                       valueExpr: 'id'
                     },
+                    editorOptions: {
+                      acceptCustomValue: false,
+                      searchEnabled: true,
+                      onOpened: function (e) {
+                        heightAuto = false;
+                        if (heightAuto === false) {
+                          const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                          if (iframeCorrentHeight < 450) {
+                            wrControl.getObject().style.minHeight = "600px";
+                          }
+                        }
+                      },
+                      onClosed: function (e) {
+                        heightAuto = true;
+                      },
+                      onFocusOut: function (e) {
+                        heightAuto = true;
+                      }
+                    },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_area = value;
                       checkClassifyRows();
                     },
-                    visible: false
+                    visible: dataGrid.columnOption("extreme_area", "visible")
                   },
                   {
                     dataField: 'extreme_technology',
@@ -1616,11 +1778,30 @@ async function setClientApiContext(Xrm, formContext) {
                       displayExpr: 'name',
                       valueExpr: 'id'
                     },
+                    editorOptions: {
+                      acceptCustomValue: false,
+                      searchEnabled: true,
+                      onOpened: function (e) {
+                        heightAuto = false;
+                        if (heightAuto === false) {
+                          const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                          if (iframeCorrentHeight < 450) {
+                            wrControl.getObject().style.minHeight = "600px";
+                          }
+                        }
+                      },
+                      onClosed: function (e) {
+                        heightAuto = true;
+                      },
+                      onFocusOut: function (e) {
+                        heightAuto = true;
+                      }
+                    },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_technology = value;
                       checkClassifyRows();
                     },
-                    visible: false
+                    visible: dataGrid.columnOption("extreme_technology", "visible")
                   },
                   {
                     dataField: 'extreme_vendorsupplier',
@@ -1640,23 +1821,41 @@ async function setClientApiContext(Xrm, formContext) {
                       displayExpr: 'name',
                       valueExpr: 'id'
                     },
+                    editorOptions: {
+                      acceptCustomValue: false,
+                      searchEnabled: true,
+                      onOpened: function (e) {
+                        heightAuto = false;
+                        if (heightAuto === false) {
+                          const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                          if (iframeCorrentHeight < 450) {
+                            wrControl.getObject().style.minHeight = "600px";
+                          }
+                        }
+                      },
+                      onClosed: function (e) {
+                        heightAuto = true;
+                      },
+                      onFocusOut: function (e) {
+                        heightAuto = true;
+                      }
+                    },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_vendorsupplier = value;
                       checkClassifyRows();
                     },
-                    visible: false
+                    visible: dataGrid.columnOption("extreme_vendorsupplier", "visible")
                   },
                   {
                     dataField: 'extreme_createasset',
                     caption: 'Asset?',
                     width: 60,
                     dataType: 'boolean',
-                    visible: isDraftStatus
+                    visible: dataGrid.columnOption("extreme_createasset", "visible")
                   },
                   {
                     type: 'buttons',
                     width: 70,
-                    visible: isDraftStatus,
                     buttons: [
                       {
                         hint: 'Description',
@@ -1672,8 +1871,14 @@ async function setClientApiContext(Xrm, formContext) {
 
                           const popupContentTemplate = function (item) {
 
-                            return $('<div data-mdb-input-init class="form-outline">')
-                              .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</textarea>`))
+                            if (isDraftStatus) {
+                              return $('<div data-mdb-input-init class="form-outline">')
+                                .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</textarea>`))
+                            }
+                            else {
+                              return $('<div class="overflow-auto" style="max-height: 100px;">')
+                                .append($(`<p>${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</p>`))
+                            }
 
                             return $('<div>').append(
                               $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
@@ -1703,6 +1908,7 @@ async function setClientApiContext(Xrm, formContext) {
                                 icon: 'save',
                                 stylingMode: 'contained',
                                 text: 'Save',
+                                disabled: !isDraftStatus,
                                 async onClick() {
                                   console.log($('#productDescription').val().trim());
 
@@ -2096,10 +2302,10 @@ async function setClientApiContext(Xrm, formContext) {
                 }
               }
 
-              if(classifyLookupsInfo !== null) {
-                if(classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
-                if(classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
-                if(classifyLookupsInfo._extreme_supplier_value) newData.extreme_vendorsupplier = classifyLookupsInfo._extreme_supplier_value;
+              if (classifyLookupsInfo !== null) {
+                if (classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
+                if (classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
+                if (classifyLookupsInfo._extreme_supplier_value) newData.extreme_vendorsupplier = classifyLookupsInfo._extreme_supplier_value;
               }
 
               // set create asset to false
