@@ -854,15 +854,16 @@ async function setClientApiContext(Xrm, formContext) {
             }
 
             const visibleRows = e.component.getVisibleRows();
+            const parentGridArray = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
             const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
             const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
 
             quoteLinesData._array.splice(fromIndex, 1);
             quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-            for (let i = 0; i < quoteLinesData._array.length; i++) {
-              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 })
-              quoteLinesData._array[i].sequencenumber = i + 1;
+            for (let i = 0; i < parentGridArray.length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${parentGridArray[i].quotedetailid}`, { sequencenumber: i + 1 })
+              parentGridArray[i].sequencenumber = i + 1;
             }
 
             e.component.refresh();
@@ -956,17 +957,18 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log('inside the same child - reordering');
                     }
 
-                    // const visibleRows = e.component.getVisibleRows();
-                    // const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
-                    // const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
+                    const visibleRows = e.component.getVisibleRows();
+                    const childGridArray = quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.toData);
+                    const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
+                    const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
 
-                    // quoteLinesData._array.splice(fromIndex, 1);
-                    // quoteLinesData._array.splice(toIndex, 0, e.itemData);
+                    quoteLinesData._array.splice(fromIndex, 1);
+                    quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-                    // for (let i = 0; i < quoteLinesData._array.length; i++) {
-                    //   Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 });
-                    //   quoteLinesData._array[i].sequencenumber = i + 1;
-                    // }
+                    for (let i = 0; i < childGridArray.length; i++) {
+                      Xrm.WebApi.updateRecord("quotedetail", `${childGridArray[i].quotedetailid}`, { sequencenumber: i + 1 });
+                      childGridArray[i].sequencenumber = i + 1;
+                    }
 
                     e.component.refresh();
                   },
@@ -2125,8 +2127,8 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(currentRowData);
               newData.productid = value;
               if (!isAddingSet) {
-                newData.extreme_tax = defaultVatGroup === null ? taxPercentOfAccount.extreme_tax : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
-                defaultTax = defaultVatGroup === null ? taxPercentOfAccount.extreme_tax : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+                newData.extreme_tax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+                defaultTax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
               };
               if (!isAddingSet && defaultVatGroup !== null) newData.extreme_vatgroup = vatGroupsArray.find(item => item.id === defaultVatGroup).id;
               newData.quotedetailname = productsStore._array.find((item) => item.id === value).productName;
@@ -2984,6 +2986,8 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.columnOption("extreme_discount", "allowEditing", true);
                   dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
                   dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
+                  dataGrid.columnOption("extreme_createasset", "allowEditing", true);
+                  dataGrid.columnOption("extreme_vatgroup", "allowEditing", true);
 
                   dataGrid.addRow();
 
@@ -3021,6 +3025,8 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.columnOption("extreme_discount", "allowEditing", false);
                   dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", false);
                   dataGrid.columnOption("extreme_pricelist", "allowEditing", false);
+                  dataGrid.columnOption("extreme_createasset", "allowEditing", false);
+                  dataGrid.columnOption("extreme_vatgroup", "allowEditing", false);
 
                   dataGrid.addRow();
 
