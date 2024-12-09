@@ -127,6 +127,9 @@ namespace AnalysisWF
             {
                 anDaysForValid = (effectiveTo.Value - effectiveFrom.Value).Days;
             }
+            var acNote = quote.GetAttributeValue<string>("extreme_detailedprintoutdescription");
+            var acPayMethod = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_id", service);
+            var acDelivery = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_deliverymethods"), "extreme_id", service);
 
             // Retrieve child QuoteDetail records
             var query = new QueryExpression("quotedetail")
@@ -147,7 +150,7 @@ namespace AnalysisWF
                 var discountPerc = detail.GetAttributeValue<decimal>("extreme_discount");
                 //var salesPPUwDisc = salesPPU - (salesPPU * discountPerc);
                 var uom = detail.GetAttributeValue<EntityReference>("uomid")?.Name;
-                var note = detail.GetAttributeValue<string>("extreme_productdescription");
+                var note = detail.GetAttributeValue<string>("extreme_productdescription") ?? "";
                 var vatCode = Helper.GetLookupFieldValue(detail.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
 
                 lineItems.Add(new
@@ -184,6 +187,9 @@ namespace AnalysisWF
                             adDeliveryDate,
                             anDaysForDelivery,
                             extreme_detailedprintoutdescription,
+                            acNote,
+                            acPayMethod,
+                            acDelivery,
                             acLinesJSON = lineItems
                         }
                     }

@@ -105,12 +105,13 @@ namespace AnalysisWF
             ShortenedProductID.Set(context, acIdent);
 
             var acName = product.GetAttributeValue<string>("name");
-            var acUM = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
+            var acUM = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
             acUM = acUM.Substring(0, 3);
-            var acClassif = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service);
-            var acClassif2 = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service);
-            var anVATCode = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
-            var anVat = GetLookupFieldValue(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
+            var acType = product.GetAttributeValue<OptionSetValue>("producttypecode")?.Value == 1 ? "P" : "U";
+            var acClassif = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service);
+            var acClassif2 = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service);
+            var anVATCode = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
+            var anVat = GetLookupFieldValue<decimal>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
 
             var anPrice = Price.Get(context);
 
@@ -129,7 +130,8 @@ namespace AnalysisWF
             sb.AppendFormat("\"acVATCode\": \"{0}\",", anVATCode);
             sb.AppendFormat("\"anVat\": \"{0}\",", anVat);
             sb.AppendFormat("\"acCostDrv\": \"{0}\",", "");
-            sb.AppendFormat("\"acCode\": \"{0}\"", acIdentLong);
+            sb.AppendFormat("\"acCode\": \"{0}\",", acIdentLong);
+            sb.AppendFormat("\"acType\": \"{0}\"", acType);
             sb.Append("}");
             sb.Append("}");
             sb.Append("]");
@@ -153,13 +155,28 @@ namespace AnalysisWF
             }
         }
 
-        private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
+        //private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
+        //{
+        //    if (lookup == null)
+        //        return string.Empty;
+
+        //    var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
+        //    return entity.GetAttributeValue<string>(fieldName);
+        //}
+        private T GetLookupFieldValue<T>(EntityReference lookup, string fieldName, IOrganizationService service)
         {
             if (lookup == null)
-                return string.Empty;
+                return default;
 
             var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
-            return entity.GetAttributeValue<string>(fieldName);
+
+            if (entity.Contains(fieldName) && entity[fieldName] is T value)
+            {
+                return value;
+            }
+
+            return default;
         }
+
     }
 }
