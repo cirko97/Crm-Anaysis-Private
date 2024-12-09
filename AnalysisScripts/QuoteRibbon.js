@@ -606,7 +606,7 @@ const syncQuote = async function (quoteId) {
 	Xrm.Utility.showProgressIndicator(
 		'Synchronizing Quote... Please Wait.');
 	// GUID  -  SYNC Quote Workflow
-	var workflowId = 'GUID';
+	var workflowId = 'C96AADD9-BCB1-EF11-B8E9-000D3ABCCD41';
 	var executeWorkflowRequest = {
 		entity: { entityType: "workflow", id: `${workflowId}` },
 		EntityId: { guid: `${quoteId}` },
