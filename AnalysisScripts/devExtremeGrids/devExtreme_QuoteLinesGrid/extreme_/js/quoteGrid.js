@@ -2209,17 +2209,6 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 onRowRemoved: (e) => {
                   console.log('RowRemoved');
-
-                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
-                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
-                    quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
-                  }
-
-                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
-                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
-                    quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
-                  }
-
                 },
                 onSaving() {
                   console.log('Saving');
@@ -3964,17 +3953,6 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onRowRemoved: (e) => {
           console.log('RowRemoved');
-
-          for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
-            Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
-            quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
-          }
-
-          for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
-            Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
-            quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
-          }
-
         },
         onSaving() {
           console.log('Saving');
