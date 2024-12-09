@@ -18,9 +18,9 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		}
 		return false;
 	}
-
 	this.CreatePrintoutEmail = async function (formContext, isDetailed) {
 		//getReport
+		Xrm.Utility.showProgressIndicator("Generating printout...");
 		var quoteId = formContext.data.entity.getId().slice(1, -1);
 		var reportName = isDetailed == true ? 'Analysis+Quote+Detail' : 'Analysis+Quote';
 		var queryReportName = isDetailed == true ? 'Analysis Quote Detail' : 'Analysis Quote';
@@ -34,13 +34,20 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		);
 		var reportid = report["reportid"];
 		var filename = report["filename"];
+
 		var arrReportSession = executeReport(quoteId, reportid, reportName, formContext);
 		
 		var blobData = await convertResponseToPDF(arrReportSession); //3. Convert the response in base 64 string i.e. PDF.
 
+		Xrm.Utility.showProgressIndicator("Creating email...");
+
 		var emailId = await createEmail(quoteId);
 
+		Xrm.Utility.showProgressIndicator("Creating attachment...");
+
 		await attachFileToDraftEmail(blobData, emailId, "test.pdf", "application/pdf"); //smisliti naming konvenciju za PDF
+		
+		Xrm.Utility.closeProgressIndicator();
 
 		var pageInput = {
 			pageType: "entityrecord",
@@ -115,7 +122,6 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		}
 		return false;
 	}
-
 }).call(QuoteRibbon);
 
 const convertResponseToPDF = async function (arrResponseSession) {
@@ -176,71 +182,6 @@ const convertResponseToPDF = async function (arrResponseSession) {
         }
     });
 };
-
-// const convertResponseToPDF = async function (arrResponseSession) {
-// 	var base64PDFString = "";
-//     //Create query string that will be passed to Report Server to generate PDF version of report response.
-// 	var globalContext = Xrm.Utility.getGlobalContext();
-//     //var pth = globalContext.getClientUrl() + "/Reserved.ReportViewerWebControl.axd?ReportSession=" + arrResponseSession[0] + "&Culture=1033&CultureOverrides=True&UICulture=1033&UICultureOverrides=True&ReportStack=1&ControlID=" + arrResponseSession[1] +
-//     "&OpType=Export&FileName=Public&ContentDisposition=OnlyHtmlInline&Format=PDF";
-// 	// Extract the PdfDownloadUrl using a regular expression
-// 	const pdfDownloadUrlRegex = /"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
-// 								///"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
-// 	const match = pdfDownloadUrlRegex.exec(arrResponseSession);
-
-// 	if (match && match[1]) {
-// 		const pdfDownloadUrl = match[1];
-// 		console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
-// 		const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
-// 		var pth = globalContext.getClientUrl() + updatedPdfDownloadUrl
-	
-	
-	
-//     //Create request object that will be called to convert the response in PDF base 64 string.
-
-//     var retrieveEntityReq = new XMLHttpRequest();
-
-//     retrieveEntityReq.open("GET", pth, true);
-
-//     retrieveEntityReq.setRequestHeader("Accept", "*/*");
-
-//     retrieveEntityReq.responseType = "arraybuffer";
-
-//     retrieveEntityReq.onreadystatechange = function () { // This is the callback function.
-
-//         if (retrieveEntityReq.readyState == 4 && retrieveEntityReq.status == 200) {
-
-//             var binary = "";
-
-//             var bytes = new Uint8Array(this.response);
-
-//             for (var i = 0; i < bytes.byteLength; i++) {
-
-//                 binary += String.fromCharCode(bytes[i]);
-
-//             }
-
-//             //This is the base 64 PDF formatted string and is ready to pass to the action as an input parameter.
-
-//             base64PDFString = btoa(binary);
-			
-//             //4. Call Action and pass base 64 string as an input parameter. That’s it.
-
-//         }
-
-//     };
-
-//     //This statement sends the request for execution asynchronously. Callback function will be called on completion of the request.
-
-//     retrieveEntityReq.send();
-
-// 	return base64PDFString;
-
-// 	} else {
-// 		console.log("PdfDownloadUrl not found.");
-// 	}
-
-// }
 const executeReport = function (quoteId, reportGuid, reportName, formContext) {
 
     var globalContext = Xrm.Utility.getGlobalContext();
@@ -269,23 +210,7 @@ const executeReport = function (quoteId, reportGuid, reportName, formContext) {
 
     retrieveEntityReq.send(queryDecoded);
 
-    //These variables captures the response and returns the response in an array.
-	console.log("Response Text: " + retrieveEntityReq.responseText);
-	console.log("Response Body: " + retrieveEntityReq.responseBody);
-    var x = retrieveEntityReq.responseText.lastIndexOf("ReportSession=");
-
-    var y = retrieveEntityReq.responseText.lastIndexOf("ControlID=");
-
 	return retrieveEntityReq.responseText;
-    var ret = new Array();
-
-    ret[0] = retrieveEntityReq.responseText.substr(x + 14, 24);
-
-    ret[1] = retrieveEntityReq.responseText.substr(x + 10, 32);
-
-    //Returns the response as an Array.
-
-    return ret;
 
 }
 const attachFileToDraftEmail = async function (base64data, emailId, filename, mimetype) {
