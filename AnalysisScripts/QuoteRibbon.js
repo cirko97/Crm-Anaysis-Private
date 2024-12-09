@@ -1,5 +1,68 @@
 var QuoteRibbon = window.QuoteRibbon || {};
 (function () {
+	this.SendPrintoutButton = function (formContext, reportType) {
+
+		var isDetailed = reportType == "detailed" ? true : false;
+		var confirmStrings = { text: `This action will create a draft of an email with ${reportType} quote printout attached. \nAre you sure you want to continue?`, title: "Send Quote Printout" };
+		var confirmOptions = { height: 300, width: 450 };
+		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+			async function (success) {
+				if (success.confirmed)
+					await QuoteRibbon.CreatePrintoutEmail(formContext, isDetailed);
+			});
+	}
+	this.SendPrintoutEnableRule = function (formContext) {
+		var statecode = formContext.getAttribute("statecode").getValue();
+		if (statecode == 1) { //only if Active Quote
+			return true;
+		}
+		return false;
+	}
+
+	this.CreatePrintoutEmail = async function (formContext, isDetailed) {
+		//getReport
+		var quoteId = formContext.data.entity.getId().slice(1, -1);
+		var reportName = isDetailed == true ? 'Analysis+Quote+Detail' : 'Analysis+Quote';
+		var queryReportName = isDetailed == true ? 'Analysis Quote Detail' : 'Analysis Quote';
+		var report = await Xrm.WebApi.retrieveMultipleRecords("report", `?$select=reportid,filename,name&$filter=name eq '${queryReportName}'`).then(
+			function success(results) {
+				return results.entities[0];
+			},
+			function(error) {
+				console.log(error.message);
+			}
+		);
+		var reportid = report["reportid"];
+		var filename = report["filename"];
+		var arrReportSession = executeReport(quoteId, reportid, reportName, formContext);
+		
+		var blobData = await convertResponseToPDF(arrReportSession); //3. Convert the response in base 64 string i.e. PDF.
+
+		var emailId = await createEmail(quoteId);
+
+		await attachFileToDraftEmail(blobData, emailId, "test.pdf", "application/pdf"); //smisliti naming konvenciju za PDF
+
+		var pageInput = {
+			pageType: "entityrecord",
+			entityName: "email",
+			entityId: emailId //replace with actual ID
+		};
+		var navigationOptions = {
+			target: 2,
+			height: {value: 80, unit:"%"},
+			width: {value: 70, unit:"%"},
+			position: 1
+		};
+		Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
+			function success() {
+					// Run code on success
+			},
+			function error() {
+					// Handle errors
+			}
+		);
+
+	}
 	this.SyncQuoteButton = function (formContext) {
 
 		var confirmStrings = { text: "This action will synchronize this Quote to Pantheon. \nAre you sure you want to continue?", title: "Pantheon Synchronization" };
@@ -10,7 +73,6 @@ var QuoteRibbon = window.QuoteRibbon || {};
 					await QuoteRibbon.CheckAndSyncQuote(formContext);
 			});
 	}
-
 	this.CheckAndSyncQuote = async function (formContext) {
 		var quoteId = formContext.data.entity.getId().slice(1, -1);
 		// Checks
@@ -56,7 +118,236 @@ var QuoteRibbon = window.QuoteRibbon || {};
 
 }).call(QuoteRibbon);
 
+const convertResponseToPDF = async function (arrResponseSession) {
+    return new Promise((resolve, reject) => {
+        // Extract the PdfDownloadUrl using a regular expression
+        const pdfDownloadUrlRegex = /"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
+        const match = pdfDownloadUrlRegex.exec(arrResponseSession);
 
+        if (match && match[1]) {
+            const pdfDownloadUrl = match[1];
+            console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
+
+            // Replace \u0026 with &
+            const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
+            const globalContext = Xrm.Utility.getGlobalContext();
+            const pth = globalContext.getClientUrl() + updatedPdfDownloadUrl;
+
+            // Create request object that will be called to convert the response into a Base64 string
+            const retrieveEntityReq = new XMLHttpRequest();
+
+            retrieveEntityReq.open("GET", pth, true);
+            retrieveEntityReq.setRequestHeader("Accept", "*/*");
+            retrieveEntityReq.responseType = "arraybuffer";
+
+            retrieveEntityReq.onreadystatechange = function () {
+                if (retrieveEntityReq.readyState === 4) {
+                    if (retrieveEntityReq.status === 200) {
+                        try {
+                            const bytes = new Uint8Array(retrieveEntityReq.response);
+                            let binary = "";
+                            for (let i = 0; i < bytes.byteLength; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            const base64PDFString = btoa(binary); // Convert to Base64
+                            console.log("Base64 PDF String Generated");
+                            resolve(base64PDFString); // Resolve the promise with the Base64 string
+                        } catch (error) {
+                            console.error("Error converting response to Base64:", error);
+                            reject(error);
+                        }
+                    } else {
+                        reject(
+                            new Error(
+                                `Failed to retrieve PDF. Status: ${retrieveEntityReq.status}`
+                            )
+                        );
+                    }
+                }
+            };
+
+            retrieveEntityReq.onerror = function () {
+                reject(new Error("Network error while fetching the PDF."));
+            };
+
+            retrieveEntityReq.send();
+        } else {
+            reject(new Error("PdfDownloadUrl not found."));
+        }
+    });
+};
+
+// const convertResponseToPDF = async function (arrResponseSession) {
+// 	var base64PDFString = "";
+//     //Create query string that will be passed to Report Server to generate PDF version of report response.
+// 	var globalContext = Xrm.Utility.getGlobalContext();
+//     //var pth = globalContext.getClientUrl() + "/Reserved.ReportViewerWebControl.axd?ReportSession=" + arrResponseSession[0] + "&Culture=1033&CultureOverrides=True&UICulture=1033&UICultureOverrides=True&ReportStack=1&ControlID=" + arrResponseSession[1] +
+//     "&OpType=Export&FileName=Public&ContentDisposition=OnlyHtmlInline&Format=PDF";
+// 	// Extract the PdfDownloadUrl using a regular expression
+// 	const pdfDownloadUrlRegex = /"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
+// 								///"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
+// 	const match = pdfDownloadUrlRegex.exec(arrResponseSession);
+
+// 	if (match && match[1]) {
+// 		const pdfDownloadUrl = match[1];
+// 		console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
+// 		const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
+// 		var pth = globalContext.getClientUrl() + updatedPdfDownloadUrl
+	
+	
+	
+//     //Create request object that will be called to convert the response in PDF base 64 string.
+
+//     var retrieveEntityReq = new XMLHttpRequest();
+
+//     retrieveEntityReq.open("GET", pth, true);
+
+//     retrieveEntityReq.setRequestHeader("Accept", "*/*");
+
+//     retrieveEntityReq.responseType = "arraybuffer";
+
+//     retrieveEntityReq.onreadystatechange = function () { // This is the callback function.
+
+//         if (retrieveEntityReq.readyState == 4 && retrieveEntityReq.status == 200) {
+
+//             var binary = "";
+
+//             var bytes = new Uint8Array(this.response);
+
+//             for (var i = 0; i < bytes.byteLength; i++) {
+
+//                 binary += String.fromCharCode(bytes[i]);
+
+//             }
+
+//             //This is the base 64 PDF formatted string and is ready to pass to the action as an input parameter.
+
+//             base64PDFString = btoa(binary);
+			
+//             //4. Call Action and pass base 64 string as an input parameter. That’s it.
+
+//         }
+
+//     };
+
+//     //This statement sends the request for execution asynchronously. Callback function will be called on completion of the request.
+
+//     retrieveEntityReq.send();
+
+// 	return base64PDFString;
+
+// 	} else {
+// 		console.log("PdfDownloadUrl not found.");
+// 	}
+
+// }
+const executeReport = function (quoteId, reportGuid, reportName, formContext) {
+
+    var globalContext = Xrm.Utility.getGlobalContext();
+    var pth = globalContext.getClientUrl() + "/CRMReports/rsviewer/reportviewer.aspx";
+    //Prepare query to execute report.
+
+    //Prepare request object to execute the report.
+
+	var queryDecoded = `id={${reportGuid}}&uniquename=${globalContext.organizationSettings.uniqueName}` + 
+	            `&iscustomreport=true&reportnameonsrs=&signatureid=&reporttypecode=1&reportName=${reportName}`+
+				`&isScheduledReport=false&CRM_Filter=`+
+				`<ReportFilter><ReportEntity+paramname="CRM_quote"+displayname="Quotes"+donotconvert="1">`+
+				`<fetch+version="1.0"+output-format="xml-platform"+mapping="logical"+distinct="false">`+
+				`<entity+name="quote"><all-attributes/><filter+type="and"><condition+attribute="quoteid"+operator="eq"+uitype="quote"+value="${quoteId}"/>`+
+				`</filter></entity></fetch></ReportEntity></ReportFilter>`
+
+    var retrieveEntityReq = new XMLHttpRequest();
+
+    retrieveEntityReq.open("POST", pth, false);
+
+    retrieveEntityReq.setRequestHeader("Accept", "*/*");
+
+    retrieveEntityReq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    //This statement runs the query and executes the report synchronously.
+
+    retrieveEntityReq.send(queryDecoded);
+
+    //These variables captures the response and returns the response in an array.
+	console.log("Response Text: " + retrieveEntityReq.responseText);
+	console.log("Response Body: " + retrieveEntityReq.responseBody);
+    var x = retrieveEntityReq.responseText.lastIndexOf("ReportSession=");
+
+    var y = retrieveEntityReq.responseText.lastIndexOf("ControlID=");
+
+	return retrieveEntityReq.responseText;
+    var ret = new Array();
+
+    ret[0] = retrieveEntityReq.responseText.substr(x + 14, 24);
+
+    ret[1] = retrieveEntityReq.responseText.substr(x + 10, 32);
+
+    //Returns the response as an Array.
+
+    return ret;
+
+}
+const attachFileToDraftEmail = async function (base64data, emailId, filename, mimetype) {
+    return new Promise(async function (resolve, reject) {
+        try {
+			var record = {};
+			record.subject = "att"; // Text
+			record.objecttypecode = "email"; // EntityName
+			record.mimetype = mimetype; // Text
+			record.filename = filename; // Text
+			record["objectid_activitypointer@odata.bind"] = `/activitypointers(${emailId})`; // Lookup
+			record.body = base64data;
+
+			var req = new XMLHttpRequest();
+			req.open("POST", Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/activitymimeattachments", false);
+			req.setRequestHeader("OData-MaxVersion", "4.0");
+			req.setRequestHeader("OData-Version", "4.0");
+			req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+			req.setRequestHeader("Accept", "application/json");
+			req.setRequestHeader("Prefer", "odata.include-annotations=*");
+			req.onreadystatechange = function () {
+				if (this.readyState === 4) {
+					req.onreadystatechange = null;
+					if (this.status === 204) {
+						var uri = req.getResponseHeader("OData-EntityId");
+						var regExp = /\(([^)]+)\)/;
+						var matches = regExp.exec(uri);
+						var newId = matches[1];
+						console.log(newId);
+						resolve();
+					} else {
+						console.log(this.responseText);
+					}
+				}
+			};
+			req.send(JSON.stringify(record));
+        } catch (error) {
+            console.error("Error in attachment function:", error);
+            reject(error);
+        }
+    });
+};
+const createEmail = async function (quoteId) {
+	var record = {};
+	record["regardingobjectid_quote_email@odata.bind"] = `/quotes(${quoteId})`; // Lookup
+	record.subject = "PONUDA BATO"; // Text
+	record.sender = "vladimir.djordjevic@extreme.rs"; // Text
+	record.torecipients = "vladimir.djordjevic@extreme.rs"; // Text
+	record.description = "NEKI TEKST"; // Multiline Text
+	
+	var newId = await Xrm.WebApi.createRecord("email", record).then(
+		function success(result) {
+			return result.id;
+		},
+		function(error) {
+			console.log(error.message);
+		}
+	);
+
+	return newId;
+
+}
 const isAccountSynced = async function (accountId) {
 	var isAccountSynced = null;
 	isAccountSynced = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=extreme_synchronized").then(
@@ -341,7 +632,6 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 		}
 	);
 }
-
 const syncProduct = async function (productId) {
 	// GUID  -  SYNC Product Workflow
 	var workflowId = 'A1A4C887-F9B0-EF11-B8E8-6045BD898D29';
