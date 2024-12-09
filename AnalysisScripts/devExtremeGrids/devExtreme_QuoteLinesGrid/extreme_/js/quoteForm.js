@@ -18,9 +18,8 @@ async function form_onload(executionContext) {
         if(formContext.getAttribute("effectivefrom").getValue() === null){
             formContext.getAttribute("effectivefrom").setValue(new Date());
             var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
-            var newEffectiveTo = new Date();
-            newEffectiveTo.setDate(newEffectiveTo.getDate() + defaultQuoteValidDays);
-            formContext.getAttribute("effectiveto").setValue(newEffectiveTo);
+            var newEffectiveTo = addDays(new Date(), parseInt(defaultQuoteValidDays, 10));
+            formContext.getAttribute("effectiveto").setValue(newEffectiveTo);           
         }
         if(formContext.getAttribute("extreme_deliverymethod").getValue() === null 
         && formContext.getAttribute("extreme_paymentterms").getValue() === null){
@@ -29,11 +28,17 @@ async function form_onload(executionContext) {
     }
 
     formContext.getAttribute("customerid").addOnChange(populateAccountDefaults);
+   
+    function addDays(date, days) {
+        var result = new Date(date.valueOf());
+        result.setDate(result.getDate() + days);
+        return result;
+    }
 
     async function populateAccountDefaults(){
         if(formContext.getAttribute("customerid").getValue() !== null) {
             var accountId = formContext.getAttribute("customerid").getValue()[0].id;
-            var account = await Xrm.WebApi.retrieveRecord("account", "a55a221f-5e9b-ef11-8a6a-000d3abccd41", "?$select=_extreme_deliverymethod_value,_extreme_paymentterms_value").then(
+            var account = await Xrm.WebApi.retrieveRecord("account", `${accountId}`, "?$select=_extreme_deliverymethod_value,_extreme_paymentterms_value").then(
                 function success(result) {
                     return result;
                 },
@@ -46,12 +51,17 @@ async function form_onload(executionContext) {
                 name: account["_extreme_deliverymethod_value@OData.Community.Display.V1.FormattedValue"],
                 entityType: account["_extreme_deliverymethod_value@Microsoft.Dynamics.CRM.lookuplogicalname"]
             }];
+
+            if(account["_extreme_deliverymethod_value"]!== null)
             formContext.getAttribute("extreme_deliverymethod").setValue(deliveryMethodLookup);
+
             var paymentTermsLookup = [{
                 id: account["_extreme_paymentterms_value"], 
                 name: account["_extreme_paymentterms_value@OData.Community.Display.V1.FormattedValue"], 
                 entityType: account["_extreme_paymentterms_value@Microsoft.Dynamics.CRM.lookuplogicalname"] 
             }];
+
+            if(account["_extreme_paymentterms_value"]!== null)
             formContext.getAttribute("extreme_paymentterms").setValue(paymentTermsLookup);
         }
     }
