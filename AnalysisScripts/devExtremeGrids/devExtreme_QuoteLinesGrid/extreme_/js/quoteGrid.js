@@ -862,9 +862,14 @@ async function setClientApiContext(Xrm, formContext) {
             quoteLinesData._array.splice(fromIndex, 1);
             quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-            for (let i = 0; i < quoteLinesData._array.length; i++) {
-              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 })
-              quoteLinesData._array[i].sequencenumber = i + 1;
+            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+              quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+            }
+
+            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+              quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
             }
 
             e.component.refresh();
@@ -958,19 +963,24 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log('inside the same child - reordering');
                     }
 
-                    // const visibleRows = e.component.getVisibleRows();
-                    // const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
-                    // const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
+                    const visibleRows = e.component.getVisibleRows();
+                    const toIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === visibleRows[e.toIndex].data.quotedetailid);
+                    const fromIndex = quoteLinesData._array.findIndex((item) => item.quotedetailid === e.itemData.quotedetailid);
 
-                    // quoteLinesData._array.splice(fromIndex, 1);
-                    // quoteLinesData._array.splice(toIndex, 0, e.itemData);
+                    quoteLinesData._array.splice(fromIndex, 1);
+                    quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-                    // for (let i = 0; i < quoteLinesData._array.length; i++) {
-                    //   Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array[i].quotedetailid}`, { sequencenumber: i + 1 });
-                    //   quoteLinesData._array[i].sequencenumber = i + 1;
-                    // }
+                    for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+                      Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+                      quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+                    }
 
-                    // e.component.refresh();
+                    for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+                      Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+                      quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
+                    }
+
+                    e.component.refresh();
                   },
                   data: productsData.quotedetailid,
                   group: 'QuoteLines',
@@ -2199,6 +2209,17 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 onRowRemoved: (e) => {
                   console.log('RowRemoved');
+
+                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+                    quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+                  }
+
+                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+                    quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
+                  }
+
                 },
                 onSaving() {
                   console.log('Saving');
@@ -3783,8 +3804,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                 console.log(quoteLinesData._array);
 
-                await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { sequencenumber: quoteLinesData._array.length });
-                quoteLinesData._array[quoteLinesData._array.length - 1].sequencenumber = quoteLinesData._array.length;
+                await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { sequencenumber: parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00") });
+                quoteLinesData._array[quoteLinesData._array.length - 1].sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00");
                 quoteLinesData._array[quoteLinesData._array.length - 1].extreme_parentquoteline = null;
                 quoteLinesData._array[quoteLinesData._array.length - 1].extreme_isparentitem = isAddingSet;
                 if (!quoteLinesData._array[quoteLinesData._array.length - 1].baseamount) quoteLinesData._array[quoteLinesData._array.length - 1].baseamount = 0;
@@ -3943,6 +3964,17 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onRowRemoved: (e) => {
           console.log('RowRemoved');
+
+          for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+            Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+            quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+          }
+
+          for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+            Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+            quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
+          }
+
         },
         onSaving() {
           console.log('Saving');
@@ -4181,6 +4213,16 @@ async function setClientApiContext(Xrm, formContext) {
 
         console.log(key);
         console.log(values);
+
+        for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+          Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+          quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+        }
+
+        for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+          Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+          quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
+        }
 
         Xrm.Utility.closeProgressIndicator();
 
