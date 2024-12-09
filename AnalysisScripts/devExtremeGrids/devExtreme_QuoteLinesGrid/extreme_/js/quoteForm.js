@@ -1,3 +1,5 @@
+const { read } = require("fs");
+
 async function form_onload(executionContext) {
     const FORM_NEW = 1;
     const FORM_EDIT = 2;
@@ -12,55 +14,57 @@ async function form_onload(executionContext) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
     }
 
-    // formContext.getAttribute("transactioncurrencyid").addOnChange(setDefaultPriceList);
-    // if (formContext.getAttribute("pricelevelid").getValue() == null) {
-    //     await setDefaultPriceList()
-    // }
+    if (formType === FORM_NEW) {
+        if(formContext.getAttribute("effectivefrom").getValue() === null){
+            formContext.getAttribute("effectivefrom").setValue(new Date());
+            var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
+            var newEffectiveTo = addDays(new Date(), parseInt(defaultQuoteValidDays, 10));
+            formContext.getAttribute("effectiveto").setValue(newEffectiveTo);           
+        }
+        if(formContext.getAttribute("extreme_deliverymethod").getValue() === null 
+        && formContext.getAttribute("extreme_paymentterms").getValue() === null){
+            populateAccountDefaults();
+        }
+    }
 
-    // async function setDefaultPriceList() {
-    //     if (formContext.getAttribute("transactioncurrencyid").getValue() !== null) {
-    //         var currencyName = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
-    //         var defaultPriceListLookup = [{
-    //             id: null,
-    //             entityType: "pricelevel",
-    //             name: null
-    //         }];
-    //         switch (currencyName) {
-    //             case "EUR":
-    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultEURPriceListId");
-    //                 defaultPriceListLookup[0].name = 'defaultEURPriceListId';
-    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-    //                 break;
-    //             case "USD":
-    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultUSDPriceListId");
-    //                 defaultPriceListLookup[0].name = 'defaultUSDPriceListId';
-    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-    //                 break;
-    //             case "RSD":
-    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultRSDPriceListId");
-    //                 defaultPriceListLookup[0].name = 'defaultRSDPriceListId';
-    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-    //                 break;
-    //             case "GBP":
-    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultGBPPriceListId");
-    //                 defaultPriceListLookup[0].name = 'defaultGBPPriceListId';
-    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-    //                 break;
-    //             case "CHF":
-    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultCHFPriceListId");
-    //                 defaultPriceListLookup[0].name = 'defaultCHFPriceListId';
-    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-    //                 break;
-    //             case "MKD":
-    //                 defaultPriceListLookup[0].id = await readConfigurationValue("defaultMKDPriceListId");
-    //                 defaultPriceListLookup[0].name = 'defaultMKDPriceListId';
-    //                 formContext.getAttribute("pricelevelid").setValue(defaultPriceListLookup);
-    //                 break;
-    //             default:
-    //                 break;
-    //         }
-    //     }  
-    // }
+    formContext.getAttribute("customerid").addOnChange(populateAccountDefaults);
+   
+    function addDays(date, days) {
+        var result = new Date(date.valueOf());
+        result.setDate(result.getDate() + days);
+        return result;
+    }
+
+    async function populateAccountDefaults(){
+        if(formContext.getAttribute("customerid").getValue() !== null) {
+            var accountId = formContext.getAttribute("customerid").getValue()[0].id;
+            var account = await Xrm.WebApi.retrieveRecord("account", `${accountId}`, "?$select=_extreme_deliverymethod_value,_extreme_paymentterms_value").then(
+                function success(result) {
+                    return result;
+                },
+                function(error) {
+                    console.log(error.message);
+                }
+            );
+            var deliveryMethodLookup = [{
+                id: account["_extreme_deliverymethod_value"], 
+                name: account["_extreme_deliverymethod_value@OData.Community.Display.V1.FormattedValue"],
+                entityType: account["_extreme_deliverymethod_value@Microsoft.Dynamics.CRM.lookuplogicalname"]
+            }];
+
+            if(account["_extreme_deliverymethod_value"]!== null)
+            formContext.getAttribute("extreme_deliverymethod").setValue(deliveryMethodLookup);
+
+            var paymentTermsLookup = [{
+                id: account["_extreme_paymentterms_value"], 
+                name: account["_extreme_paymentterms_value@OData.Community.Display.V1.FormattedValue"], 
+                entityType: account["_extreme_paymentterms_value@Microsoft.Dynamics.CRM.lookuplogicalname"] 
+            }];
+
+            if(account["_extreme_paymentterms_value"]!== null)
+            formContext.getAttribute("extreme_paymentterms").setValue(paymentTermsLookup);
+        }
+    }
 
     async function readConfigurationValue(key) {
         // eslint-disable-next-line no-undef

@@ -28,65 +28,67 @@ var AccountForm = window.AccountForm || {};
         formContext.getAttribute("extreme_vatnumber").addOnChange(validateVAT);
         formContext.getAttribute("telephone1").addOnChange(() => formatPhoneNumber("telephone1"));
         formContext.getAttribute("telephone2").addOnChange(() => formatPhoneNumber("telephone2"));
-    };
-
-    async function validateVAT() {
-        if (formContext.getAttribute("extreme_vatnumber").getValue() !== null) {
-            var vatNumber = formContext.getAttribute("extreme_vatnumber").getValue();
-            var lengthValid = false;
-            var logicValid = false;
-            var errorMessage = "";
-
-            switch (countryCode.toUpperCase()) {
-                case 'HR':
-                    lengthValid = vatNumber.length === 11;
-                    logicValid = validateCroatiaVAT(vatNumber);
-                    if (!lengthValid) {
-                        errorMessage = "OIB (VAT number) must contain exactly 11 digits.";
-                    } else if (!logicValid) {
-                        errorMessage = "OIB (VAT number) is not valid.";
-                    }
-                    break;
-                case 'SI':
-                    lengthValid = vatNumber.length === 8;
-                    logicValid = validateSloveniaVAT(vatNumber);
-                    if (!lengthValid) {
-                        errorMessage = "VAT number must contain exactly 8 digits.";
-                    } else if (!logicValid) {
-                        errorMessage = "VAT number is not valid.";
-                    }
-                    break;
-                case 'RS':
-                    lengthValid = vatNumber.length === 9;
-                    logicValid = validateSerbiaVAT(vatNumber);
-                    if (!lengthValid) {
-                        errorMessage = "PIB (VAT number) must contain exactly 9 digits.";
-                    } else if (!logicValid) {
-                        errorMessage = "PIB (VAT number) is not valid.";
-                    }
-                    break;
-                case 'MK':
-                    lengthValid = vatNumber.length === 13;
-                    logicValid = validateMacedoniaVAT(vatNumber);
-                    if (!lengthValid) {
-                        errorMessage = "VAT number must contain exactly 13 digits.";
-                    } else if (!logicValid) {
-                        errorMessage = "VAT number is not valid.";
-                    }
-                    break;
-                default:
-                    return false;
-            }
-
-            if (!lengthValid || !logicValid) {
-                formContext.getControl("extreme_vatnumber").setNotification(errorMessage, "VatValidation");
-                formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("always");
-            } else {
-                formContext.getControl("extreme_vatnumber").clearNotification("VatValidation");
-                formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("dirty");
+        
+        async function validateVAT() {
+            if (formContext.getAttribute("extreme_vatnumber").getValue() !== null) {
+                var vatNumber = formContext.getAttribute("extreme_vatnumber").getValue();
+                var lengthValid = false;
+                var logicValid = false;
+                var errorMessage = "";
+    
+                switch (countryCode.toUpperCase()) {
+                    case 'HR':
+                        lengthValid = vatNumber.length === 11;
+                        logicValid = validateCroatiaVAT(vatNumber);
+                        if (!lengthValid) {
+                            errorMessage = "OIB (VAT number) must contain exactly 11 digits.";
+                        } else if (!logicValid) {
+                            errorMessage = "OIB (VAT number) is not valid.";
+                        }
+                        break;
+                    case 'SI':
+                        lengthValid = vatNumber.length === 8;
+                        logicValid = validateSloveniaVAT(vatNumber);
+                        if (!lengthValid) {
+                            errorMessage = "VAT number must contain exactly 8 digits.";
+                        } else if (!logicValid) {
+                            errorMessage = "VAT number is not valid.";
+                        }
+                        break;
+                    case 'RS':
+                        lengthValid = vatNumber.length === 9;
+                        logicValid = validateSerbiaVAT(vatNumber);
+                        if (!lengthValid) {
+                            errorMessage = "PIB (VAT number) must contain exactly 9 digits.";
+                        } else if (!logicValid) {
+                            errorMessage = "PIB (VAT number) is not valid.";
+                        }
+                        break;
+                    case 'MK':
+                        lengthValid = vatNumber.length === 13;
+                        logicValid = validateMacedoniaVAT(vatNumber);
+                        if (!lengthValid) {
+                            errorMessage = "VAT number must contain exactly 13 digits.";
+                        } else if (!logicValid) {
+                            errorMessage = "VAT number is not valid.";
+                        }
+                        break;
+                    default:
+                        return false;
+                }
+    
+                if (!lengthValid || !logicValid) {
+                    formContext.getControl("extreme_vatnumber").setNotification(errorMessage, "VatValidation");
+                    formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("always");
+                } else {
+                    formContext.getControl("extreme_vatnumber").clearNotification("VatValidation");
+                    formContext.data.entity.attributes.getByName("extreme_vatnumber").setSubmitMode("dirty");
+                }
             }
         }
-    }
+    };
+
+
 
     function formatPhoneNumber(fieldName) {
         var phoneNumber = formContext.getAttribute(fieldName);
