@@ -592,25 +592,6 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 								);
 								var record = {};
 								record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
-<<<<<<<<< Temporary merge branch 1
-
-								await Xrm.WebApi.updateRecord("product", productid, record).then(
-									function success(result) {
-										var updatedId = result.id;
-										console.log(updatedId);
-									},
-									function(error) {
-										console.log(error.message);
-									}
-								);
-							}
-
-							if (!extreme_synchronized) {
-								//Sync Product
-								Xrm.Utility.showProgressIndicator(
-									'Products Sync In Progress... Please Wait.');
-=========
->>>>>>>>> Temporary merge branch 2
 
 								await Xrm.WebApi.updateRecord("product", productid, record).then(
 									function success(result) {
