@@ -108,7 +108,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		//areAllProductsCreatedAndSynced
 		await areAllProductsCreatedAndSynced(quoteId, formContext);
 		//QuoteSync
-		await syncQuote(quoteId);
+		await syncQuote(quoteId, formContext);
 		Xrm.Utility.showProgressIndicator(
 			'Quote Synchronized!');
 		setTimeout(() => {
@@ -308,7 +308,7 @@ const syncAccount = async function (accountId) {
 			};
 		}
 	};
-	Xrm.WebApi.execute(executeWorkflowRequest).then(
+	await Xrm.WebApi.execute(executeWorkflowRequest).then(
 		function success(response) {
 			if (response.ok) { /*return response.json(); */ }
 		}
@@ -377,7 +377,7 @@ const syncCostDrive = async function (oppId) {
 			};
 		}
 	};
-	Xrm.WebApi.execute(executeWorkflowRequest).then(
+	await Xrm.WebApi.execute(executeWorkflowRequest).then(
 		function success(response) {
 			if (response.ok) { /*return response.json(); */ }
 		}
@@ -410,7 +410,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			console.log(error.message);
 		}
 	);
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
 		async function success(results) {
 			console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
@@ -441,6 +441,9 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 				var extreme_vendorsupplier_formatted = result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"];
 				var extreme_vendorsupplier_lookuplogicalname = result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 				var productdescription = result["productdescription"]; // Text
+				var extreme_vatgroup = result["_extreme_vatgroup_value"]; // Lookup
+				var extreme_vatgroup_formatted = result["_extreme_vatgroup_value@OData.Community.Display.V1.FormattedValue"];
+				var extreme_vatgroup_lookuplogicalname = result["_extreme_vatgroup_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
 				if (productid == null) {
 					//Create And Sync Product
@@ -491,7 +494,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
 					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
 					record.producttypecode = 1; // Choice   //1 products 3services
-					record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatgroup})`; 
+					record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${extreme_vatgroup})`; 
 
 					var newProductId = await Xrm.WebApi.createRecord("product", record).then(
 						function success(result) {
@@ -526,7 +529,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 
 					await syncProduct(newProductId);
 
-					await updateQuoteLine(newProductId, quotedetailid);
+					await updateQuoteLine(newProductId, newUomId, quotedetailid);
 					//Update QuoteLine
 				} else {
 					await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=productid,extreme_synchronized").then(
@@ -575,23 +578,21 @@ const syncProduct = async function (productId) {
 			};
 		}
 	};
-	Xrm.WebApi.execute(executeWorkflowRequest).then(
+	await Xrm.WebApi.execute(executeWorkflowRequest).then(
 		function success(response) {
 			if (response.ok) { /*return response.json(); */ }
 		}
 	).then(function (responseBody) {
 		var result = responseBody;
-		formContext.data.refresh(true);
-
 		//console.log(result);
 	}).catch(function (error) {
 		console.log(error.message);
 	});
 }
-const updateQuoteLine = async function (productId, quoteDetailId) {
+const updateQuoteLine = async function (productId, uomid, quoteDetailId) {
 	var record = {};
 	record["productid@odata.bind"] = `/products(${productId})`; // Lookup
-
+	record["uomid@odata.bind"] = `/uoms(${uomid})`;
 	await Xrm.WebApi.updateRecord("quotedetail", quoteDetailId, record).then(
 		function success(result) {
 			var updatedId = result.id;
@@ -602,7 +603,7 @@ const updateQuoteLine = async function (productId, quoteDetailId) {
 		}
 	);
 }
-const syncQuote = async function (quoteId) {
+const syncQuote = async function (quoteId, formContext) {
 	Xrm.Utility.showProgressIndicator(
 		'Synchronizing Quote... Please Wait.');
 	// GUID  -  SYNC Quote Workflow
