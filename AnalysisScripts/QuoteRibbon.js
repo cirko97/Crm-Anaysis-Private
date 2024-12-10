@@ -578,10 +578,55 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 							var productid = result["productid"]; // Guid
 							var extreme_synchronized = result["extreme_synchronized"]; // Boolean
 							var extreme_synchronized_formatted = result["extreme_synchronized@OData.Community.Display.V1.FormattedValue"];
+							
+							if(extreme_parentquoteline !== null){
+								var parentProductId = await Xrm.WebApi.retrieveRecord("quotedetail", extreme_parentquoteline, "?$select=_productid_value").then(
+									function success(result) {
+										console.log(result);
+										// Columns
+										return result["_productid_value"]; // Lookup
+									},
+									function(error) {
+										console.log(error.message);
+									}
+								);
+								var record = {};
+								record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
+<<<<<<<<< Temporary merge branch 1
+
+								await Xrm.WebApi.updateRecord("product", productid, record).then(
+									function success(result) {
+										var updatedId = result.id;
+										console.log(updatedId);
+									},
+									function(error) {
+										console.log(error.message);
+									}
+								);
+							}
+
+							if (!extreme_synchronized) {
+								//Sync Product
+								Xrm.Utility.showProgressIndicator(
+									'Products Sync In Progress... Please Wait.');
+=========
+>>>>>>>>> Temporary merge branch 2
+
+								await Xrm.WebApi.updateRecord("product", productid, record).then(
+									function success(result) {
+										var updatedId = result.id;
+										console.log(updatedId);
+									},
+									function(error) {
+										console.log(error.message);
+									}
+								);
+							}
+
 							// if (!extreme_synchronized) {
 							// 	//Sync Product
-							// 	// Xrm.Utility.showProgressIndicator(
-							// 	// 	'Products Sync In Progress... Please Wait.');
+							// 	Xrm.Utility.showProgressIndicator(
+							// 		'Products Sync In Progress... Please Wait.');
 
 							// // 	await syncProduct(productid);
 							// }
