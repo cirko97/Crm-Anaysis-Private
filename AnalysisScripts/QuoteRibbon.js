@@ -410,6 +410,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			console.log(error.message);
 		}
 	);
+	// creates everything DESC isParent
 	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
 		async function success(results) {
 			console.log(results);
