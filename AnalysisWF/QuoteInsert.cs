@@ -118,7 +118,6 @@ namespace AnalysisWF
             var acCostDrive = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("opportunityid"), "extreme_costprofitcentercode", service);
             var anDaysForPayment = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_numberofdays", service);
             var anDaysForDelivery = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_deliverymethod"), "extreme_numberofdays", service);
-            var extreme_detailedprintoutdescription = quote.GetAttributeValue<string>("extreme_detailedprintoutdescription");
             // Calculate number of days between effectivefrom and effectiveto
             var effectiveFrom = quote.GetAttributeValue<DateTime?>("effectivefrom");
             var effectiveTo = quote.GetAttributeValue<DateTime?>("effectiveto");
@@ -127,14 +126,14 @@ namespace AnalysisWF
             {
                 anDaysForValid = (effectiveTo.Value - effectiveFrom.Value).Days;
             }
-            var acNote = quote.GetAttributeValue<string>("extreme_detailedprintoutdescription");
-            var acPayMethod = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_id", service);
-            var acDelivery = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_deliverymethods"), "extreme_id", service);
+            var acNote = quote.GetAttributeValue<string>("extreme_detailedprintoutdescription") ?? "";
+            var acPayMethod = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_code", service);
+            var acDelivery = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_deliverymethod"), "extreme_code", service);
 
             // Retrieve child QuoteDetail records
             var query = new QueryExpression("quotedetail")
             {
-                ColumnSet = new ColumnSet("productid", "quantity", "priceperunit", "uomid"),
+                ColumnSet = new ColumnSet("productid", "quantity", "priceperunit", "uomid", "extreme_discount", "extreme_productdescription", "extreme_vatgroup"),
                 Criteria = new FilterExpression()
             };
             query.Criteria.AddCondition("quoteid", ConditionOperator.Equal, quote.Id);
@@ -186,10 +185,9 @@ namespace AnalysisWF
                             anDaysForPayment,
                             adDeliveryDate,
                             anDaysForDelivery,
-                            extreme_detailedprintoutdescription,
-                            acNote,
                             acPayMethod,
                             acDelivery,
+                            acNote,
                             acLinesJSON = lineItems
                         }
                     }
