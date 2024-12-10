@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Activities;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Query;
 using Microsoft.Xrm.Sdk.Workflow;
 using Newtonsoft.Json;
 
@@ -45,37 +47,59 @@ namespace AnalysisWF
 
             try
             {
-                // Preuzimanje Product zapisa
+                // Retrieve Product record
                 var productRef = Product.Get(context);
-                var product = service.Retrieve("product", productRef.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(true));
-                tracingService.Trace("Preuzet Product zapis sa ID: {0}", product.Id);
+                var product = service.Retrieve("product", productRef.Id, new ColumnSet(true));
+                tracingService.Trace("Retrieved Product record with ID: {0}", product.Id);
 
-                // Poziv API-ja za autentifikaciju i pribavljanje tokena
+                // Check if product is a parent
+                var isParent = product.GetAttributeValue<bool>("extreme_isparent");
+                string jsonData;
+
+                if (isParent)
+                {
+                    tracingService.Trace("Product is marked as a parent.");
+
+                    // Retrieve child products
+                    var query = new QueryExpression("product")
+                    {
+                        ColumnSet = new ColumnSet("productnumber", "name", "defaultuomid", "extreme_parentproduct", "extreme_quantityforparent"),
+                        Criteria = new FilterExpression()
+                    };
+                    query.Criteria.AddCondition("extreme_parentproduct", ConditionOperator.Equal, product.Id);
+
+                    var childProducts = service.RetrieveMultiple(query).Entities;
+                    tracingService.Trace("Retrieved {0} child products.", childProducts.Count);
+
+                    jsonData = PrepareComposedProductData(product, childProducts, service, context);
+                }
+                else
+                {
+                    tracingService.Trace("Product is not a parent.");
+                    jsonData = PrepareProductData(product, service, context);
+                }
+
+                tracingService.Trace("JSON data for submission: {0}", jsonData);
+
+                // Call Pantheon API
                 var token = AuthHelper.GetAuthToken(tracingService, service).GetAwaiter().GetResult();
-
-                // Priprema podataka za slanje
-                var jsonData = PrepareProductData(product, service, context);
-                tracingService.Trace("JSON podaci za slanje: {0}", jsonData);
-
-                // Poziv API-ja za slanje Product zapisa
                 var responseMessage = CallPantheonApi(token, jsonData).GetAwaiter().GetResult();
 
                 tracingService.Trace("API Response: {0}", responseMessage);
 
-                // Parsiranje odgovora i postavljanje PantheonID-a
+                // Parse response and set output parameters
                 var cleanedResponse = responseMessage.Replace("\\r", "").Replace("\\n", "");
-                string cleanedJson = cleanedResponse.Replace("\\\"", "\"").Trim('\"'); // Uklanjamo spoljašnje navodnike
+                string cleanedJson = cleanedResponse.Replace("\\\"", "\"").Trim('"'); // Remove outer quotes
                 tracingService.Trace("Cleaned API Response: {0}", cleanedJson);
 
-                // Set output parameter for the full API response
                 string formattedJson = JsonConvert.SerializeObject(JsonConvert.DeserializeObject(cleanedJson), Formatting.Indented);
                 ApiResponse.Set(context, formattedJson);
 
                 dynamic response = JsonConvert.DeserializeObject(cleanedJson);
-                string pantheonId = response.usp_DEVC_AA_CreateIdent_out["@anQId"].ToString();
+                string pantheonId = response.usp_DEVC_AA_CreateIdent_out?["@anQId"].ToString() ?? response.usp_DEVC_AA_CreateComposedIdent_out?["@anQId"].ToString();
                 tracingService.Trace("Pantheon ID: {0}", pantheonId);
 
-                string errorMessage = response.usp_DEVC_AA_CreateIdent_out["@acErrorMessage"].ToString();
+                string errorMessage = response.usp_DEVC_AA_CreateIdent_out?["@acErrorMessage"].ToString() ?? response.usp_DEVC_AA_CreateComposedIdent_out?["@acErrorMessage"].ToString();
 
                 if (!string.IsNullOrEmpty(errorMessage))
                 {
@@ -86,58 +110,108 @@ namespace AnalysisWF
             }
             catch (Exception ex)
             {
-                tracingService.Trace("Greška: {0}", ex.Message);
-                throw new InvalidPluginExecutionException($"Greška prilikom slanja Product zapisa: {ex.Message}");
+                tracingService.Trace("Error: {0}", ex.Message);
+                throw new InvalidPluginExecutionException($"Error while sending Product record: {ex.Message}");
             }
         }
 
         private string PrepareProductData(Entity product, IOrganizationService service, CodeActivityContext context)
         {
-            // Ensure acIdent is always the first 16 characters of the product number
             var acIdent = product.GetAttributeValue<string>("productnumber");
             var acIdentLong = "";
             if (acIdent != null && acIdent.Length > 16)
             {
                 acIdentLong = acIdent;
                 acIdent = acIdent.Substring(0, 16);
-                
             }
             ShortenedProductID.Set(context, acIdent);
 
             var acName = product.GetAttributeValue<string>("name");
-            var acUM = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service);
-            acUM = acUM.Substring(0, 3);
+            var acUM = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service)?.Substring(0, 3);
             var acType = product.GetAttributeValue<OptionSetValue>("producttypecode")?.Value == 1 ? "P" : "U";
-            var acClassif = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service);
-            var acClassif2 = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service);
+            var acClassif = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
+            var acClassif2 = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
             var anVATCode = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
             var anVat = GetLookupFieldValue<decimal>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
 
             var anPrice = Price.Get(context);
 
-            var sb = new StringBuilder();
-            sb.Append("{");
-            sb.Append("\"procedures\": [");
-            sb.Append("{");
-            sb.Append("\"procname\": \"usp_DEVC_AA_CreateIdent\",");
-            sb.Append("\"procparams\": {");
-            sb.AppendFormat("\"acIdent\": \"{0}\",", acIdent);
-            sb.AppendFormat("\"acName\": \"{0}\",", acName);
-            sb.AppendFormat("\"acUM\": \"{0}\",", acUM);
-            sb.AppendFormat("\"acClassif\": \"{0}\",", acClassif);
-            sb.AppendFormat("\"acClassif2\": \"{0}\",", acClassif2);
-            sb.AppendFormat("\"anPrice\": {0},", anPrice);
-            sb.AppendFormat("\"acVATCode\": \"{0}\",", anVATCode);
-            sb.AppendFormat("\"anVat\": \"{0}\",", anVat);
-            sb.AppendFormat("\"acCostDrv\": \"{0}\",", "");
-            sb.AppendFormat("\"acCode\": \"{0}\",", acIdentLong);
-            sb.AppendFormat("\"acType\": \"{0}\"", acType);
-            sb.Append("}");
-            sb.Append("}");
-            sb.Append("]");
-            sb.Append("}");
+            return JsonConvert.SerializeObject(new
+            {
+                procedures = new[]
+                {
+                    new
+                    {
+                        procname = "usp_DEVC_AA_CreateIdent",
+                        procparams = new
+                        {
+                            acIdent,
+                            acName,
+                            acUM,
+                            acClassif,
+                            acClassif2,
+                            anPrice,
+                            acVATCode = anVATCode,
+                            anVat,
+                            acCostDrv = "",
+                            acCode = acIdentLong,
+                            acType
+                        }
+                    }
+                }
+            });
+        }
 
-            return sb.ToString();
+        private string PrepareComposedProductData(Entity parentProduct, IEnumerable<Entity> childProducts, IOrganizationService service, CodeActivityContext context)
+        {
+
+            var acIdent = parentProduct.GetAttributeValue<string>("productnumber");
+            var acIdentLong = "";
+            if (acIdent != null && acIdent.Length > 16)
+            {
+                acIdentLong = acIdent;
+                acIdent = acIdent.Substring(0, 16);
+            }
+            ShortenedProductID.Set(context, acIdent);
+
+            var acName = parentProduct.GetAttributeValue<string>("name");
+            var acUM = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("defaultuomid"), "name", service)?.Substring(0, 3);
+            var acClassif = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
+            var acClassif2 = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
+            var anVATCode = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
+            var anVat = GetLookupFieldValue<decimal>(parentProduct.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
+
+            var anPrice = Price.Get(context);
+
+            var acComponentsJSON = childProducts.Select(child => new
+            {
+                code = child.GetAttributeValue<string>("productnumber"),
+                name = child.GetAttributeValue<string>("name"),
+                quantity = child.GetAttributeValue<decimal>("extreme_quantityforparent")
+            });
+
+            return JsonConvert.SerializeObject(new
+            {
+                procedures = new[]
+                {
+                    new
+                    {
+                        procname = "usp_DEVC_AA_CreateComposedIdent",
+                        procparams = new
+                        {
+                            acIdent,
+                            acName,
+                            acComponentsJSON,
+                            acUM,
+                            acClassif,
+                            acClassif2,
+                            anPrice,
+                            acVATCode = anVATCode,
+                            anVat
+                        }
+                    }
+                }
+            });
         }
 
         private async Task<string> CallPantheonApi(string token, string jsonData)
@@ -155,20 +229,12 @@ namespace AnalysisWF
             }
         }
 
-        //private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
-        //{
-        //    if (lookup == null)
-        //        return string.Empty;
-
-        //    var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
-        //    return entity.GetAttributeValue<string>(fieldName);
-        //}
         private T GetLookupFieldValue<T>(EntityReference lookup, string fieldName, IOrganizationService service)
         {
             if (lookup == null)
                 return default;
 
-            var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
+            var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new ColumnSet(fieldName));
 
             if (entity.Contains(fieldName) && entity[fieldName] is T value)
             {
@@ -177,6 +243,5 @@ namespace AnalysisWF
 
             return default;
         }
-
     }
 }

@@ -133,16 +133,33 @@ namespace AnalysisWF
             // Retrieve child QuoteDetail records
             var query = new QueryExpression("quotedetail")
             {
-                ColumnSet = new ColumnSet("productid", "quantity", "priceperunit", "uomid", "extreme_discount", "extreme_productdescription", "extreme_vatgroup"),
+                ColumnSet = new ColumnSet("productid", "quantity", "priceperunit", "extreme_fullpricewithdiscount", "uomid", "extreme_discount", "extreme_productdescription", "extreme_vatgroup", "extreme_parentquoteline", "extreme_isparentitem"),
                 Criteria = new FilterExpression()
             };
             query.Criteria.AddCondition("quoteid", ConditionOperator.Equal, quote.Id);
 
             var quoteDetails = service.RetrieveMultiple(query);
             var lineItems = new List<object>();
+            var groupedDetails = new Dictionary<Guid, List<Entity>>();
 
             foreach (var detail in quoteDetails.Entities)
             {
+                var parentQuoteLine = detail.GetAttributeValue<EntityReference>("extreme_parentquoteline");
+                if (parentQuoteLine != null)
+                {
+                    if (!groupedDetails.ContainsKey(parentQuoteLine.Id))
+                    {
+                        groupedDetails[parentQuoteLine.Id] = new List<Entity>();
+                    }
+                    groupedDetails[parentQuoteLine.Id].Add(detail);
+                    continue;
+                }
+                var isParent = detail.GetAttributeValue<bool>("extreme_isparentitem");
+                if (isParent)
+                {
+                    continue;
+                }
+
                 var product = Helper.GetLookupFieldValue(detail.GetAttributeValue<EntityReference>("productid"), "extreme_productid16characters", service);
                 var quantity = detail.GetAttributeValue<decimal>("quantity");
                 var salesPPU = detail.GetAttributeValue<Money>("priceperunit")?.Value;
@@ -158,6 +175,33 @@ namespace AnalysisWF
                     anQty = quantity,
                     acUM = uom,
                     anPrice = salesPPU,
+                    anRebate1 = discountPerc,
+                    acNote = note,
+                    acCostDrv = acCostDrive,
+                    acVatCode = vatCode,
+                    adDeliveryDeadline = ""
+                });
+            }
+
+            foreach (var parent in quoteDetails.Entities.Where(e => e.GetAttributeValue<bool>("extreme_isparentitem")))
+            {
+                if (!groupedDetails.ContainsKey(parent.Id)) continue;
+
+                var product = Helper.GetLookupFieldValue(parent.GetAttributeValue<EntityReference>("productid"), "extreme_productid16characters", service);
+                var uom = parent.GetAttributeValue<EntityReference>("uomid")?.Name;
+                var note = parent.GetAttributeValue<string>("extreme_productdescription") ?? "";
+                var vatCode = Helper.GetLookupFieldValue(parent.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
+                var childDetails = groupedDetails[parent.Id];
+                var totalPPU = childDetails.Sum(c => c.GetAttributeValue<Money>("priceperunit")?.Value * c.GetAttributeValue<decimal>("quantity") ?? 0);
+                var totalAmount = childDetails.Sum(c => c.GetAttributeValue<decimal>("extreme_fullpricewithdiscount"));
+                var discountPerc = (totalPPU - totalAmount) / totalPPU * 100;
+
+                lineItems.Add(new
+                {
+                    acIdent = product,
+                    anQty = 1,
+                    acUM = uom,
+                    anPrice = totalPPU,
                     anRebate1 = discountPerc,
                     acNote = note,
                     acCostDrv = acCostDrive,
