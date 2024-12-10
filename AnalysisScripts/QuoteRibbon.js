@@ -410,7 +410,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			console.log(error.message);
 		}
 	);
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}`).then(
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
 		async function success(results) {
 			console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
@@ -563,11 +563,6 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 							}
 						);
 
-					// Xrm.Utility.showProgressIndicator(
-					// 	'Products Sync In Progress... Please Wait.'); 
-
-					//await syncProduct(newProductId);
-
 					await updateQuoteLine(newProductId, newUomId, defaultPriceListId, quotedetailid);
 					//Update QuoteLine
 				} else {
@@ -592,7 +587,6 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 								);
 								var record = {};
 								record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
-<<<<<<<<< Temporary merge branch 1
 
 								await Xrm.WebApi.updateRecord("product", productid, record).then(
 									function success(result) {
@@ -604,32 +598,6 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 									}
 								);
 							}
-
-							if (!extreme_synchronized) {
-								//Sync Product
-								Xrm.Utility.showProgressIndicator(
-									'Products Sync In Progress... Please Wait.');
-=========
->>>>>>>>> Temporary merge branch 2
-
-								await Xrm.WebApi.updateRecord("product", productid, record).then(
-									function success(result) {
-										var updatedId = result.id;
-										console.log(updatedId);
-									},
-									function(error) {
-										console.log(error.message);
-									}
-								);
-							}
-
-							// if (!extreme_synchronized) {
-							// 	//Sync Product
-							// 	Xrm.Utility.showProgressIndicator(
-							// 		'Products Sync In Progress... Please Wait.');
-
-							// // 	await syncProduct(productid);
-							// }
 						},
 						function (error) {
 							console.log(error.message);
