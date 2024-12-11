@@ -635,7 +635,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 	);
 }
 const syncProduct = async function (productId) {
-	// GUID - SYNC Product Workflow
+	// GUID - SYNC Product Workflow 
 	var workflowId = 'A1A4C887-F9B0-EF11-B8E8-6045BD898D29';
 	var executeWorkflowRequest = {
 		entity: { entityType: "workflow", id: `${workflowId}` },
