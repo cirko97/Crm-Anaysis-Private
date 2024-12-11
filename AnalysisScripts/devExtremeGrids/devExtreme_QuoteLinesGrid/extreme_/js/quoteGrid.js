@@ -195,7 +195,7 @@ async function setClientApiContext(Xrm, formContext) {
     customUnitsArray = [];
     filterForPriceListsQuery = '';
 
-    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
       async function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -315,6 +315,7 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_vatgroup = result["_extreme_vatgroup_value"]; // Lookup
           var extreme_vatgroup_formatted = result["_extreme_vatgroup_value@OData.Community.Display.V1.FormattedValue"];
           var extreme_vatgroup_lookuplogicalname = result["_extreme_vatgroup_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+          var extreme_producttype = result["extreme_producttype"]; // Choice
 
 
           let newCustomIdForUnit = 0;
@@ -370,7 +371,8 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_technology": extreme_technology,
             "extreme_vendorsupplier": extreme_vendorsupplier,
             "extreme_createasset": extreme_createasset,
-            "extreme_vatgroup": extreme_vatgroup
+            "extreme_vatgroup": extreme_vatgroup,
+            "extreme_producttype": extreme_producttype
           });
 
           if (!productid) {
@@ -828,6 +830,9 @@ async function setClientApiContext(Xrm, formContext) {
           allowDeleting: isDraftStatus,
           useIcons: true
         },
+        sorting: {
+          mode: 'none',
+        },
         // selection: {
         //   mode: 'multiple',
         // },
@@ -931,6 +936,9 @@ async function setClientApiContext(Xrm, formContext) {
                   allowAdding: false,
                   allowDeleting: isDraftStatus,
                   useIcons: true
+                },
+                sorting: {
+                  mode: 'none',
                 },
                 // selection: {
                 //   mode: 'multiple',
@@ -1759,6 +1767,26 @@ async function setClientApiContext(Xrm, formContext) {
                     caption: 'Is Parent',
                     dataType: 'boolean',
                     visible: dataGrid.columnOption("extreme_isparentitem", "visible")
+                  },
+                  {
+                    dataField: 'extreme_producttype',
+                    caption: 'Type',
+                    lookup: {
+                      dataSource(options) {
+                        return {
+                          store: {
+                            type: "array",
+                            data: [{ "id": 1, "name": "Product" }, { "id": 2, "name": "Service" }],
+                            key: "id"
+                          },
+                          paginate: true,
+                          pageSize: 20,
+                        }
+                      },
+                      displayExpr: 'name',
+                      valueExpr: 'id'
+                    },
+                    visible: false
                   },
                   {
                     dataField: 'extreme_area',
@@ -2998,6 +3026,26 @@ async function setClientApiContext(Xrm, formContext) {
             visible: false
           },
           {
+            dataField: 'extreme_producttype',
+            caption: 'Type',
+            lookup: {
+              dataSource(options) {
+                return {
+                  store: {
+                    type: "array",
+                    data: [{ "id": 1, "name": "Product" }, { "id": 2, "name": "Service" }],
+                    key: "id"
+                  },
+                  paginate: true,
+                  pageSize: 20,
+                }
+              },
+              displayExpr: 'name',
+              valueExpr: 'id'
+            },
+            visible: false
+          },
+          {
             dataField: 'extreme_area',
             caption: 'Area',
             lookup: {
@@ -3386,6 +3434,7 @@ async function setClientApiContext(Xrm, formContext) {
                       ],
                     ]);
 
+                    dataGrid.columnOption('extreme_producttype', 'visible', false);
                     dataGrid.columnOption('extreme_area', 'visible', false);
                     dataGrid.columnOption('extreme_technology', 'visible', false);
                     dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
@@ -3467,6 +3516,7 @@ async function setClientApiContext(Xrm, formContext) {
                       ],
                     ]);
 
+                    dataGrid.columnOption('extreme_producttype', 'visible', false);
                     dataGrid.columnOption('extreme_area', 'visible', false);
                     dataGrid.columnOption('extreme_technology', 'visible', false);
                     dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
@@ -3516,13 +3566,19 @@ async function setClientApiContext(Xrm, formContext) {
                   });
 
                   dataGrid.option('filterValue', [
+                    // [
+                    //   ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",
+                    //   ["extreme_technology", "=", null], "or", ["extreme_technology", "=", undefined], "or",
+                    //   ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
+                    // ], "and", ["extreme_isparentitem", "=", false]
                     [
                       ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",
                       ["extreme_technology", "=", null], "or", ["extreme_technology", "=", undefined], "or",
                       ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
-                    ], "and", ["extreme_isparentitem", "=", false]
+                    ]
                   ]);
 
+                  dataGrid.columnOption('extreme_producttype', 'visible', true);
                   dataGrid.columnOption('extreme_area', 'visible', true);
                   dataGrid.columnOption('extreme_technology', 'visible', true);
                   dataGrid.columnOption('extreme_vendorsupplier', 'visible', true);
@@ -4247,8 +4303,9 @@ async function setClientApiContext(Xrm, formContext) {
 
         if (quoteLinesData._array.length > 0) {
           quoteLinesData._array.filter((item) =>
-            item.extreme_isparentitem === false &&
+            // item.extreme_isparentitem === false &&
             (
+              (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
               (item.extreme_area === null || item.extreme_area === undefined) ||
               (item.extreme_technology === null || item.extreme_technology === undefined) ||
               (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
