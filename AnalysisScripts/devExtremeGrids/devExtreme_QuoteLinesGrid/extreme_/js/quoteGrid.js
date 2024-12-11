@@ -1005,6 +1005,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'productid',
                     caption: 'Product ID',
+                    width: 110,
                     lookup: {
                       dataSource: {
                         store: productsStore,
@@ -1206,7 +1207,7 @@ async function setClientApiContext(Xrm, formContext) {
                     caption: 'Name',
                     dataType: 'string',
                     wordWrapEnabled: true,
-                    width: 200,
+                    width: 180,
                     visible: dataGrid.columnOption("quotedetailname", "visible")
                   },
                   {
@@ -1260,7 +1261,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'uomid',
                     caption: 'Unit',
-                    width: 50,
+                    width: 60,
                     lookup: {
                       dataSource: {
                         store: unitsStore,
@@ -1304,7 +1305,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_pricelistpriceperunit',
                     caption: 'Original PPU',
                     dataType: 'number',
-                    width: 92,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1327,7 +1328,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_supplierpriceperunit',
                     caption: 'PPU',
                     dataType: 'number',
-                    width: 92,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1356,7 +1357,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_supplierbaseamount',
                     caption: 'Base Amount',
                     dataType: 'number',
-                    width: 100,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1423,7 +1424,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'priceperunit',
                     caption: 'Sales PPU',
                     dataType: 'number',
-                    width: 92,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1438,7 +1439,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'baseamount',
                     caption: 'Sales Amount',
                     dataType: 'number',
-                    width: 100,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1480,7 +1481,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'manualdiscountamount',
                     caption: 'Discount Amount',
                     dataType: 'number',
-                    width: 92,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1504,7 +1505,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_fullpricewithdiscount',
                     caption: 'Amount',
                     dataType: 'number',
-                    width: 100,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1633,7 +1634,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'tax',
                     caption: 'VAT Amount',
-                    width: 92,
+                    //width: 100,
                     dataType: 'number',
                     format: {
                       type: "fixedPoint",
@@ -1649,7 +1650,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_pd',
                     caption: 'Profit Per Unit',
                     dataType: 'number',
-                    width: 92,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1663,7 +1664,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_fullpd',
                     caption: 'Gross Profit',
                     dataType: 'number',
-                    width: 100,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -1677,7 +1678,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extendedamount',
                     caption: 'Total Amount',
                     dataType: 'number',
-                    width: 100,
+                    //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
@@ -2303,6 +2304,7 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'productid',
             caption: 'Product ID',
+            width: 110,
             lookup: {
               dataSource: {
                 store: productsStore,
@@ -2503,7 +2505,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'quotedetailname',
             caption: 'Name',
             dataType: 'string',
-            width: 200,
+            width: 180,
             wordWrapEnabled: true,
           },
           {
@@ -2558,7 +2560,7 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'uomid',
             caption: 'Unit',
-            width: 50,
+            width: 60,
             lookup: {
               dataSource: {
                 store: unitsStore,
@@ -2601,7 +2603,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_pricelistpriceperunit',
             caption: 'Original PPU',
             dataType: 'number',
-            width: 92,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2624,7 +2626,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_supplierpriceperunit',
             caption: 'PPU',
             dataType: 'number',
-            width: 92,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2652,7 +2654,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_supplierbaseamount',
             caption: 'Base Amount',
             dataType: 'number',
-            width: 100,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2717,7 +2719,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'priceperunit',
             caption: 'Sales PPU',
             dataType: 'number',
-            width: 92,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2731,7 +2733,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'baseamount',
             caption: 'Sales Amount',
             dataType: 'number',
-            width: 100,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2771,7 +2773,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'manualdiscountamount',
             caption: 'Discount Amount',
             dataType: 'number',
-            width: 92,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2795,7 +2797,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_fullpricewithdiscount',
             caption: 'Amount',
             dataType: 'number',
-            width: 100,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2923,7 +2925,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'tax',
             caption: 'VAT Amount',
             dataType: 'number',
-            width: 92,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2938,7 +2940,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_pd',
             caption: 'Profit Per Unit',
             dataType: 'number',
-            width: 92,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2952,7 +2954,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_fullpd',
             caption: 'Gross Profit',
             dataType: 'number',
-            width: 100,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
@@ -2966,7 +2968,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extendedamount',
             caption: 'Total Amount',
             dataType: 'number',
-            width: 100,
+            //width: 100,
             format: {
               type: "fixedPoint",
               precision: 2
