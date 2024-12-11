@@ -1180,7 +1180,16 @@ async function setClientApiContext(Xrm, formContext) {
                         return cellInfo.valueText;
                       }
                     },
-                    validationRules: [{ type: 'required' }],
+                    validationRules: [
+                      { type: 'required' },
+                      {
+                        type: 'custom',
+                        message: 'Must be at least 3 characters',
+                        validationCallback(params) {
+                          return productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number' ? false : true;
+                        },
+                      }
+                    ],
                     visible: dataGrid.columnOption("productid", "visible")
                   },
                   {
@@ -2420,7 +2429,16 @@ async function setClientApiContext(Xrm, formContext) {
                 return cellInfo.valueText;
               }
             },
-            validationRules: [{ type: 'required' }]
+            validationRules: [
+              { type: 'required' },
+              {
+                type: 'custom',
+                message: 'Must be at least 3 characters',
+                validationCallback(params) {
+                  return productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number' ? false : true;
+                },
+              }
+            ]
           },
           {
             dataField: 'quotedetailname',
