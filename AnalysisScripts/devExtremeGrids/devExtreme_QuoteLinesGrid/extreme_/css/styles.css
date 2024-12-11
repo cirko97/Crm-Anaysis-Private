@@ -39,3 +39,7 @@ input.currencyRates[type=number] {
 .dx-datagrid-revert-tooltip {
   display: none;
 }
+
+.dx-datagrid-nowrap .dx-header-row>td>.dx-datagrid-text-content {
+  white-space: normal !important;
+}
