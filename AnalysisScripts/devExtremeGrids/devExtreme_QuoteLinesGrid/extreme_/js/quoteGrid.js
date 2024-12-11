@@ -2461,32 +2461,34 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(currentRowData);
 
               newData.quantity = value;
-              if (currentRowData.extreme_supplierpriceperunit !== null) newData.extreme_supplierbaseamount = currentRowData.extreme_supplierpriceperunit * value;
-              if (currentRowData.priceperunit !== null) newData.baseamount = value * currentRowData.priceperunit;
-              if (currentRowData.extreme_margin !== null &&
-                currentRowData.extreme_supplierpriceperunit !== null &&
-                currentRowData.extreme_supplierdiscount !== null &&
-                currentRowData.extreme_discount !== null &&
-                currentRowData.extreme_tax !== null) {
-                newData.priceperunit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
-                const pricePerUnit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
-                newData.baseamount = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit) * value;
-                newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value;
-                newData.manualdiscountamount = (value * (Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                newData.extreme_pd = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-                const pdPerUnit = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-                newData.extreme_fullpd = pdPerUnit * value;
-              }
-              else {
-                if (currentRowData.priceperunit !== null && value !== null && currentRowData.extreme_discount !== null) {
-                  newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value;
-                  newData.manualdiscountamount = (value * currentRowData.priceperunit) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
-                };
-                if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
-                  newData.tax = (((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
-                  newData.extendedamount = ((((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value)) + ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+              if (!isAddingSet) {
+                if (currentRowData.extreme_supplierpriceperunit !== null) newData.extreme_supplierbaseamount = currentRowData.extreme_supplierpriceperunit * value;
+                if (currentRowData.priceperunit !== null) newData.baseamount = value * currentRowData.priceperunit;
+                if (currentRowData.extreme_margin !== null &&
+                  currentRowData.extreme_supplierpriceperunit !== null &&
+                  currentRowData.extreme_supplierdiscount !== null &&
+                  currentRowData.extreme_discount !== null &&
+                  currentRowData.extreme_tax !== null) {
+                  newData.priceperunit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
+                  const pricePerUnit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
+                  newData.baseamount = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit) * value;
+                  newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value;
+                  newData.manualdiscountamount = (value * (Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
+                  newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
+                  newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
+                  newData.extreme_pd = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+                  const pdPerUnit = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+                  newData.extreme_fullpd = pdPerUnit * value;
+                }
+                else {
+                  if (currentRowData.priceperunit !== null && value !== null && currentRowData.extreme_discount !== null) {
+                    newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value;
+                    newData.manualdiscountamount = (value * currentRowData.priceperunit) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                  };
+                  if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
+                    newData.tax = (((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                    newData.extendedamount = ((((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value)) + ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                  }
                 }
               }
             }
@@ -3300,8 +3302,8 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log("isAddingSet: ", isAddingSet);
 
                   dataGrid.columnOption("extreme_supplierpriceperunit", "allowEditing", false);
-                  dataGrid.columnOption("uomid", "allowEditing", false);
-                  dataGrid.columnOption("uomid", "validationRules", null);
+                  // dataGrid.columnOption("uomid", "allowEditing", false);
+                  // dataGrid.columnOption("uomid", "validationRules", null);
                   dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", false);
                   dataGrid.columnOption("extreme_margin", "allowEditing", false);
                   dataGrid.columnOption("extreme_discount", "allowEditing", false);
@@ -3689,7 +3691,15 @@ async function setClientApiContext(Xrm, formContext) {
             e.editorOptions.disabled = true;
           }
 
-          if ((e.row.data.extreme_isparentitem === true || (isAddingSet && e.row.isNewRow)) && e.dataField !== "productid" && e.dataField !== "quotedetailname" && e.dataField !== "extreme_productdescription") {
+          if (
+            (e.row.data.extreme_isparentitem === true || (isAddingSet && e.row.isNewRow)) &&
+            e.dataField !== "productid" &&
+            e.dataField !== "quotedetailname" &&
+            e.dataField !== "extreme_productdescription" &&
+            e.dataField !== "uomid" &&
+            e.dataField !== "quantity" &&
+            e.dataField !== "extreme_vatgroup"
+          ) {
             e.editorOptions.disabled = true;
           }
 
@@ -3975,8 +3985,9 @@ async function setClientApiContext(Xrm, formContext) {
         onSaving() {
           console.log('Saving');
         },
-        onSaved() {
+        onSaved(e) {
           console.log('Saved');
+          console.log(e);
         },
         onEditCanceling() {
           console.log('EditCanceling');
