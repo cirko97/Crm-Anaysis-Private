@@ -1101,11 +1101,12 @@ async function setClientApiContext(Xrm, formContext) {
                       if (productsStore._array.find((item) => item.id === value).pricelevelid) {
                         if (value !== null) {
                           priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
-                          classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+                          classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
                         }
                       }
 
                       if (classifyLookupsInfo !== null) {
+                        if (classifyLookupsInfo.producttypecode) newData.extreme_producttype = classifyLookupsInfo.producttypecode;
                         if (classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
                         if (classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
                         if (classifyLookupsInfo._extreme_supplier_value) newData.extreme_vendorsupplier = classifyLookupsInfo._extreme_supplier_value;
@@ -1535,8 +1536,13 @@ async function setClientApiContext(Xrm, formContext) {
 
                         let filterQuery = null;
                         if (options.data) {
-                          if (productsArray.find(item => item.id === options.data.productid).producttypecode) {
-                            filterQuery = ["productTypeCode", "=", productsArray.find(item => item.id === options.data.productid).producttypecode]
+                          if (options.isNewRow !== true) {
+                            if (productsArray.find(item => item.id === options.data.productid).producttypecode) {
+                              filterQuery = ["productTypeCode", "=", productsArray.find(item => item.id === options.data.productid).producttypecode]
+                            }
+                            else if (quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype) {
+                              filterQuery = ["productTypeCode", "=", quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype]
+                            }
                           }
                         }
 
@@ -1587,6 +1593,7 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_vatgroup = value;
+                      newData.extreme_producttype = vatGroupsArray.find(item => item.id === value).productTypeCode;
                       newData.extreme_tax = vatGroupsArray.find(item => item.id === value).vat;
                       const defaultTax = vatGroupsArray.find(item => item.id === value).vat;
 
@@ -2066,21 +2073,23 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('ROW PREPARED');
                   console.log(e);
 
-                  if (e.rowType === "data" && e.data.extreme_isparentitem === false &&
+                  if (e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
                     (
+                      (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
                       (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
                       (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
                       (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
                     )
                   ) {
-                    e.rowElement[0].style.backgroundColor = "#febf32";
+                    e.rowElement[0].style.backgroundColor = "#fce3c2";
                   }
                   else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
+                    (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
                     (item.extreme_area === null || item.extreme_area === undefined) ||
                     (item.extreme_technology === null || item.extreme_technology === undefined) ||
                     (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
                   )) {
-                    e.cells[1].cellElement[0].style.backgroundColor = "#febf32";
+                    e.cells[1].cellElement[0].style.backgroundColor = "#fce3c2";
                   }
                   else {
                     e.rowElement[0].style.backgroundColor = "#fff";
@@ -2139,6 +2148,7 @@ async function setClientApiContext(Xrm, formContext) {
                   if (typeof e.newData.extreme_createasset === "boolean") record.extreme_createasset = e.newData.extreme_createasset; // Boolean
                   if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
                   if (e.newData.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.newData.extreme_vatgroup})`; // Lookup
+                  if (e.newData.extreme_producttype) record.extreme_producttype = e.newData.extreme_producttype; // Chooice
 
                   if (!typeof (e.oldData.productid) === 'number') {
                     if (e.newData.uomid) record["uomid@odata.bind"] = `/uoms(${e.newData.uomid})`; // Lookup
@@ -2389,11 +2399,12 @@ async function setClientApiContext(Xrm, formContext) {
               if (productsStore._array.find((item) => item.id === value).pricelevelid) {
                 if (value !== null) {
                   priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
-                  classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+                  classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
                 }
               }
 
               if (classifyLookupsInfo !== null) {
+                if (classifyLookupsInfo.producttypecode) newData.extreme_producttype = classifyLookupsInfo.producttypecode;
                 if (classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
                 if (classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
                 if (classifyLookupsInfo._extreme_supplier_value) newData.extreme_vendorsupplier = classifyLookupsInfo._extreme_supplier_value;
@@ -2815,8 +2826,13 @@ async function setClientApiContext(Xrm, formContext) {
 
                 let filterQuery = null;
                 if (options.data) {
-                  if (productsArray.find(item => item.id === options.data.productid).producttypecode) {
-                    filterQuery = ["productTypeCode", "=", productsArray.find(item => item.id === options.data.productid).producttypecode]
+                  if (options.isNewRow !== true) {
+                    if (productsArray.find(item => item.id === options.data.productid).producttypecode) {
+                      filterQuery = ["productTypeCode", "=", productsArray.find(item => item.id === options.data.productid).producttypecode]
+                    }
+                    else if (quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype) {
+                      filterQuery = ["productTypeCode", "=", quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype]
+                    }
                   }
                 }
 
@@ -2867,6 +2883,7 @@ async function setClientApiContext(Xrm, formContext) {
             },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_vatgroup = value;
+              newData.extreme_producttype = vatGroupsArray.find(item => item.id === value).productTypeCode;
               newData.extreme_tax = vatGroupsArray.find(item => item.id === value).vat;
               const defaultTax = vatGroupsArray.find(item => item.id === value).vat;
 
@@ -3612,6 +3629,7 @@ async function setClientApiContext(Xrm, formContext) {
                     //   ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
                     // ], "and", ["extreme_isparentitem", "=", false]
                     [
+                      ["extreme_producttype", "=", null], "or", ["extreme_producttype", "=", undefined], "or",
                       ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",
                       ["extreme_technology", "=", null], "or", ["extreme_technology", "=", undefined], "or",
                       ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
@@ -3732,24 +3750,26 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('ROW PREPARED');
           console.log(e);
 
-          if (e.rowType === "data" && e.data.extreme_isparentitem === false &&
+          if (e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
             (
+              (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
               (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
               (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
               (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
             )
           ) {
-            e.rowElement[0].style.backgroundColor = "#febf32";
+            e.rowElement[0].style.backgroundColor = "#fce3c2";
           }
           else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
             item.extreme_parentquoteline === e.data.quotedetailid &&
             (
+              (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
               (item.extreme_area === null || item.extreme_area === undefined) ||
               (item.extreme_technology === null || item.extreme_technology === undefined) ||
               (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
             )
           )) {
-            e.cells[1].cellElement[0].style.backgroundColor = "#febf32";
+            e.cells[1].cellElement[0].style.backgroundColor = "#fce3c2";
           }
           else {
             e.rowElement[0].style.backgroundColor = "#fff";
@@ -3794,7 +3814,11 @@ async function setClientApiContext(Xrm, formContext) {
             e.dataField !== "extreme_productdescription" &&
             e.dataField !== "uomid" &&
             e.dataField !== "quantity" &&
-            e.dataField !== "extreme_vatgroup"
+            e.dataField !== "extreme_vatgroup" &&
+            e.dataField !== "extreme_producttype" &&
+            e.dataField !== "extreme_area" &&
+            e.dataField !== "extreme_technology" &&
+            e.dataField !== "extreme_vendorsupplier"
           ) {
             e.editorOptions.disabled = true;
           }
@@ -3851,7 +3875,8 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.data.extreme_fullpd || e.data.extreme_fullpd === 0) record.extreme_fullpd = e.data.extreme_fullpd; // Decimal
           if (typeof e.data.extreme_createasset === "boolean") record.extreme_createasset = e.data.extreme_createasset; // Boolean
           if (e.data.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.data.extreme_pricelist})`; // Lookup
-          if (e.data.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.data.extreme_vatgroup})`; // Lookup
+          if (e.data.extreme_producttype) record.extreme_producttype = e.data.extreme_producttype; // Choice
+          if (e.data.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.data.extreme_area})`; // Lookup
           if (e.data.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.data.extreme_technology})`; // Lookup
           if (e.data.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${e.data.extreme_vendorsupplier})`; // Lookup
           if (e.data.extreme_vatgroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${e.data.extreme_vatgroup})`; // Lookup
@@ -3992,6 +4017,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extendedamount || e.newData.extendedamount === 0) record.extendedamount = e.newData.extendedamount; // New total amount
           if (typeof e.newData.extreme_createasset === "boolean") record.extreme_createasset = e.newData.extreme_createasset; // Boolean
           if (e.newData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${e.newData.extreme_pricelist})`; // Lookup
+          if (e.newData.extreme_producttype) record.extreme_producttype = e.newData.extreme_producttype; // Chooice
           if (e.newData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${e.newData.extreme_area})`; // Lookup
           if (e.newData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
           if (e.newData.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
@@ -4343,20 +4369,20 @@ async function setClientApiContext(Xrm, formContext) {
 
         if (quoteLinesData._array.length > 0) {
           quoteLinesData._array.filter((item) =>
-            // item.extreme_isparentitem === false &&
-            (
-              (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
-              (item.extreme_area === null || item.extreme_area === undefined) ||
-              (item.extreme_technology === null || item.extreme_technology === undefined) ||
-              (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
-            )
+          // item.extreme_isparentitem === false &&
+          (
+            (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
+            (item.extreme_area === null || item.extreme_area === undefined) ||
+            (item.extreme_technology === null || item.extreme_technology === undefined) ||
+            (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
+          )
           ).forEach((item) => {
             classifyNeededRows += 1;
           })
         }
 
         if (classifyNeededRows > 0) {
-          $('#classifyBtn')[0].style.backgroundColor = '#febf32';
+          $('#classifyBtn')[0].style.backgroundColor = '#fce3c2';
           $('#classifyBtn')[0].style.display = 'inline-flex';
         }
         else {
