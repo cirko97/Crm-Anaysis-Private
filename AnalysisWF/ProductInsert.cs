@@ -131,7 +131,7 @@ namespace AnalysisWF
             var acType = product.GetAttributeValue<OptionSetValue>("producttypecode")?.Value == 1 ? "P" : "U";
             var acClassif = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
             var acClassif2 = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
-            var anVATCode = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
+            var anVATCode = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service) ?? "";
             var anVat = GetLookupFieldValue<decimal>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
 
             var anPrice = Price.Get(context);
@@ -178,7 +178,7 @@ namespace AnalysisWF
             var acUM = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("defaultuomid"), "name", service)?.Substring(0, 3);
             var acClassif = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
             var acClassif2 = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
-            var anVATCode = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
+            var acVATCode = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service) ?? "";
             var anVat = GetLookupFieldValue<decimal>(parentProduct.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
 
             var anPrice = Price.Get(context);
@@ -206,7 +206,7 @@ namespace AnalysisWF
                             acClassif,
                             acClassif2,
                             anPrice,
-                            acVATCode = anVATCode,
+                            acVATCode,
                             anVat
                         }
                     }
