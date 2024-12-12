@@ -9,7 +9,7 @@ let currenciesArray = [];
 let areasArray = [];
 let techsArray = [];
 let vensSupsArray = [];
-let vatGroupsArray = [];
+let vatSettingsArray = [];
 let defaultMargin = 0;
 let newCreateId = '';
 let newCreatedProductId = '';
@@ -195,7 +195,7 @@ async function setClientApiContext(Xrm, formContext) {
     customUnitsArray = [];
     filterForPriceListsQuery = '';
 
-    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatsetting_value,_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
       async function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -315,6 +315,9 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_vatgroup = result["_extreme_vatgroup_value"]; // Lookup
           var extreme_vatgroup_formatted = result["_extreme_vatgroup_value@OData.Community.Display.V1.FormattedValue"];
           var extreme_vatgroup_lookuplogicalname = result["_extreme_vatgroup_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+          var extreme_vatsetting = result["_extreme_vatsetting_value"]; // Lookup
+          var extreme_vatsetting_formatted = result["_extreme_vatsetting_value@OData.Community.Display.V1.FormattedValue"];
+          var extreme_vatsetting_lookuplogicalname = result["_extreme_vatsetting_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
           var extreme_producttype = result["extreme_producttype"]; // Choice
 
 
@@ -371,7 +374,7 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_technology": extreme_technology,
             "extreme_vendorsupplier": extreme_vendorsupplier,
             "extreme_createasset": extreme_createasset,
-            "extreme_vatgroup": extreme_vatgroup,
+            "extreme_vatsetting": extreme_vatsetting,
             "extreme_producttype": extreme_producttype
           });
 
@@ -681,7 +684,7 @@ async function setClientApiContext(Xrm, formContext) {
   // get vat groups
   async function getVatGroups() {
 
-    vatGroupsArray = [];
+    vatSettingsArray = [];
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", "?$select=extreme_producttype&$expand=extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)").then(
       function success(results) {
@@ -701,8 +704,9 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_VATGroup_extreme_vat = result["extreme_VATGroup"]["extreme_vat"]; // Decimal
             var extreme_VATGroup_extreme_vat_formatted = result["extreme_VATGroup"]["extreme_vat@OData.Community.Display.V1.FormattedValue"];
 
-            vatGroupsArray.push({
-              "id": extreme_VATGroup_extreme_vatgroupid,
+            vatSettingsArray.push({
+              "id": extreme_vatsettingid,
+              "idVatGroup": extreme_VATGroup_extreme_vatgroupid,
               "name": extreme_VATGroup_extreme_description,
               "code": extreme_VATGroup_extreme_code,
               "vat": extreme_VATGroup_extreme_vat,
@@ -1090,8 +1094,8 @@ async function setClientApiContext(Xrm, formContext) {
                       if (typeof (value) !== 'number') {
                         if (value !== null) {
                           productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
-                          defaultVatGroup = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=_extreme_vatgroup_value&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
-                          defaultVatGroup = defaultVatGroup.entities[0]._extreme_vatgroup_value;
+                          defaultVatGroup = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
+                          defaultVatGroup = defaultVatGroup.entities[0].extreme_vatsettingid;
                         }
                       }
 
@@ -1136,10 +1140,10 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log(currentRowData);
                       newData.productid = value;
                       if (!isAddingSet) {
-                        newData.extreme_tax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
-                        defaultTax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+                        newData.extreme_tax = defaultVatGroup === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatGroup).vat
+                        defaultTax = defaultVatGroup === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatGroup).vat
                       };
-                      if (!isAddingSet && defaultVatGroup !== null) newData.extreme_vatgroup = vatGroupsArray.find(item => item.id === defaultVatGroup).id;
+                      if (!isAddingSet && defaultVatGroup !== null) newData.extreme_vatgroup = vatSettingsArray.find(item => item.id === defaultVatGroup).id;
                       newData.quotedetailname = productsStore._array.find((item) => item.id === value).productName;
                       if (productsStore._array.find((item) => item.id === value).productDefaultUnit !== null) newData.uomid = productsStore._array.find((item) => item.id === value).productDefaultUnit;
                       if (productsStore._array.find((item) => item.id === value).pricelevelid && !isAddingSet) {
@@ -1527,7 +1531,7 @@ async function setClientApiContext(Xrm, formContext) {
                     visible: dataGrid.columnOption("extreme_fullpricewithdiscount", "visible")
                   },
                   {
-                    dataField: 'extreme_vatgroup',
+                    dataField: 'extreme_vatsetting',
                     caption: 'VAT %',
                     width: 60,
                     lookup: {
@@ -1550,7 +1554,7 @@ async function setClientApiContext(Xrm, formContext) {
                         return {
                           store: {
                             type: "array",
-                            data: vatGroupsArray,
+                            data: vatSettingsArray,
                             key: "id"
                           },
                           paginate: true,
@@ -1594,9 +1598,9 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_vatgroup = value;
-                      newData.extreme_producttype = vatGroupsArray.find(item => item.id === value).productTypeCode;
-                      newData.extreme_tax = vatGroupsArray.find(item => item.id === value).vat;
-                      const defaultTax = vatGroupsArray.find(item => item.id === value).vat;
+                      newData.extreme_producttype = vatSettingsArray.find(item => item.id === value).productTypeCode;
+                      newData.extreme_tax = vatSettingsArray.find(item => item.id === value).vat;
+                      const defaultTax = vatSettingsArray.find(item => item.id === value).vat;
 
                       if (
                         currentRowData.extreme_margin !== null &&
@@ -2389,8 +2393,8 @@ async function setClientApiContext(Xrm, formContext) {
               if (typeof (value) !== 'number') {
                 if (value !== null) {
                   productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
-                  defaultVatGroup = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=_extreme_vatgroup_value&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
-                  defaultVatGroup = defaultVatGroup.entities[0]._extreme_vatgroup_value;
+                  defaultVatGroup = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
+                  defaultVatGroup = defaultVatGroup.entities[0].extreme_vatsettingid;
                 }
               }
 
@@ -2435,10 +2439,10 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(currentRowData);
               newData.productid = value;
               if (!isAddingSet) {
-                newData.extreme_tax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
-                defaultTax = defaultVatGroup === null ? 0 : vatGroupsArray.find(item => item.id === defaultVatGroup).vat
+                newData.extreme_tax = defaultVatGroup === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatGroup).vat
+                defaultTax = defaultVatGroup === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatGroup).vat
               };
-              if (!isAddingSet && defaultVatGroup !== null) newData.extreme_vatgroup = vatGroupsArray.find(item => item.id === defaultVatGroup).id;
+              if (!isAddingSet && defaultVatGroup !== null) newData.extreme_vatgroup = vatSettingsArray.find(item => item.id === defaultVatGroup).id;
               newData.quotedetailname = productsStore._array.find((item) => item.id === value).productName;
               if (productsStore._array.find((item) => item.id === value).productDefaultUnit !== null) newData.uomid = productsStore._array.find((item) => item.id === value).productDefaultUnit;
               if (productsStore._array.find((item) => item.id === value).pricelevelid && !isAddingSet) {
@@ -2818,7 +2822,7 @@ async function setClientApiContext(Xrm, formContext) {
             }
           },
           {
-            dataField: 'extreme_vatgroup',
+            dataField: 'extreme_vatsetting',
             caption: 'VAT %',
             width: 60,
             lookup: {
@@ -2841,7 +2845,7 @@ async function setClientApiContext(Xrm, formContext) {
                 return {
                   store: {
                     type: "array",
-                    data: vatGroupsArray,
+                    data: vatSettingsArray,
                     key: "id"
                   },
                   paginate: true,
@@ -2885,9 +2889,9 @@ async function setClientApiContext(Xrm, formContext) {
             },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_vatgroup = value;
-              newData.extreme_producttype = vatGroupsArray.find(item => item.id === value).productTypeCode;
-              newData.extreme_tax = vatGroupsArray.find(item => item.id === value).vat;
-              const defaultTax = vatGroupsArray.find(item => item.id === value).vat;
+              newData.extreme_producttype = vatSettingsArray.find(item => item.id === value).productTypeCode;
+              newData.extreme_tax = vatSettingsArray.find(item => item.id === value).vat;
+              const defaultTax = vatSettingsArray.find(item => item.id === value).vat;
 
               if (
                 currentRowData.extreme_margin !== null &&
