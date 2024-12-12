@@ -3979,6 +3979,20 @@ async function setClientApiContext(Xrm, formContext) {
             }
           );
 
+          isAddingSet = null;
+          console.log("isAddingSet: ", isAddingSet);
+
+          dataGrid.columnOption("extreme_supplierpriceperunit", "allowEditing", true);
+          dataGrid.columnOption("uomid", "allowEditing", true);
+          dataGrid.columnOption("uomid", "validationRules", [{ type: 'required' }]);
+          dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
+          dataGrid.columnOption("extreme_margin", "allowEditing", true);
+          dataGrid.columnOption("extreme_discount", "allowEditing", true);
+          dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
+          dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
+          dataGrid.columnOption("extreme_createasset", "allowEditing", true);
+          dataGrid.columnOption("extreme_vatgroup", "allowEditing", true);
+
           formContext.data.refresh(true);
 
         },
@@ -4110,6 +4124,22 @@ async function setClientApiContext(Xrm, formContext) {
         onSaved(e) {
           console.log('Saved');
           console.log(e);
+
+          if (e.changes.length == 0) {
+            isAddingSet = null;
+            console.log("isAddingSet: ", isAddingSet);
+
+            dataGrid.columnOption("extreme_supplierpriceperunit", "allowEditing", true);
+            dataGrid.columnOption("uomid", "allowEditing", true);
+            dataGrid.columnOption("uomid", "validationRules", [{ type: 'required' }]);
+            dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
+            dataGrid.columnOption("extreme_margin", "allowEditing", true);
+            dataGrid.columnOption("extreme_discount", "allowEditing", true);
+            dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
+            dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
+            dataGrid.columnOption("extreme_createasset", "allowEditing", true);
+            dataGrid.columnOption("extreme_vatgroup", "allowEditing", true);
+          }
         },
         onEditCanceling() {
           console.log('EditCanceling');
