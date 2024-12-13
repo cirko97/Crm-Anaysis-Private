@@ -503,7 +503,9 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
 					if(extreme_vendorsupplier !== null)
 					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
+					if(extreme_producttype !== null)
 					record.producttypecode = extreme_producttype; // Choice   //1 products 3services
+					if(extreme_vatgroup !== null)
 					record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${extreme_vatgroup})`; 
 
 					var newProductId = await Xrm.WebApi.createRecord("product", record).then(
