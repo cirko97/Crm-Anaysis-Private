@@ -454,7 +454,7 @@ async function setClientApiContext(Xrm, formContext) {
     productsArray = [];
 
     while (skipTokenExists) {
-      await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,producttypecode,_pricelevelid_value,_defaultuomid_value,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
+      await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,extreme_isparent,producttypecode,_pricelevelid_value,_defaultuomid_value,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
         async function success(results) {
           console.log(results);
           results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
@@ -474,6 +474,7 @@ async function setClientApiContext(Xrm, formContext) {
             var pricelevelid_formatted = result["_pricelevelid_value@OData.Community.Display.V1.FormattedValue"];
             var pricelevelid_lookuplogicalname = result["_pricelevelid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
             var producttypecode = result["producttypecode"]; // Choice
+            var extreme_isparent = result["extreme_isparent"]; // Boolean
 
             // const priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${pricelevelid} and _productid_value eq ${productid})`);
 
@@ -484,7 +485,8 @@ async function setClientApiContext(Xrm, formContext) {
               "productId": productnumber,
               "productDefaultUnit": defaultuomid,
               "pricelevelid": pricelevelid,
-              "producttypecode": producttypecode
+              "producttypecode": producttypecode,
+              "extreme_isparent": extreme_isparent
             });
           }
           if (skipToken === '') {
@@ -681,7 +683,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     vensSupsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name").then(
+    await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name&$filter=(extreme_relationshiptypeext eq 424000000 or extreme_relationshiptypeext eq 424000003)").then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -1055,8 +1057,8 @@ async function setClientApiContext(Xrm, formContext) {
                       itemTemplate: function (data, index, container) {
                         var row = $("<div>").addClass("row text-wrap");
                         var containerFluid = $("<div>").addClass("container-fluid");
-                        $("<div>").addClass("col-6").text(data["productId"]).appendTo(row);
-                        $("<div>").addClass("col-6").text(data["productName"]).appendTo(row);
+                        $("<div>").addClass("col-3").text(data["productId"]).appendTo(row);
+                        $("<div>").addClass("col-9").text(data["productName"]).appendTo(row);
                         // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
                         row.appendTo(containerFluid);
                         container.append(containerFluid);
@@ -1598,9 +1600,10 @@ async function setClientApiContext(Xrm, formContext) {
                       itemTemplate: function (data, index, container) {
                         var containerFluid = $("<div>").addClass("container-fluid");
                         var row = $("<div>").addClass("row text-wrap");
+                        $("<div>").addClass("col-2").text(productTypesArray.find(item => item.id === data["productTypeCode"]).name).appendTo(row);
                         $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
-                        $("<div>").addClass("col-3").text(data["code"]).appendTo(row);
-                        $("<div>").addClass("col-3").text(data["varPercentFormat"]).appendTo(row);
+                        $("<div>").addClass("col-2").text(data["code"]).appendTo(row);
+                        $("<div>").addClass("col-2").text(data["varPercentFormat"]).appendTo(row);
                         row.appendTo(containerFluid);
                         container.append(containerFluid);
                       },
@@ -1799,6 +1802,7 @@ async function setClientApiContext(Xrm, formContext) {
                       var extendedAmount = tax + (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
 
                       newData.extreme_supplierpriceperunit = newOrgPrice * newOrgCurrencyValue;
+                      const supplierPricePerUnit = newOrgPrice * newOrgCurrencyValue;
                       newData.extreme_supplierbaseamount = (newOrgPrice * newOrgCurrencyValue) * currentRowData.quantity;
                       newData.priceperunit = pricePerUnit;
                       newData.baseamount = baseAmount;
@@ -1806,8 +1810,8 @@ async function setClientApiContext(Xrm, formContext) {
                       newData.extreme_fullpricewithdiscount = fullPriceWithDiscount;
                       newData.tax = tax;
                       newData.extendedamount = extendedAmount;
-                      newData.extreme_pd = pricePerUnit - (extreme_supplierpriceperunit - (extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-                      const pdPerUnit = pricePerUnit - (extreme_supplierpriceperunit - (extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+                      newData.extreme_pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
+                      const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
                       newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
 
                     },
@@ -2105,7 +2109,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                   if (e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
                     (
-                      (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
+                      // (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
                       (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
                       (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
                       (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
@@ -2114,7 +2118,7 @@ async function setClientApiContext(Xrm, formContext) {
                     e.rowElement[0].style.backgroundColor = "#fce3c2";
                   }
                   else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
-                    (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
+                    // (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
                     (item.extreme_area === null || item.extreme_area === undefined) ||
                     (item.extreme_technology === null || item.extreme_technology === undefined) ||
                     (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
@@ -2338,14 +2342,24 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Product ID',
             width: 120,
             lookup: {
-              dataSource: {
-                store: productsStore,
-                paginate: true,
-                pageSize: 20,
-                postProcess: function (data) {
-                  // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
-                  // data.unshift({ productId: "ID", productName: "Name", disabled: true });
-                  return data;
+              dataSource(options) {
+
+                let filterQuery = null;
+
+                if (options.data) {
+                  options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                }
+
+                return {
+                  store: productsStore,
+                  paginate: true,
+                  pageSize: 20,
+                  filter: filterQuery,
+                  postProcess: function (data) {
+                    // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
+                    // data.unshift({ productId: "ID", productName: "Name", disabled: true });
+                    return data;
+                  }
                 }
               },
               displayExpr: 'name',
@@ -2360,8 +2374,8 @@ async function setClientApiContext(Xrm, formContext) {
               itemTemplate: function (data, index, container) {
                 var row = $("<div>").addClass("row text-wrap");
                 var containerFluid = $("<div>").addClass("container-fluid");
-                $("<div>").addClass("col-6").text(data["productId"]).appendTo(row);
-                $("<div>").addClass("col-6").text(data["productName"]).appendTo(row);
+                $("<div>").addClass("col-3").text(data["productId"]).appendTo(row);
+                $("<div>").addClass("col-9").text(data["productName"]).appendTo(row);
                 // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
                 row.appendTo(containerFluid);
                 container.append(containerFluid);
@@ -2895,9 +2909,10 @@ async function setClientApiContext(Xrm, formContext) {
               itemTemplate: function (data, index, container) {
                 var containerFluid = $("<div>").addClass("container-fluid");
                 var row = $("<div>").addClass("row text-wrap");
+                $("<div>").addClass("col-2").text(productTypesArray.find(item => item.id === data["productTypeCode"]).name).appendTo(row);
                 $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
-                $("<div>").addClass("col-3").text(data["code"]).appendTo(row);
-                $("<div>").addClass("col-3").text(data["varPercentFormat"]).appendTo(row);
+                $("<div>").addClass("col-2").text(data["code"]).appendTo(row);
+                $("<div>").addClass("col-2").text(data["varPercentFormat"]).appendTo(row);
                 row.appendTo(containerFluid);
                 container.append(containerFluid);
               },
@@ -3094,6 +3109,7 @@ async function setClientApiContext(Xrm, formContext) {
               var extendedAmount = tax + (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
 
               newData.extreme_supplierpriceperunit = newOrgPrice * newOrgCurrencyValue;
+              const supplierPricePerUnit = newOrgPrice * newOrgCurrencyValue;
               newData.extreme_supplierbaseamount = (newOrgPrice * newOrgCurrencyValue) * currentRowData.quantity;
               newData.priceperunit = pricePerUnit;
               newData.baseamount = baseAmount;
@@ -3101,8 +3117,8 @@ async function setClientApiContext(Xrm, formContext) {
               newData.extreme_fullpricewithdiscount = fullPriceWithDiscount;
               newData.tax = tax;
               newData.extendedamount = extendedAmount;
-              newData.extreme_pd = pricePerUnit - (extreme_supplierpriceperunit - (extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-              const pdPerUnit = pricePerUnit - (extreme_supplierpriceperunit - (extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+              newData.extreme_pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
+              const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
               newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
 
             }
@@ -3528,7 +3544,7 @@ async function setClientApiContext(Xrm, formContext) {
                       ],
                     ]);
 
-                    dataGrid.columnOption('extreme_producttype', 'visible', false);
+                    // dataGrid.columnOption('extreme_producttype', 'visible', false);
                     dataGrid.columnOption('extreme_area', 'visible', false);
                     dataGrid.columnOption('extreme_technology', 'visible', false);
                     dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
@@ -3610,7 +3626,7 @@ async function setClientApiContext(Xrm, formContext) {
                       ],
                     ]);
 
-                    dataGrid.columnOption('extreme_producttype', 'visible', false);
+                    // dataGrid.columnOption('extreme_producttype', 'visible', false);
                     dataGrid.columnOption('extreme_area', 'visible', false);
                     dataGrid.columnOption('extreme_technology', 'visible', false);
                     dataGrid.columnOption('extreme_vendorsupplier', 'visible', false);
@@ -3666,14 +3682,14 @@ async function setClientApiContext(Xrm, formContext) {
                     //   ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
                     // ], "and", ["extreme_isparentitem", "=", false]
                     [
-                      ["extreme_producttype", "=", null], "or", ["extreme_producttype", "=", undefined], "or",
+                      // ["extreme_producttype", "=", null], "or", ["extreme_producttype", "=", undefined], "or",
                       ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",
                       ["extreme_technology", "=", null], "or", ["extreme_technology", "=", undefined], "or",
                       ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
                     ]
                   ]);
 
-                  dataGrid.columnOption('extreme_producttype', 'visible', true);
+                  // dataGrid.columnOption('extreme_producttype', 'visible', true);
                   dataGrid.columnOption('extreme_area', 'visible', true);
                   dataGrid.columnOption('extreme_technology', 'visible', true);
                   dataGrid.columnOption('extreme_vendorsupplier', 'visible', true);
@@ -3787,7 +3803,7 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('ROW PREPARED');
           console.log(e);
 
-          if (e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
+          if (e.rowType === "data" && e.data.extreme_isparentitem === false &&
             (
               (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
               (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
@@ -3796,6 +3812,14 @@ async function setClientApiContext(Xrm, formContext) {
             )
           ) {
             e.rowElement[0].style.backgroundColor = "#fce3c2";
+          }
+          else if (e.rowType === "data" && e.data.extreme_isparentitem === true &&
+            (
+              (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
+              (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
+              (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
+            )) {
+
           }
           else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
             item.extreme_parentquoteline === e.data.quotedetailid &&
@@ -3851,8 +3875,8 @@ async function setClientApiContext(Xrm, formContext) {
             e.dataField !== "extreme_productdescription" &&
             e.dataField !== "uomid" &&
             e.dataField !== "quantity" &&
-            e.dataField !== "extreme_vatsetting" &&
-            e.dataField !== "extreme_producttype" &&
+            // e.dataField !== "extreme_vatsetting" &&
+            // e.dataField !== "extreme_producttype" &&
             e.dataField !== "extreme_area" &&
             e.dataField !== "extreme_technology" &&
             e.dataField !== "extreme_vendorsupplier"
@@ -3877,9 +3901,15 @@ async function setClientApiContext(Xrm, formContext) {
           console.log(e);
 
           if (!isAddingSet) {
+            e.data.extreme_isparentitem = false;
             e.data.extreme_margin = defaultMargin;
             e.data.extreme_discount = 0;
             e.data.extreme_supplierdiscount = 0;
+            dataGrid.columnOption("extreme_vatsetting", "validationRules", [{ type: 'required' }]);
+          }
+          else {
+            e.data.extreme_isparentitem = true;
+            dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
           }
 
         },
@@ -4000,6 +4030,64 @@ async function setClientApiContext(Xrm, formContext) {
                 await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { extendedamount: Number(parseFloat(e.data.extendedamount).toFixed(4)) });
 
                 await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { baseamount: Number(parseFloat(e.data.baseamount).toFixed(4)) });
+
+
+                // If inserting parent item with existing child items
+                if (e.data.extreme_isparentitem === true && typeof (e.data.productid) !== 'number') {
+
+                  await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
+                    async function success(results) {
+                      console.log(results);
+                      for (var i = 0; i < results.entities.length; i++) {
+                        var result = results.entities[i];
+                        // Columns
+                        var productid = result["productid"]; // Guid
+                        var pricelevelid = result["_pricelevelid_value"]; // Lookup
+                        var pricelevelid_formatted = result["_pricelevelid_value@OData.Community.Display.V1.FormattedValue"];
+                        var pricelevelid_lookuplogicalname = result["_pricelevelid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                        var defaultuomid = result["_defaultuomid_value"]; // Lookup
+                        var defaultuomid_formatted = result["_defaultuomid_value@OData.Community.Display.V1.FormattedValue"];
+                        var defaultuomid_lookuplogicalname = result["_defaultuomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                        var extreme_isparent = result["extreme_isparent"]; // Boolean
+                        var extreme_isparent_formatted = result["extreme_isparent@OData.Community.Display.V1.FormattedValue"];
+                        var name = result["name"]; // Text
+                        var extreme_parentproduct = result["_extreme_parentproduct_value"]; // Lookup
+                        var extreme_parentproduct_formatted = result["_extreme_parentproduct_value@OData.Community.Display.V1.FormattedValue"];
+                        var extreme_parentproduct_lookuplogicalname = result["_extreme_parentproduct_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                        var productnumber = result["productnumber"]; // Text
+                        var producttypecode = result["producttypecode"]; // Choice
+                        var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
+
+                        var record = {};
+                        record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
+                        record["productid@odata.bind"] = `/products(${productid})`;
+                        record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${newId})`;
+                        record.quotedetailname = name; // Text
+                        record["uomid@odata.bind"] = `/uoms(${defaultuomid})`;
+
+                        record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
+                        record.extreme_isparentitem = false; // Boolean
+
+                        console.log("RECORD AFTER SETTING PROPERTIES");
+                        console.log(record);
+
+                        await Xrm.WebApi.createRecord("quotedetail", record).then(
+                          function success(result) {
+                            var newId = result.id;
+                            console.log(newId);
+                          },
+                          function (error) {
+                            console.log(error.message);
+                          }
+                        );
+
+                      }
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+                }
 
                 await getQuoteProducts(quoteIdForm);
                 await getPriceLists();
@@ -4444,7 +4532,6 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.filter((item) =>
           // item.extreme_isparentitem === false &&
           (
-            (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
             (item.extreme_area === null || item.extreme_area === undefined) ||
             (item.extreme_technology === null || item.extreme_technology === undefined) ||
             (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
