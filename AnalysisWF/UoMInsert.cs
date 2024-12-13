@@ -95,7 +95,11 @@ namespace AnalysisWF
         private string PrepareUomData(Entity uom)
         {
             var uomName = uom.GetAttributeValue<string>("name");
-            var uomNameTrimmed = uomName.Substring(0, 3);
+            if (uomName.Length > 3)
+            {
+                uomName = uomName.Substring(0, 3);
+            }
+            
 
             var sb = new StringBuilder();
             sb.Append("{");
@@ -103,7 +107,7 @@ namespace AnalysisWF
             sb.Append("{");
             sb.Append("\"procname\": \"usp_DEVC_AA_CreateUM\",");
             sb.Append("\"procparams\": {");
-            sb.AppendFormat("\"acUM\": \"{0}\",", uomNameTrimmed);
+            sb.AppendFormat("\"acUM\": \"{0}\",", uomName);
             sb.AppendFormat("\"acName\": \"{0}\"", uomName);
             sb.Append("}");
             sb.Append("}");
