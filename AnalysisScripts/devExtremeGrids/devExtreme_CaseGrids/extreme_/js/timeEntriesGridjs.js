@@ -456,6 +456,7 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
           e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
+          e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
           e.data.extreme_return = false;
           e.data.scheduledstart = maxDate;
           e.data.scheduledend = dateToFromMax;
@@ -475,6 +476,7 @@ async function setClientApiContext(Xrm, formContext) {
           record["regardingobjectid_extreme_case_extreme_timeentry@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
           record["extreme_Asset_extreme_TimeEntry@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
           record["ownerid_extreme_timeentry@odata.bind"] = `/systemusers(${e.data.owner})`; // Owner
+          record.subject = e.data.ownername;
           record.scheduledstart = e.data.scheduledstart; // Date Time
           record.scheduledend = e.data.scheduledend; // Date Time
           record.extreme_type = e.data.extreme_type; // Choice
@@ -693,7 +695,7 @@ function replaceCurlyBrackets(inputString, replacement) {
 }
 
 // Create time entry
-async function createTimeEntry(assetId, caseId, caseLineId, ownerId, dateTimeFrom, dateTimeTo, typeId, timeSpent, returnValue) {
+async function createTimeEntry(assetId, caseId, caseLineId, ownerId, ownerName, description, dateTimeFrom, dateTimeTo, typeId, timeSpent, returnValue) {
 
   const dateFromFormat = new Date(dateTimeFrom);
   const dateToFormat = new Date(dateTimeTo);
@@ -708,6 +710,8 @@ async function createTimeEntry(assetId, caseId, caseLineId, ownerId, dateTimeFro
   record.extreme_type = timeEntryTypesArray.find(item => item.value = typeId).value; // Choice
   record.scheduleddurationminutes = timeSpent; // Decimal
   record.extreme_return = returnValue; // Boolean
+  record.subject = ownerName;
+  record.description = description;
 
   await Xrm.WebApi.createRecord("extreme_timeentry", record).then(
     function success(result) {
