@@ -497,6 +497,7 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('InitNewRow');
           console.log(e);
           e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
+          e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
           if (oneAssetId !== undefined && oneAssetId !== 'none') e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
         },
         onRowInserting: async (e) => {
@@ -578,8 +579,9 @@ async function setClientApiContext(Xrm, formContext) {
             // 
             if (e.data.extreme_producttypecode == 3) {
 
+              let description = null
               let highestScheduledEnd = null;
-              await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
+              await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
                 function success(results) {
                   console.log(results);
 
@@ -589,7 +591,8 @@ async function setClientApiContext(Xrm, formContext) {
                     var activityid = result["activityid"]; // Guid
                     var scheduledend = result["scheduledend"]; // Date Time
                     var scheduledend_formatted = result["scheduledend@OData.Community.Display.V1.FormattedValue"];
-
+                    
+                    description = result["description"];
                     highestScheduledEnd = scheduledend;
 
                   }
@@ -607,7 +610,7 @@ async function setClientApiContext(Xrm, formContext) {
               const timeSpent = e.data.extreme_quantity * 60
               console.log(e.data.extreme_quantity);
               // Create time entry on another web resource
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false);
+              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false);
               // Refresh grid for time entries
               await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }
