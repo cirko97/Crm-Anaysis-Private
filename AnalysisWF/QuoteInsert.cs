@@ -113,7 +113,7 @@ namespace AnalysisWF
             }
             var adDate = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var adDeliveryDate = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            var acReceiver = quote.GetAttributeValue<EntityReference>("customerid")?.Name;
+            var acReceiver = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("customerid"), "extreme_paname30characters", service);
             var acCurrency = quote.GetAttributeValue<EntityReference>("transactioncurrencyid")?.Name;
             var acCostDrive = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("opportunityid"), "extreme_costprofitcentercode", service);
             var anDaysForPayment = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_numberofdays", service);
