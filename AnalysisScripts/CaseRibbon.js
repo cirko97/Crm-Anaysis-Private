@@ -70,58 +70,60 @@ var CaseRibbon = window.CaseRibbon || {};
 		);
 
 	}
-	this.SyncQuoteButton = function (formContext) {
 
-		var confirmStrings = { text: "This action will synchronize this Quote to Pantheon. \nAre you sure you want to continue?", title: "Pantheon Synchronization" };
-		var confirmOptions = { height: 300, width: 450 };
-		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-			async function (success) {
-				if (success.confirmed)
-					await CaseRibbon.CheckAndSyncQuote(formContext);
-			});
-	}
-	this.CheckAndSyncQuote = async function (formContext) {
-		var quoteId = formContext.data.entity.getId().slice(1, -1);
-		// Checks
-		Xrm.Utility.showProgressIndicator(
-			'Synchronizing Data... Please Wait.');
-		//isAccountSynced
-		var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
-		if (await isAccountSynced(accountId) == false) {
-			Xrm.Utility.showProgressIndicator(
-				'Account Sync In Progress... Please Wait.');
-			await syncAccount(accountId);
-			Xrm.Utility.showProgressIndicator(
-				'Account Synchronized....... Please Wait.');
-		}
-		//isCostDriveNeededAndSynced
-		if (isCostDriveNeeded) {
-			if (formContext.getAttribute("opportunityid").getValue() !== null) {
-				var oppId = formContext.getAttribute("opportunityid").getValue()[0].id
-				Xrm.Utility.showProgressIndicator(
-					'Cost/Profit Code Sync In Progress... Please Wait.');
-				await syncCostDrive(oppId);
-				Xrm.Utility.showProgressIndicator(
-					'Cost/Profit Code Synchronized....... Please Wait.');
-			}
-		}
-		//areAllProductsCreatedAndSynced
-		await areAllProductsCreatedAndSynced(quoteId, formContext);
-		//QuoteSync
-		await syncQuote(quoteId, formContext);
-		Xrm.Utility.showProgressIndicator(
-			'Quote Synchronized!');
-		setTimeout(() => {
-			Xrm.Utility.closeProgressIndicator('Success!');
-		}, "1500");
-	}
-	this.SyncQuoteButtonEnableRule = function (formContext) {
-		var statecode = formContext.getAttribute("statecode").getValue();
-		if (statecode == 1) { //only if Active Quote
-			return true;
-		}
-		return false;
-	}
+	
+	// this.SyncQuoteButton = function (formContext) {
+
+	// 	var confirmStrings = { text: "This action will synchronize this Quote to Pantheon. \nAre you sure you want to continue?", title: "Pantheon Synchronization" };
+	// 	var confirmOptions = { height: 300, width: 450 };
+	// 	Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+	// 		async function (success) {
+	// 			if (success.confirmed)
+	// 				await CaseRibbon.CheckAndSyncQuote(formContext);
+	// 		});
+	// }
+	// this.CheckAndSyncQuote = async function (formContext) {
+	// 	var quoteId = formContext.data.entity.getId().slice(1, -1);
+	// 	// Checks
+	// 	Xrm.Utility.showProgressIndicator(
+	// 		'Synchronizing Data... Please Wait.');
+	// 	//isAccountSynced
+	// 	var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
+	// 	if (await isAccountSynced(accountId) == false) {
+	// 		Xrm.Utility.showProgressIndicator(
+	// 			'Account Sync In Progress... Please Wait.');
+	// 		await syncAccount(accountId);
+	// 		Xrm.Utility.showProgressIndicator(
+	// 			'Account Synchronized....... Please Wait.');
+	// 	}
+	// 	//isCostDriveNeededAndSynced
+	// 	if (isCostDriveNeeded) {
+	// 		if (formContext.getAttribute("opportunityid").getValue() !== null) {
+	// 			var oppId = formContext.getAttribute("opportunityid").getValue()[0].id
+	// 			Xrm.Utility.showProgressIndicator(
+	// 				'Cost/Profit Code Sync In Progress... Please Wait.');
+	// 			await syncCostDrive(oppId);
+	// 			Xrm.Utility.showProgressIndicator(
+	// 				'Cost/Profit Code Synchronized....... Please Wait.');
+	// 		}
+	// 	}
+	// 	//areAllProductsCreatedAndSynced
+	// 	await areAllProductsCreatedAndSynced(quoteId, formContext);
+	// 	//QuoteSync
+	// 	await syncQuote(quoteId, formContext);
+	// 	Xrm.Utility.showProgressIndicator(
+	// 		'Quote Synchronized!');
+	// 	setTimeout(() => {
+	// 		Xrm.Utility.closeProgressIndicator('Success!');
+	// 	}, "1500");
+	// }
+	// this.SyncQuoteButtonEnableRule = function (formContext) {
+	// 	var statecode = formContext.getAttribute("statecode").getValue();
+	// 	if (statecode == 1) { //only if Active Quote
+	// 		return true;
+	// 	}
+	// 	return false;
+	// }
 }).call(CaseRibbon);
 
 const convertResponseToPDF = async function (arrResponseSession) {

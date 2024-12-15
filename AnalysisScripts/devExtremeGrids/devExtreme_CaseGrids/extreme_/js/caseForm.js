@@ -12,19 +12,95 @@ function form_onload(executionContext) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
   }
+  
 
+  //case complaint
+  formContext.getAttribute("extreme_casetype").addOnChange(showHideRelatedCase);
+  showHideRelatedCase();
+  
+  //Resolved and ONHold lock
+  formContext.getAttribute("statuscode").addOnChange(statusHandler);
+  statusHandler();
+  
+  //Header Body hide when on Calendar TAB
+  var calendarTab = formContext.ui.tabs.get("calendarTab");
+  var resolutionTab = formContext.ui.tabs.get("resolutionTab");
+  var generalTab = formContext.ui.tabs.get("generalTab");
+  calendarTab.addTabStateChange(hideHeader);
+  resolutionTab.addTabStateChange(showHeader);
+  generalTab.addTabStateChange(showHeader);
+
+  //schedule fields logic
   formContext.getAttribute("extreme_scheduledstart").addOnChange(PopulateScheduledEnd);
-
   formContext.getAttribute("extreme_scheduledstart").addOnChange(ValidateDates);
   formContext.getAttribute("extreme_scheduledend").addOnChange(ValidateDates);
 
-  formContext.getAttribute("extreme_dateofcompletion").addOnChange(copyIfempty);
+  //completion date logic
+  formContext.getAttribute("extreme_actualdateofcompletion").addOnChange(copyIfempty);
 
+
+//functions
+function showHideRelatedCase(){
+  if(formContext.getAttribute("extreme_casetype").getValue() !== null ){
+    const CASECOMPLAINT = 8;
+    const caseType = formContext.getAttribute("extreme_casetype").getValue();
+    if(caseType === CASECOMPLAINT){
+      formContext.getControl("extreme_relatedcase").setVisible(true);
+      formContext.getAttribute("extreme_relatedcase").setRequiredLevel("required");
+    }
+    else{
+      formContext.getAttribute("extreme_relatedcase").setRequiredLevel("none");
+      formContext.getControl("extreme_relatedcase").setVisible(false);
+    }
+  }else{
+    formContext.getAttribute("extreme_relatedcase").setValue(null);
+  }
+}
+function statusHandler(){
+  const RESOLVED = 934670004;
+  const ONHOLD = 934670002;
+  const statusReason = formContext.getAttribute("statuscode").getValue();
+  if(statusReason === RESOLVED || statusReason === ONHOLD){
+    lockOrUnlockFieldsInSection("generalTab", "general", true);
+    lockOrUnlockFieldsInSection("resolutionTab", "ResolutionDetails", true);
+  } else {
+    lockOrUnlockFieldsInSection("generalTab", "general", false);
+    lockOrUnlockFieldsInSection("resolutionTab", "ResolutionDetails", false);
+  }
+}
+function lockOrUnlockFieldsInSection(tabName, sectionName, lock) {
+  // Get the tab
+  var tab = formContext.ui.tabs.get(tabName);
+  if (tab) {
+      // Get the section
+      var section = tab.sections.get(sectionName);
+      if (section) {
+          // Get all controls in the section
+          var controls = section.controls;
+          controls.forEach(function (control) {
+              // Lock or unlock the field if it is an attribute control (excluding non-data fields like spacers)
+              if (control && control.getAttribute && control.getAttribute() !== null) {
+                  control.setDisabled(lock);
+              }
+          });
+      } else {
+          console.error("Section not found: " + sectionName);
+      }
+  } else {
+      console.error("Tab not found: " + tabName);
+  }
+}
+function showHeader (){
+  formContext.ui.headerSection.setBodyVisible(true);  
+}
+function hideHeader (){
+  formContext.ui.headerSection.setBodyVisible(false);
+}
 function copyIfempty(){
-  if(formContext.getAttribute("extreme_dateofcompletion").getValue() !== null 
-  && formContext.getAttribute("extreme_actualdateofcompletion").getValue() === null){
-    const dateofcompletion = formContext.getAttribute("extreme_dateofcompletion").getValue();
-    formContext.getAttribute("extreme_actualdateofcompletion").setValue(dateofcompletion);
+  if(formContext.getAttribute("extreme_actualdateofcompletion").getValue() !== null 
+  && formContext.getAttribute("extreme_dateofcompletion").getValue() === null){
+    const dateofcompletion = formContext.getAttribute("extreme_actualdateofcompletion").getValue();
+    formContext.getAttribute("extreme_dateofcompletion").setValue(dateofcompletion);
   }  
 }
 function ValidateDates() {
