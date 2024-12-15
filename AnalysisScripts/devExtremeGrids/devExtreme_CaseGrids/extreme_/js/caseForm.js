@@ -18,6 +18,15 @@ function form_onload(executionContext) {
   formContext.getAttribute("extreme_scheduledstart").addOnChange(ValidateDates);
   formContext.getAttribute("extreme_scheduledend").addOnChange(ValidateDates);
 
+  formContext.getAttribute("extreme_dateofcompletion").addOnChange(copyIfempty);
+
+function copyIfempty(){
+  if(formContext.getAttribute("extreme_dateofcompletion").getValue() !== null 
+  && formContext.getAttribute("extreme_actualdateofcompletion").getValue() === null){
+    const dateofcompletion = formContext.getAttribute("extreme_dateofcompletion").getValue();
+    formContext.getAttribute("extreme_actualdateofcompletion").setValue(dateofcompletion);
+  }  
+}
 function ValidateDates() {
     // Preuzmi vrednosti oba polja
     const start = formContext.getAttribute("extreme_scheduledstart").getValue();
