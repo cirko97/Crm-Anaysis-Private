@@ -6,6 +6,7 @@ let unitsArray = [];
 let newCreateId;
 let oneAssetId = undefined;
 let timeEntryTypesArray = [];
+let isEditable = true;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -25,7 +26,15 @@ async function setClientApiContext(Xrm, formContext) {
 
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
-
+  if (
+    formContext.getAttribute("statuscode").getValue() === 1 ||
+    formContext.getAttribute("statuscode").getValue() === 934670001
+  ) {
+    isEditable = true;
+  }
+  else {
+    isEditable = false;
+  }
 
   const caseIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
@@ -319,9 +328,10 @@ async function setClientApiContext(Xrm, formContext) {
         },
         editing: {
           mode: 'cell',
-          allowUpdating: true,
-          allowAdding: true,
-          allowDeleting: true,
+          allowUpdating: isEditable,
+          allowAdding: isEditable,
+          allowDeleting: isEditable,
+          useIcons: true
         },
         // selection: {
         //   mode: 'multiple',
@@ -488,6 +498,10 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('Editor Preparing');
           if (e.dataField == "extreme_unit") e.editorOptions.disabled = true;
           if (e.dataField == "extreme_producttypecode") e.editorOptions.disabled = true;
+
+          if (e.dataField == "extreme_asset" || e.dataField == "extreme_product" || e.dataField == "owner") {
+            e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 400); }
+          };
         },
         onEditingStart: (e) => {
           console.log('EditingStart');
@@ -496,6 +510,7 @@ async function setClientApiContext(Xrm, formContext) {
         onInitNewRow: async (e) => {
           console.log('InitNewRow');
           console.log(e);
+          e.data.extreme_quantity = 1;
           e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
           e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
           if (oneAssetId !== undefined && oneAssetId !== 'none') e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
@@ -542,90 +557,90 @@ async function setClientApiContext(Xrm, formContext) {
 
           // setTimeout(async () => {
 
-            console.log('RowInserted');
-            console.log('newCreatedId: ', newCreateId);
+          console.log('RowInserted');
+          console.log('newCreatedId: ', newCreateId);
 
-            if (
-              (oneAssetId !== undefined && oneAssetId.indexOf(e.data.extreme_asset) === -1) ||
-              oneAssetId === 'none' ||
-              (oneAssetId == undefined && oneAssetId.indexOf(e.data.extreme_asset) === -1)
-            ) {
-              // CREATE CASE ASSET FOR SELECTED ASSET
-              console.log('Create asset here.');
-              console.log(oneAssetId);
-              console.log(oneAssetId.indexOf(e.data.extreme_asset));
+          if (
+            (oneAssetId !== undefined && oneAssetId.indexOf(e.data.extreme_asset) === -1) ||
+            oneAssetId === 'none' ||
+            (oneAssetId == undefined && oneAssetId.indexOf(e.data.extreme_asset) === -1)
+          ) {
+            // CREATE CASE ASSET FOR SELECTED ASSET
+            console.log('Create asset here.');
+            console.log(oneAssetId);
+            console.log(oneAssetId.indexOf(e.data.extreme_asset));
 
-              var record = {};
-              record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-              record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
+            var record = {};
+            record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+            record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
 
-              await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
-                async function success(result) {
-                  var newId = result.id;
-                  console.log(newId);
-                  // Refresh grid for case assets
-                  await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-                },
-                function (error) {
-                  console.log(error.message);
+            await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
+              async function success(result) {
+                var newId = result.id;
+                console.log(newId);
+                // Refresh grid for case assets
+                await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
+          }
+
+          console.log('caseLineUnit: ', e.data.extreme_unit);
+          console.log('unitsArray: ', unitsArray);
+
+          // 
+          if (e.data.extreme_producttypecode == 3) {
+
+            let description = null
+            let highestScheduledEnd = null;
+            await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
+              function success(results) {
+                console.log(results);
+
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  // Columns
+                  var activityid = result["activityid"]; // Guid
+                  var scheduledend = result["scheduledend"]; // Date Time
+                  var scheduledend_formatted = result["scheduledend@OData.Community.Display.V1.FormattedValue"];
+
+                  description = result["description"];
+                  highestScheduledEnd = scheduledend;
+
                 }
-              );
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
 
-            }
+            const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
+            const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
+            dateTo.addMinutes(e.data.extreme_quantity * 60);
+            // dateFrom.setHours(8, 0, 0, 0);
+            // dateTo.setHours(dateFrom.getHours() + e.data.extreme_quantity, 0, 0, 0);
+            const timeSpent = e.data.extreme_quantity * 60
+            console.log(e.data.extreme_quantity);
+            // Create time entry on another web resource
+            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false);
+            // Refresh grid for time entries
+            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          }
 
-            console.log('caseLineUnit: ', e.data.extreme_unit);
-            console.log('unitsArray: ', unitsArray);
+          // if (caseLinesData._array.length > 0) {
+          //   console.log(caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid);
+          //   caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid = newCreateId;
+          //   console.log(caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid);
+          //   await getCaseLines(caseIdForm);
+          //   dataGrid.refresh();
+          // } else {
+          //   console.log('caseLinesData._array is empty');
+          // }
 
-            // 
-            if (e.data.extreme_producttypecode == 3) {
-
-              let description = null
-              let highestScheduledEnd = null;
-              await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
-                function success(results) {
-                  console.log(results);
-
-                  for (var i = 0; i < results.entities.length; i++) {
-                    var result = results.entities[i];
-                    // Columns
-                    var activityid = result["activityid"]; // Guid
-                    var scheduledend = result["scheduledend"]; // Date Time
-                    var scheduledend_formatted = result["scheduledend@OData.Community.Display.V1.FormattedValue"];
-                    
-                    description = result["description"];
-                    highestScheduledEnd = scheduledend;
-
-                  }
-                },
-                function (error) {
-                  console.log(error.message);
-                }
-              );
-
-              const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
-              const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
-              dateTo.addMinutes(e.data.extreme_quantity * 60);
-              // dateFrom.setHours(8, 0, 0, 0);
-              // dateTo.setHours(dateFrom.getHours() + e.data.extreme_quantity, 0, 0, 0);
-              const timeSpent = e.data.extreme_quantity * 60
-              console.log(e.data.extreme_quantity);
-              // Create time entry on another web resource
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false);
-              // Refresh grid for time entries
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }
-
-            // if (caseLinesData._array.length > 0) {
-            //   console.log(caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid);
-            //   caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid = newCreateId;
-            //   console.log(caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid);
-            //   await getCaseLines(caseIdForm);
-            //   dataGrid.refresh();
-            // } else {
-            //   console.log('caseLinesData._array is empty');
-            // }
-
-            Xrm.Utility.closeProgressIndicator();
+          Xrm.Utility.closeProgressIndicator();
 
           // }, 1000);
 

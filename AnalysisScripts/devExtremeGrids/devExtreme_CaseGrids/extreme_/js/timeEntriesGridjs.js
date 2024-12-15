@@ -3,6 +3,7 @@ let assetsArray = [];
 let usersArray = [];
 let timeEntryTypesArray = [];
 let newCreateId;
+let isEditable = true;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -22,7 +23,15 @@ async function setClientApiContext(Xrm, formContext) {
 
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
-
+  if (
+    formContext.getAttribute("statuscode").getValue() === 1 ||
+    formContext.getAttribute("statuscode").getValue() === 934670001
+  ) {
+    isEditable = true;
+  }
+  else {
+    isEditable = false;
+  }
 
   const caseIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
@@ -217,9 +226,10 @@ async function setClientApiContext(Xrm, formContext) {
         },
         editing: {
           mode: 'cell',
-          allowUpdating: true,
-          allowAdding: true,
-          allowDeleting: true,
+          allowUpdating: isEditable,
+          allowAdding: isEditable,
+          allowDeleting: isEditable,
+          useIcons: true
         },
         // selection: {
         //   mode: 'multiple',
@@ -319,10 +329,45 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Type',
             width: 70,
             lookup: {
-              dataSource: timeEntryTypesArray,
+              dataSource: {
+                store: {
+                  type: "array",
+                  data: timeEntryTypesArray,
+                  key: "value"
+                },
+                // specify postProcess
+                postProcess: function (data) {
+                  // modify items. Here, all IDs divisible by 2 are disabled
+                  let newData = data.map((x) => {
+                    if (x.value === 424000000) {
+                      x.disabled = true;
+                    }
+
+                    return x;
+                  });
+
+                  return newData;
+                }
+              },
               displayExpr: 'text',
               valueExpr: 'value'
             },
+            setCellValue: function (newData, value, currentRowData) {
+              if (value === 424000000) {
+                newData.extreme_type = null;
+              }
+              else if (value === 424000001) {
+                newData.extreme_type = value;
+                newData.extreme_return = false;
+                newData.extreme_comuteinkm = null;
+              }
+              else if (value === 424000002) {
+                newData.extreme_type = value;
+              }
+            },
+            validationRules: [
+              { type: 'required' }
+            ]
           },
           {
             dataField: 'scheduleddurationminutes',
@@ -407,7 +452,15 @@ async function setClientApiContext(Xrm, formContext) {
           // if (e.dataField == "createdon") e.editorOptions.disabled = true;
           if (e.dataField == "extreme_asset") e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 400); };
           if (e.dataField == "scheduledend") e.editorOptions.disabled = true;
-          if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
+          if (e.dataField == "extreme_type") {
+            if (e.row.data.extreme_type === 424000000) e.editorOptions.disabled = true;
+            e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 200); }
+          }
+          if ((e.dataField == "extreme_return" || e.dataField == "extreme_comuteinkm") &&
+            (e.row.data.extreme_type == 424000000 || e.row.data.extreme_type == 424000001)) {
+            e.editorOptions.disabled = true;
+          }
+          // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
           if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
           if (e.row.data.extreme_caseline) {
             if (e.dataField == "owner") e.editorOptions.disabled = true;
@@ -460,7 +513,7 @@ async function setClientApiContext(Xrm, formContext) {
           e.data.extreme_return = false;
           e.data.scheduledstart = maxDate;
           e.data.scheduledend = dateToFromMax;
-          e.data.extreme_type = timeEntryTypesArray.find(item => item.value == 424000001).value;
+          // e.data.extreme_type = timeEntryTypesArray.find(item => item.value == 424000001).value;
           // if (oneAssetId !== undefined && oneAssetId !== 'none') e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
 
         },
@@ -509,48 +562,48 @@ async function setClientApiContext(Xrm, formContext) {
 
           // setTimeout(async () => {
 
-            console.log('RowInserted');
-            console.log(e);
+          console.log('RowInserted');
+          console.log(e);
 
-            let newAssetCreated = false;
-            await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseIdForm} and _extreme_asset_value eq ${e.data.extreme_asset})`).then(
-              async function success(results) {
-                console.log(results);
-                if (results.entities.length === 0) newAssetCreated = true;
+          let newAssetCreated = false;
+          await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseIdForm} and _extreme_asset_value eq ${e.data.extreme_asset})`).then(
+            async function success(results) {
+              console.log(results);
+              if (results.entities.length === 0) newAssetCreated = true;
+            },
+            function (error) {
+              console.log(error.message);
+            }
+          );
+          if (newAssetCreated === true) {
+            var record = {};
+            record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+            record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
+
+            await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
+              function success(result) {
+                var newId = result.id;
+                console.log(newId);
               },
               function (error) {
                 console.log(error.message);
               }
             );
-            if (newAssetCreated === true) {
-              var record = {};
-              record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-              record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
+          }
 
-              await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
-                function success(result) {
-                  var newId = result.id;
-                  console.log(newId);
-                },
-                function (error) {
-                  console.log(error.message);
-                }
-              );
-            }
+          // if (timeEntriesData._array.length > 0) {
+          //   console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+          //   timeEntriesData._array[timeEntriesData._array.length - 1].activityid = newCreateId;
+          //   console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+          //   await getTimeEntries(caseIdForm);
+          //   dataGrid.refresh();
+          // } else {
+          //   console.log('timeEntriesData._array is empty');
+          // }
 
-            // if (timeEntriesData._array.length > 0) {
-            //   console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
-            //   timeEntriesData._array[timeEntriesData._array.length - 1].activityid = newCreateId;
-            //   console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
-            //   await getTimeEntries(caseIdForm);
-            //   dataGrid.refresh();
-            // } else {
-            //   console.log('timeEntriesData._array is empty');
-            // }
+          if (newAssetCreated === true) await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
-            if (newAssetCreated === true) await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-
-            Xrm.Utility.closeProgressIndicator();
+          Xrm.Utility.closeProgressIndicator();
 
           // }, 1000);
 

@@ -2,6 +2,7 @@ let caseAssetsArray = [];
 let usersArray = [];
 let timeEntryTypesArray = [];
 let newCreateId;
+let isEditable = true;
 
 // Add hours to Date method
 Date.prototype.addMinutes = function (h) {
@@ -21,7 +22,15 @@ async function setClientApiContext(Xrm, formContext) {
 
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
-
+  if (
+    formContext.getAttribute("statuscode").getValue() === 1 ||
+    formContext.getAttribute("statuscode").getValue() === 934670001
+  ) {
+    isEditable = true;
+  }
+  else {
+    isEditable = false;
+  }
 
   const caseIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
@@ -57,7 +66,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     caseAssetsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -78,6 +87,8 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_Asset_extreme_warrantyenddatevendor_formatted = result["extreme_Asset"]["extreme_warrantyenddatevendor@OData.Community.Display.V1.FormattedValue"];
             var extreme_description = result["extreme_description"]; // Multiline Text
             var extreme_solution = result["extreme_solution"]; // Multiline Text
+            var extreme_isparent = result["extreme_isparent"]; // Boolean
+            var extreme_parentcaseasset = result["_extreme_parentcaseasset_value"]; // Lookup
 
             caseAssetsArray.push({
               "extreme_caseassetid": extreme_caseassetid,
@@ -88,7 +99,9 @@ async function setClientApiContext(Xrm, formContext) {
               "extreme_warrantyend": extreme_Asset_extreme_warrantyend,
               "extreme_warrantyenddatevendor": extreme_Asset_extreme_warrantyenddatevendor,
               "extreme_description": extreme_description,
-              "extreme_solution": extreme_solution
+              "extreme_solution": extreme_solution,
+              "extreme_isparent": extreme_isparent,
+              "extreme_parentcaseasset": extreme_parentcaseasset
             });
           }
 
@@ -128,9 +141,10 @@ async function setClientApiContext(Xrm, formContext) {
         },
         editing: {
           mode: 'cell',
-          allowUpdating: true,
+          allowUpdating: isEditable,
           allowAdding: false,
           allowDeleting: false,
+          useIcons: true
         },
         // selection: {
         //   mode: 'multiple',
@@ -324,8 +338,8 @@ async function setClientApiContext(Xrm, formContext) {
           console.log(e);
 
           var record = {};
-          if(e.newData.extreme_description) record.extreme_description = e.newData.extreme_description; // Multiline Text
-          if(e.newData.extreme_solution) record.extreme_solution = e.newData.extreme_solution; // Multiline Text
+          if (e.newData.extreme_description) record.extreme_description = e.newData.extreme_description; // Multiline Text
+          if (e.newData.extreme_solution) record.extreme_solution = e.newData.extreme_solution; // Multiline Text
 
           await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.key}`, record).then(
             async function success(result) {
