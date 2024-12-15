@@ -821,7 +821,8 @@ async function setClientApiContext(Xrm, formContext) {
       const dataGrid = $('#gridContainer').dxDataGrid({
         dataSource: {
           store: quoteLinesData,
-          reshapeOnPush: true
+          reshapeOnPush: true,
+          sort: { selector: "sequencenumber", desc: false }
         },
 
         filterValue: [
@@ -879,7 +880,7 @@ async function setClientApiContext(Xrm, formContext) {
           allowReordering: isDraftStatus,
           allowDropInsideItem: false,
           showDragIcons: true,
-          onReorder(e) {
+          async onReorder(e) {
             console.log("reodrering e");
             console.log(e);
 
@@ -905,6 +906,7 @@ async function setClientApiContext(Xrm, formContext) {
               quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
             }
 
+            await getQuoteProducts(quoteIdForm);
             e.component.refresh();
           },
           data: "root",
@@ -986,7 +988,7 @@ async function setClientApiContext(Xrm, formContext) {
                   allowReordering: isDraftStatus,
                   allowDropInsideItem: false,
                   showDragIcons: true,
-                  onReorder(e) {
+                  async onReorder(e) {
                     console.log("reodrering e");
                     console.log(e);
 
@@ -1016,6 +1018,7 @@ async function setClientApiContext(Xrm, formContext) {
                       quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
                     }
 
+                    await getQuoteProducts(quoteIdForm);
                     e.component.refresh();
                   },
                   data: productsData.quotedetailid,
@@ -2257,6 +2260,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                   Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
 
+                  quoteLinesData.remove(e.key);
                   await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`).then(
                     async function success(result) {
                       console.log(result);
@@ -2304,6 +2308,17 @@ async function setClientApiContext(Xrm, formContext) {
                       changeType: 'update',
                       rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)]
                     });
+                  }
+
+                  // reodred grid
+                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+                    quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+                  }
+
+                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+                    quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
                   }
 
                   formContext.data.refresh(true);
@@ -4035,6 +4050,9 @@ async function setClientApiContext(Xrm, formContext) {
                 // If inserting parent item with existing child items
                 if (e.data.extreme_isparentitem === true && typeof (e.data.productid) !== 'number') {
 
+                  console.log('quoteLinesData before parent created');
+                  console.log(quoteLinesData);
+
                   await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
                     async function success(results) {
                       console.log(results);
@@ -4071,15 +4089,42 @@ async function setClientApiContext(Xrm, formContext) {
                         console.log("RECORD AFTER SETTING PROPERTIES");
                         console.log(record);
 
+                        let newIdChild = '';
                         await Xrm.WebApi.createRecord("quotedetail", record).then(
                           function success(result) {
                             var newId = result.id;
+                            newIdChild = result.id;
                             console.log(newId);
                           },
                           function (error) {
                             console.log(error.message);
                           }
                         );
+
+                        var recordForStore = {};
+                        recordForStore.quotedetailid = newIdChild;
+                        recordForStore.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
+                        recordForStore.quotedetailname = name;
+                        recordForStore.productid = productid;
+                        recordForStore.extreme_parentquoteline = newId;
+                        recordForStore.uomid = defaultuomid;
+
+                        recordForStore.extreme_isparentitem = false; // Boolean
+
+                        quoteLinesData.insert(recordForStore);
+                          // .done(function (dataObj, key) {
+                          //   // Process the key and data object here
+                          //   console.log('dataObj');
+                          //   console.log(dataObj);
+                          //   console.log('key');
+                          //   console.log(key);
+                          //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
+                          //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
+                          // })
+                          // .fail(function (error) {
+                          //   // Handle the "error" here
+                          //   console.log(error);
+                          // });
 
                       }
                     },
@@ -4092,6 +4137,9 @@ async function setClientApiContext(Xrm, formContext) {
                 await getQuoteProducts(quoteIdForm);
                 await getPriceLists();
                 dataGrid.refresh();
+
+                console.log('quoteLinesData after parent created');
+                console.log(quoteLinesData);
 
               }
               else {
@@ -4221,6 +4269,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           try {
             // Delete the main quotedetail record
+            quoteLinesData.remove(e.key);
             await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`);
             console.log('Main record deleted');
 
@@ -4231,9 +4280,21 @@ async function setClientApiContext(Xrm, formContext) {
               // Filter and delete child items
               const childItems = quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.key);
               for (const childItem of childItems) {
+                quoteLinesData.remove(childItem.quotedetailid);
                 await Xrm.WebApi.deleteRecord("quotedetail", `${childItem.quotedetailid}`);
                 console.log(`Child record ${childItem.quotedetailid} deleted`);
               }
+            }
+
+            // reorder grid
+            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+              quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+            }
+
+            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+              quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
             }
 
             // Refresh the form and data grid
