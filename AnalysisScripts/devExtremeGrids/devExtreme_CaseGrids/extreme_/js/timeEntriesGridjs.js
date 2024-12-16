@@ -21,7 +21,7 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
     formContext.getAttribute("statuscode").getValue() === 1 ||
@@ -654,6 +654,7 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('RowUpdated');
         },
         onRowRemoving: async (e) => {
+          Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
           console.log('RowRemoving');
           console.log(e);
           if (e.data.extreme_caseline) {
@@ -675,6 +676,10 @@ async function setClientApiContext(Xrm, formContext) {
           await checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
           // Refresh grid for case assets
           await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+
+          await getTimeEntries(caseIdForm);
+          dataGrid.refresh();
+          Xrm.Utility.closeProgressIndicator();
 
         },
         onRowRemoved: (e) => {
@@ -742,7 +747,7 @@ async function setClientApiContext(Xrm, formContext) {
   //   wrControl.getObject().style.minHeight = `${contentWindow.document.getElementById('timeEntriesMainContainer').offsetHeight}px`;
   // });
 
-  Xrm.Utility.closeProgressIndicator();
+  // Xrm.Utility.closeProgressIndicator();
 
 }
 
@@ -848,9 +853,167 @@ async function deleteTimeEntry(caseLineId) {
 
 // Check assets on delete
 async function checkAssetsAfterDelete(assetId, caseId) {
-
   let assetExistsInTimeEntries = true;
   let assetExistsInCaseLines = true;
+  let parentChildItems = [];
+
+  await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid,_extreme_asset_value,extreme_isparent,_extreme_parentcaseasset_value&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
+    async function success(results) {
+      console.log(results);
+      for (var i = 0; i < results.entities.length; i++) {
+        var result = results.entities[i];
+        // Columns
+        var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+        var extreme_asset = result["_extreme_asset_value"]; // Lookup
+        var extreme_asset_formatted = result["_extreme_asset_value@OData.Community.Display.V1.FormattedValue"];
+        var extreme_asset_lookuplogicalname = result["_extreme_asset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+        var extreme_isparent = result["extreme_isparent"]; // Boolean
+        var extreme_isparent_formatted = result["extreme_isparent@OData.Community.Display.V1.FormattedValue"];
+        var extreme_parentcaseasset = result["_extreme_parentcaseasset_value"]; // Lookup
+        var extreme_parentcaseasset_formatted = result["_extreme_parentcaseasset_value@OData.Community.Display.V1.FormattedValue"];
+        var extreme_parentcaseasset_lookuplogicalname = result["_extreme_parentcaseasset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+
+        if (extreme_isparent === true || extreme_parentcaseasset !== null) {
+
+          if (extreme_isparent === true) {
+
+            parentChildItems.push({
+              "id": extreme_caseassetid,
+              "assetId": extreme_asset
+            });
+
+            Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=_extreme_asset_value,extreme_caseassetid&$filter=_extreme_parentcaseasset_value eq ${extreme_caseassetid}`).then(
+              function success(results) {
+                console.log(results);
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  // Columns
+                  var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+                  var extreme_asset = result["_extreme_asset_value"]; // Lookup
+
+                  parentChildItems.push({
+                    "id": extreme_caseassetid,
+                    "assetId": extreme_asset
+                  });
+
+                }
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
+          }
+
+          else if (extreme_parentcaseasset !== null) {
+
+            const parentInfo = await Xrm.WebApi.retrieveRecord("extreme_caseasset", `${extreme_parentcaseasset}`, "?$select=extreme_caseassetid,_extreme_asset_value");
+
+            parentChildItems.push({
+              "id": parentInfo.extreme_caseassetid,
+              "assetId": parentInfo._extreme_asset_value
+            });
+
+            Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=_extreme_asset_value,extreme_caseassetid&$filter=_extreme_parentcaseasset_value eq ${parentInfo.extreme_caseassetid}`).then(
+              function success(results) {
+                console.log(results);
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  // Columns
+                  var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+                  var extreme_asset = result["_extreme_asset_value"]; // Lookup
+
+                  parentChildItems.push({
+                    "id": extreme_caseassetid,
+                    "assetId": extreme_asset
+                  });
+
+                }
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
+          }
+
+        }
+
+      }
+    },
+    function (error) {
+      console.log(error.message);
+    }
+  );
+
+  if (parentChildItems.length > 0) {
+
+    for (let i = 0; i < parentChildItems.length; i++) {
+
+      await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${parentChildItems[i].assetId})`).then(
+        function success(results) {
+          console.log(results);
+          if (results.entities.length === 0) assetExistsInCaseLines = false;
+        },
+        function (error) {
+          console.log(error.message);
+        }
+      );
+
+      await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=_extreme_asset_value&$filter=(_extreme_asset_value eq ${parentChildItems[i].assetId} and _regardingobjectid_value eq ${caseId})`).then(
+        async function success(results) {
+          console.log(results);
+          if (results.entities.length === 0) assetExistsInTimeEntries = false;
+        },
+        function (error) {
+          console.log(error.message);
+        }
+      );
+
+      if(assetExistsInCaseLines === true) break;
+      if(assetExistsInTimeEntries === true) break;
+
+    };
+
+    console.log('parentChildItems');
+    console.log(parentChildItems);
+
+    console.log('assetExistsInCaseLines');
+    console.log(assetExistsInCaseLines);
+
+    console.log('assetExistsInTimeEntries');
+    console.log(assetExistsInTimeEntries);
+
+    if (assetExistsInCaseLines === false && assetExistsInTimeEntries === false) {
+      for (let i = 0; i < parentChildItems.length; i++) {
+        await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${parentChildItems[i].assetId})`).then(
+          async function success(results) {
+            console.log(results);
+            for (var i = 0; i < results.entities.length; i++) {
+              var result = results.entities[i];
+              // Columns
+              var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+
+              await Xrm.WebApi.deleteRecord("extreme_caseasset", `${extreme_caseassetid}`).then(
+                function success(result) {
+                  console.log(result);
+                },
+                function (error) {
+                  console.log(error.message);
+                }
+              );
+            }
+
+          },
+          function (error) {
+            console.log(error.message);
+          }
+        );
+      }
+    }
+
+    return;
+  }
 
   await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
     function success(results) {

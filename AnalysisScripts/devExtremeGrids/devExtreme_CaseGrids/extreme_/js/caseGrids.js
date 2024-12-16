@@ -24,7 +24,7 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
     formContext.getAttribute("statuscode").getValue() === 1 ||
@@ -95,6 +95,7 @@ async function setClientApiContext(Xrm, formContext) {
   async function getCaseLines(caseId) {
 
     caseLinesArray = [];
+    oneAssetId = undefined;
 
     Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=_extreme_asset_value,_extreme_case_value&$filter=_extreme_case_value eq ${caseIdForm}`).then(
       function success(results) {
@@ -525,7 +526,7 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onRowInserting: async (e) => {
 
-          Xrm.Utility.showProgressIndicator('Loading... Please wait...')
+          Xrm.Utility.showProgressIndicator('Creating... Please wait...')
 
           console.log('RowInserting');
           console.log(e);
@@ -678,9 +679,12 @@ async function setClientApiContext(Xrm, formContext) {
           //   console.log('caseLinesData._array is empty');
           // }
 
-          Xrm.Utility.closeProgressIndicator();
 
           // }, 1000);
+
+          setTimeout(() => {
+            Xrm.Utility.closeProgressIndicator();
+          }, 1000);
 
 
         },
@@ -767,6 +771,7 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('RowUpdated');
         },
         onRowRemoving: async (e) => {
+          Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
           console.log('RowRemoving');
           console.log(e.key);
           if (e.data.extreme_producttypecode == 3) {
@@ -789,6 +794,10 @@ async function setClientApiContext(Xrm, formContext) {
           await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
           // Refresh grid for case assets
           await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          
+          await getCaseLines(caseIdForm);
+          dataGrid.refresh();
+          Xrm.Utility.closeProgressIndicator();
         },
         onRowRemoved: (e) => {
           console.log('RowRemoved');
@@ -855,7 +864,7 @@ async function setClientApiContext(Xrm, formContext) {
   //   wrControl.getObject().style.minHeight = `${contentWindow.document.getElementById('caseLinesMainContainer').offsetHeight}px`;
   // });
 
-  Xrm.Utility.closeProgressIndicator();
+  // Xrm.Utility.closeProgressIndicator();
 
 }
 

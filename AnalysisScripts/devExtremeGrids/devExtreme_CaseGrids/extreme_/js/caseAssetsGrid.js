@@ -20,7 +20,7 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
     formContext.getAttribute("statuscode").getValue() === 1 ||
@@ -308,15 +308,15 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('ROW PREPARED');
                   console.log(e);
 
-                  if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
-                    console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
-                    console.log(dataGrid.hasEditData());
-                    console.log(e.cells[1].cellElement[0]);
-                    e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
-                    e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
-                    // e.cells[1].cellElement[0].style.display = "none";
-                    // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
-                  }
+                  // if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
+                  //   console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
+                  //   console.log(dataGrid.hasEditData());
+                  //   console.log(e.cells[1].cellElement[0]);
+                  //   e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+                  //   e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
+                  //   // e.cells[1].cellElement[0].style.display = "none";
+                  //   // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
+                  // }
 
                 },
                 onEditorPreparing: async (e) => {
@@ -809,7 +809,7 @@ async function setClientApiContext(Xrm, formContext) {
     observer.observe(gridContainer, config);
   });
 
-  Xrm.Utility.closeProgressIndicator();
+  // Xrm.Utility.closeProgressIndicator();
 
 }
 
