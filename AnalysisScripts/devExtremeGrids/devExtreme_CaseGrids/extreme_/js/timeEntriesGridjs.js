@@ -359,14 +359,19 @@ async function setClientApiContext(Xrm, formContext) {
             setCellValue: function (newData, value, currentRowData) {
               if (value === 424000000) {
                 newData.extreme_type = null;
+                dataGrid.columnOption('extreme_asset', 'validationRules', [{ type: 'required' }]);
               }
               else if (value === 424000001) {
                 newData.extreme_type = value;
-                newData.extreme_return = false;
+                newData.extreme_return = null;
                 newData.extreme_comuteinkm = null;
+                dataGrid.columnOption('extreme_asset', 'validationRules', [{ type: 'required' }]);
               }
               else if (value === 424000002) {
                 newData.extreme_type = value;
+                newData.extreme_return = false;
+                newData.extreme_comuteinkm = null;
+                dataGrid.columnOption('extreme_asset', 'validationRules', null);
               }
             },
             validationRules: [
@@ -460,10 +465,25 @@ async function setClientApiContext(Xrm, formContext) {
             if (e.row.data.extreme_type === 424000000) e.editorOptions.disabled = true;
             e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 200); }
           }
-          if ((e.dataField == "extreme_return" || e.dataField == "extreme_comuteinkm") &&
-            (e.row.data.extreme_type == 424000000 || e.row.data.extreme_type == 424000001)) {
+          if (e.dataField == 'extreme_comuteinkm' && e.row.data.extreme_type !== 424000002) {
             e.editorOptions.disabled = true;
           }
+          // else {
+          //   e.editorOptions.disabled = false;
+          // }
+          if (e.dataField == 'extreme_return' && e.row.data.extreme_type !== 424000002) {
+            e.editorOptions.disabled = true;
+          }
+          if (e.dataField === 'extreme_type') {
+            e.editorOptions.onFocusOut = function (args) {
+              if (args.component.option("value") !== 424000002) {
+                e.component.repaintRows([e.row.rowIndex])
+              }
+            }
+          }
+          // else {
+          //   e.editorOptions.disabled = true;
+          // }
           // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
           if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
           if (e.row.data.extreme_caseline) {
@@ -970,8 +990,8 @@ async function checkAssetsAfterDelete(assetId, caseId) {
         }
       );
 
-      if(assetExistsInCaseLines === true) break;
-      if(assetExistsInTimeEntries === true) break;
+      if (assetExistsInCaseLines === true) break;
+      if (assetExistsInTimeEntries === true) break;
 
     };
 
