@@ -3,6 +3,7 @@ function form_onload(executionContext) {
   const FORM_EDIT = 2;
   const RESOLVED = 934670004;
   const ONHOLD = 934670002;
+  const globalContext = Xrm.Utility.getGlobalContext();
   const formContext = executionContext.getFormContext();
   const formType = formContext.ui.getFormType();
   const fileColumn = formContext.getAttribute("extreme_signedprintout");
@@ -47,7 +48,7 @@ function form_onload(executionContext) {
 
 
 //functions
-function checkIfFileExists(){
+async function checkIfFileExists(){
   var FileColumnValue = fileColumn.getValue();
   const statusReason = formContext.getAttribute("statuscode").getValue();
   const caseId = formContext.data.entity.getId();
@@ -76,6 +77,34 @@ function checkIfFileExists(){
           fileColumn.setValue(null);
     });
     
+  }
+  if(FileColumnValue!== null){
+    var record = {};
+    var URL = globalContext.getClientUrl() + `/api/data/v9.0/extreme_cases(${caseId.slice(1,-1)})/extreme_signedprintout/$value`
+    record.extreme_signedprintouturl = URL; // Text
+
+    await Xrm.WebApi.updateRecord("extreme_case", caseId, record).then(
+      function success(result) {
+        var updatedId = result.id;
+        console.log(updatedId);
+      },
+      function(error) {
+        console.log(error.message);
+      }
+    );
+  }else {
+    var record = {};
+    record.extreme_signedprintouturl = ""; // Text
+
+    await Xrm.WebApi.updateRecord("extreme_case", caseId, record).then(
+      function success(result) {
+        var updatedId = result.id;
+        console.log(updatedId);
+      },
+      function(error) {
+        console.log(error.message);
+      }
+    );
   }
 }
 function showHideRelatedCase(){
