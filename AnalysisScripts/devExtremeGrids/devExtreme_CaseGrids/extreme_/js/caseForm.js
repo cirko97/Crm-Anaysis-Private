@@ -48,7 +48,7 @@ function form_onload(executionContext) {
 
 
 //functions
-async function checkIfFileExists(){
+async function checkIfFileExists() { 
   var FileColumnValue = fileColumn.getValue();
   const statusReason = formContext.getAttribute("statuscode").getValue();
   const caseId = formContext.data.entity.getId();
@@ -107,7 +107,7 @@ async function checkIfFileExists(){
     );
   }
 }
-function showHideRelatedCase(){
+function showHideRelatedCase() {
   if(formContext.getAttribute("extreme_casetype").getValue() !== null ){
     const CASECOMPLAINT = 8;
     const caseType = formContext.getAttribute("extreme_casetype").getValue();
@@ -123,7 +123,7 @@ function showHideRelatedCase(){
     formContext.getAttribute("extreme_relatedcase").setValue(null);
   }
 }
-function statusHandler(){
+function statusHandler() {
   const statusReason = formContext.getAttribute("statuscode").getValue();
   if(statusReason === RESOLVED || statusReason === ONHOLD){
     lockOrUnlockFieldsInSection("generalTab", "general", true);
@@ -156,13 +156,13 @@ function lockOrUnlockFieldsInSection(tabName, sectionName, lock) {
       console.error("Tab not found: " + tabName);
   }
 }
-function showHeader (){
+function showHeader () {
   formContext.ui.headerSection.setBodyVisible(true);  
 }
-function hideHeader (){
+function hideHeader () {
   formContext.ui.headerSection.setBodyVisible(false);
 }
-function copyIfempty(){
+function copyIfempty() {
   if(formContext.getAttribute("extreme_actualdateofcompletion").getValue() !== null 
   && formContext.getAttribute("extreme_dateofcompletion").getValue() === null){
     const dateofcompletion = formContext.getAttribute("extreme_actualdateofcompletion").getValue();
@@ -245,7 +245,6 @@ function setClientApiContextForWebResource(formContext, webResourceName) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, webResourceName));
   }
 }
-
 function retryAttempt(func) {
   if (retry < maxRetries) {
     retry++;
