@@ -21,8 +21,12 @@ var AccountForm = window.AccountForm || {};
         const formType = formContext.ui.getFormType();
         if (formType === FORM_NEW) {
             await setDefaults(formContext);
+        }
+        else if(formType === FORM_EDIT){
+            formContext.getControl("extreme_paname30characters").setDisabled(true);
         } else if (formType === FORM_EDIT && formContext.getAttribute("extreme_tax").getValue() == null) {
             await setDefaults(formContext);
+            
         }
 
         formContext.getAttribute("extreme_vatnumber").addOnChange(validateVAT);
