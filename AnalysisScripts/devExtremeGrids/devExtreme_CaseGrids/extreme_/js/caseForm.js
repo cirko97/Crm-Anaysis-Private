@@ -1,8 +1,11 @@
 function form_onload(executionContext) {
   const FORM_NEW = 1;
   const FORM_EDIT = 2;
+  const RESOLVED = 934670004;
+  const ONHOLD = 934670002;
   const formContext = executionContext.getFormContext();
   const formType = formContext.ui.getFormType();
+  const fileColumn = formContext.getAttribute("extreme_signedprintout");
   let retry = 0;
   const maxRetries = 100;
   const retryDelay = 1000; // 1-second delay
@@ -11,8 +14,12 @@ function form_onload(executionContext) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseLines"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
+
+     // addonchange for file column when form is loaded
+      if (fileColumn) {
+        fileColumn.addOnChange(checkIfFileExists);
+    }
   }
-  
 
   //case complaint
   formContext.getAttribute("extreme_casetype").addOnChange(showHideRelatedCase);
@@ -40,6 +47,37 @@ function form_onload(executionContext) {
 
 
 //functions
+function checkIfFileExists(){
+  var FileColumnValue = fileColumn.getValue();
+  const statusReason = formContext.getAttribute("statuscode").getValue();
+  const caseId = formContext.data.entity.getId();
+  if(FileColumnValue!== null && statusReason === RESOLVED){
+    var confirmStrings = { text:"Are you sure you want to upload this document as signed printout? \n This action will change the status of the case to Resolved & Signed!", title:"Confirm Signed Printout Upload" };
+    var confirmOptions = { height: 350, width: 450 };
+    Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+    async function (success) {    
+        if (success.confirmed){
+          var record = {};
+          record.statecode = 1; // State
+          record.statuscode = 2; // Status
+      
+          await Xrm.WebApi.updateRecord("extreme_case", caseId, record).then(
+            function success(result) {
+              var updatedId = result.id;
+              console.log(updatedId);
+              formContext.data.refresh(true);
+            },
+            function(error) {
+              console.log(error.message);
+            }
+          );
+        }
+        else
+          fileColumn.setValue(null);
+    });
+    
+  }
+}
 function showHideRelatedCase(){
   if(formContext.getAttribute("extreme_casetype").getValue() !== null ){
     const CASECOMPLAINT = 8;
@@ -57,12 +95,11 @@ function showHideRelatedCase(){
   }
 }
 function statusHandler(){
-  const RESOLVED = 934670004;
-  const ONHOLD = 934670002;
   const statusReason = formContext.getAttribute("statuscode").getValue();
   if(statusReason === RESOLVED || statusReason === ONHOLD){
     lockOrUnlockFieldsInSection("generalTab", "general", true);
     lockOrUnlockFieldsInSection("resolutionTab", "ResolutionDetails", true);
+    formContext.getControl("extreme_dateofcompletion").setDisabled(false);
   } else {
     lockOrUnlockFieldsInSection("generalTab", "general", false);
     lockOrUnlockFieldsInSection("resolutionTab", "ResolutionDetails", false);
