@@ -106,6 +106,10 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
         }
+
+        console.log('caseAssetsArray');
+        console.log(caseAssetsArray);
+
       },
       function (error) {
         console.log(error.message);
@@ -126,6 +130,19 @@ async function setClientApiContext(Xrm, formContext) {
 
       const dataGrid = $('#gridContainer').dxDataGrid({
         dataSource: caseAssetsData,
+        filterValue: [
+          [
+            ["extreme_parentcaseasset", "=", null],
+            "and",
+            ["extreme_isparent", "=", false]
+          ],
+          "or",
+          [
+            ["extreme_parentcaseasset", "=", null],
+            "and",
+            ["extreme_isparent", "=", true]
+          ],
+        ],
         width: "100%",
         wordWrapEnabled: true,
         showColumnLines: true,
@@ -158,6 +175,320 @@ async function setClientApiContext(Xrm, formContext) {
           mode: "standard",
           scrollByContent: true,
           scrollByThumb: true
+        },
+        masterDetail: {
+          enabled: true,
+          async template(container, options) {
+            const assetData = options.data;
+
+            container.css('padding', '0 0 10px 10px');
+            container.css('background', '#e5edfe');
+
+            $(`<div id="${assetData.extreme_caseassetid}" class="child-grid">`)
+              .dxDataGrid({
+                dataSource: caseAssetsData,
+                filterValue: [
+                  ["extreme_isparent", "=", false],
+                  "and",
+                  ["extreme_parentcaseasset", "=", assetData.extreme_caseassetid]
+                ],
+                width: "100%",
+                wordWrapEnabled: true,
+                showColumnLines: true,
+                showRowLines: true,
+                rowAlternationEnabled: true,
+                showBorders: true,
+                // headerFilter: {
+                //   visible: true,
+                //   height: 200
+                // },
+                paging: {
+                  pageSize: 5,
+                },
+                editing: {
+                  mode: 'cell',
+                  allowUpdating: isEditable,
+                  allowAdding: false,
+                  allowDeleting: false,
+                  useIcons: true
+                },
+                // selection: {
+                //   mode: 'multiple',
+                // },
+                allowColumnResizing: true,
+                columnResizingMode: "mode",
+                columnMinWidth: 10,
+                columnAutoWidth: true,
+                columnHidingEnabled: false,
+                scrolling: {
+                  mode: "standard",
+                  scrollByContent: true,
+                  scrollByThumb: true
+                },
+                columns: [
+                  {
+                    dataField: 'extreme_name',
+                    caption: 'Name',
+                    dataType: 'string',
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_assetcode',
+                    caption: 'Code',
+                    dataType: 'string',
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_lastactivitydate',
+                    caption: 'Last Activity',
+                    dataType: 'datetime',
+                    pickerType: 'rollers',
+                    value: now,
+                    inputAttr: { 'aria-label': 'Date and time picker' },
+                    format: "dd.MM.yyyy HH:mm",
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_serialnumber',
+                    caption: 'S/N',
+                    dataType: 'string',
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_warrantyend',
+                    caption: 'Warranty end',
+                    dataType: 'datetime',
+                    pickerType: 'rollers',
+                    value: now,
+                    inputAttr: { 'aria-label': 'Date and time picker' },
+                    format: "dd.MM.yyyy HH:mm",
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_warrantyenddatevendor',
+                    caption: 'Warranty end (vendor)',
+                    dataType: 'datetime',
+                    pickerType: 'rollers',
+                    value: now,
+                    inputAttr: { 'aria-label': 'Date and time picker' },
+                    format: "dd.MM.yyyy HH:mm",
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_description',
+                    caption: 'Description',
+                    dataType: 'string',
+                    width: 300,
+                    allowEditing: true
+                  },
+                  {
+                    dataField: 'extreme_solution',
+                    caption: 'Solution',
+                    dataType: 'string',
+                    width: 300,
+                    allowEditing: true
+                  },
+                  {
+                    dataField: 'extreme_parentcaseasset',
+                    caption: 'Parent CA',
+                    dataType: 'string',
+                    visible: dataGrid.columnOption("extreme_parentcaseasset", "visible")
+                  },
+                  {
+                    dataField: 'extreme_isparent',
+                    caption: 'Is Parent',
+                    dataType: 'boolean',
+                    visible: dataGrid.columnOption("extreme_isparent", "visible")
+                  },
+                ],
+                onSelectionChanged(data) {
+                  dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
+                },
+                onRowPrepared: async (e) => {
+                  console.log('ROW PREPARED');
+                  console.log(e);
+
+                  if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
+                    console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
+                    console.log(dataGrid.hasEditData());
+                    console.log(e.cells[1].cellElement[0]);
+                    e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+                    e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
+                    // e.cells[1].cellElement[0].style.display = "none";
+                    // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
+                  }
+
+                },
+                onEditorPreparing: async (e) => {
+                  console.log('Editor Preparing');
+                  console.log(e);
+
+                  if (e.dataField === "extreme_description" || (e.dataField === "extreme_solution")) {
+                    e.editorName = "dxTextArea";
+                    e.editorOptions.autoResizeEnabled = true;
+                    // console.log("EDITOR ELEMENT");
+                    setTimeout(() => {
+                      // console.log(e.editorElement[0].querySelector("textarea"));
+                      e.editorElement[0].querySelector("textarea").style.lineHeight = "1.6";
+                      e.editorElement[0].querySelector("textarea").style.height = "auto";
+                    }, 200);
+                  }
+
+                  // if (e.dataField == "createdon") e.editorOptions.disabled = true;
+                  // if (e.dataField == "scheduledend") e.editorOptions.disabled = true;
+                  // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
+                  // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
+                  // if (e.row.data.extreme_caseline) {
+                  //   if (e.dataField == "owner") e.editorOptions.disabled = true;
+                  //   if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = true;
+                  // }
+                },
+                onEditingStart: (e) => {
+                  console.log('EditingStart');
+                  console.log(e);
+                },
+                onInitNewRow: async (e) => {
+                  console.log('InitNewRow');
+                  console.log(e);
+                  // e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
+                  // e.data.extreme_return = false;
+                  // e.data.scheduledstart = new Date().toISOString();
+                  // e.data.scheduledend = new Date().toISOString();
+                  // e.data.extreme_type = timeEntryTypesArray.find(item => item.value == 424000001).value;
+                  // if (oneAssetId !== undefined && oneAssetId !== 'none') e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
+                },
+                onRowInserting: async (e) => {
+
+                  console.log('RowInserting');
+                  console.log(e);
+
+                  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+
+                  // newCreateId = '';
+                  // var record = {};
+                  // record["regardingobjectid_extreme_case_extreme_timeentry@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                  // record["ownerid_extreme_timeentry@odata.bind"] = `/systemusers(${e.data.owner})`; // Owner
+                  // record.scheduledstart = e.data.scheduledstart; // Date Time
+                  // record.scheduledend = e.data.scheduledend; // Date Time
+                  // record.extreme_type = e.data.extreme_type; // Choice
+                  // record.scheduleddurationminutes = e.data.scheduleddurationminutes; // Decimal
+                  // record.extreme_comuteinkm = e.data.extreme_comuteinkm; // Decimal
+                  // record.extreme_return = e.data.extreme_return; // Boolean
+                  // record.extreme_expences = e.data.extreme_expences; // Decimal
+
+                  // await Xrm.WebApi.createRecord("extreme_timeentry", record).then(
+                  //   function success(result) {
+                  //     var newId = result.id;
+                  //     newCreateId = newId;
+                  //     console.log('NEW CREATED ID: ' + newCreateId);
+                  //   },
+                  //   function (error) {
+                  //     console.log(error.message);
+                  //   }
+                  // );
+                },
+                onRowInserted: async (e) => {
+
+                  // setTimeout(async () => {
+
+                  //   console.log('RowInserted');
+                  //   console.log(e);
+
+                  //   if (timeEntriesData._array.length > 0) {
+                  //     console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+                  //     timeEntriesData._array[timeEntriesData._array.length - 1].activityid = newCreateId;
+                  //     console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+                  //     await getTimeEntries(caseIdForm);
+                  //     dataGrid.refresh();
+                  //   } else {
+                  //     console.log('timeEntriesData._array is empty');
+                  //   }
+
+                  //   Xrm.Utility.closeProgressIndicator();
+
+                  // }, 1000);
+
+
+                },
+                onRowUpdating: async (e) => {
+                  console.log('RowUpdating');
+                  console.log(e);
+
+                  var record = {};
+                  if (e.newData.extreme_description) record.extreme_description = e.newData.extreme_description; // Multiline Text
+                  if (e.newData.extreme_solution) record.extreme_solution = e.newData.extreme_solution; // Multiline Text
+
+                  await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.key}`, record).then(
+                    async function success(result) {
+                      var updatedId = result.id;
+                      console.log(updatedId);
+                      await getCaseAssets();
+                      dataGrid.refresh();
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+
+                  // var record = {};
+                  // if (e.newData.owner) record["ownerid_extreme_timeentry@odata.bind"] = `/systemusers(${e.newData.owner})`; // Owner
+                  // if (e.newData.scheduledstart) record.scheduledstart = e.newData.scheduledstart; // Date Time
+                  // if (e.newData.scheduledend) record.scheduledend = e.newData.scheduledend; // Date Time
+                  // if (e.newData.extreme_type) record.extreme_type = e.newData.extreme_type; // Choice
+                  // if (e.newData.scheduleddurationminutes) record.scheduleddurationminutes = e.newData.scheduleddurationminutes; // Decimal
+                  // if (e.newData.extreme_comuteinkm) record.extreme_comuteinkm = e.newData.extreme_comuteinkm; // Decimal
+                  // if (typeof e.newData.extreme_return === "boolean") record.extreme_return = e.newData.extreme_return; // Boolean
+                  // if (e.newData.extreme_expences) record.extreme_expences = e.newData.extreme_expences; // Decimal
+
+                  // await Xrm.WebApi.updateRecord("extreme_timeentry", `${e.key}`, record).then(
+                  //   async function success(result) {
+                  //     var updatedId = result.id;
+                  //     console.log(record);
+                  //     await getTimeEntries(caseIdForm);
+                  //     dataGrid.refresh();
+                  //   },
+                  //   function (error) {
+                  //     console.log(error.message);
+                  //   }
+                  // );
+                },
+                onRowUpdated() {
+                  console.log('RowUpdated');
+                },
+                onRowRemoving: async (e) => {
+                  console.log('RowRemoving');
+                  console.log(e);
+                  // // Delete case line on another web resource
+                  // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
+                  // // Refresh grid for case lines
+                  // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+                  await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
+                    function success(result) {
+                      console.log(result);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+                },
+                onRowRemoved: (e) => {
+                  console.log('RowRemoved');
+                  console.log(e);
+                },
+                onSaving() {
+                  console.log('Saving');
+                },
+                onSaved() {
+                  console.log('Saved');
+                },
+                onEditCanceling() {
+                  console.log('EditCanceling');
+                },
+                onEditCanceled() {
+                  console.log('EditCanceled');
+                }
+              }).appendTo(container);
+          },
         },
         columns: [
           {
@@ -222,6 +553,18 @@ async function setClientApiContext(Xrm, formContext) {
             width: 300,
             allowEditing: true
           },
+          {
+            dataField: 'extreme_parentcaseasset',
+            caption: 'Parent CA',
+            dataType: 'string',
+            visible: false
+          },
+          {
+            dataField: 'extreme_isparent',
+            caption: 'Is Parent',
+            dataType: 'boolean',
+            visible: false
+          },
         ],
         toolbar: {
           items: [
@@ -241,6 +584,21 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onSelectionChanged(data) {
           dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
+        },
+        onRowPrepared: async (e) => {
+          console.log('ROW PREPARED');
+          console.log(e);
+
+          if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
+            console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
+            console.log(dataGrid.hasEditData());
+            console.log(e.cells[1].cellElement[0]);
+            e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+            e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
+            // e.cells[1].cellElement[0].style.display = "none";
+            // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
+          }
+
         },
         onEditorPreparing: async (e) => {
           console.log('Editor Preparing');

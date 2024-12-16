@@ -174,7 +174,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     assetsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_asset", `?$select=extreme_assetid,extreme_name,extreme_serialnumber&$filter=_extreme_account_value eq ${accountId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_asset", `?$select=extreme_isparent,_extreme_parentasset_value,extreme_assetid,extreme_name,extreme_serialnumber&$filter=_extreme_account_value eq ${accountId}`).then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -184,10 +184,14 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_name = result["extreme_name"]; // Text
           var extreme_serialnumber = result["extreme_serialnumber"]; // Whole Number
           var extreme_serialnumber_formatted = result["extreme_serialnumber@OData.Community.Display.V1.FormattedValue"];
+          var extreme_isparent = result["extreme_isparent"]; // Boolean
+          var extreme_parentasset = result["_extreme_parentasset_value"]; // Lookup
 
           assetsArray.push({
             "id": extreme_assetid,
-            "name": extreme_serialnumber ? `${extreme_serialnumber} - ${extreme_name}` : extreme_name
+            "name": extreme_serialnumber ? `${extreme_serialnumber} - ${extreme_name}` : extreme_name,
+            "extreme_isparent": extreme_isparent,
+            "extreme_parentasset": extreme_parentasset
           });
 
         }
