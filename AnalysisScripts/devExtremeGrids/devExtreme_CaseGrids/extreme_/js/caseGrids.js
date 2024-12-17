@@ -522,11 +522,13 @@ async function setClientApiContext(Xrm, formContext) {
           e.data.extreme_quantity = 1;
           e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
           e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
-          if (oneAssetId !== undefined && oneAssetId !== 'none') e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
+          console.log('oneAssetId');
+          console.log(oneAssetId);
+          if (oneAssetId !== undefined && oneAssetId !== 'none' && typeof (oneAssetId) === 'string') e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
         },
         onRowInserting: async (e) => {
 
-          Xrm.Utility.showProgressIndicator('Creating... Please wait...')
+          Xrm.Utility.showProgressIndicator('Creating... Please wait...');
 
           console.log('RowInserting');
           console.log(e);
@@ -563,9 +565,6 @@ async function setClientApiContext(Xrm, formContext) {
           );
         },
         onRowInserted: async (e) => {
-
-          // setTimeout(async () => {
-
           console.log('RowInserted');
           console.log('newCreatedId: ', newCreateId);
 
@@ -579,49 +578,92 @@ async function setClientApiContext(Xrm, formContext) {
             console.log(oneAssetId);
             console.log(oneAssetId.indexOf(e.data.extreme_asset));
 
-            var record = {};
-            record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-            record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
-            record.extreme_isparent = assetsArray.find(item => item.id === e.data.extreme_asset).extreme_isparent; // Boolean
-            if (assetsArray.find(item => item.id === e.data.extreme_asset).extreme_parentasset) {
-              record["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${assetsArray.find(item => item.id === e.data.extreme_asset).extreme_parentasset})`; // Lookup
-            }
-
-            console.log("CHILDS ARRAY FOR ASSETS:");
-            console.log(assetsArray.filter(item => item.extreme_parentasset === e.data.extreme_asset));
-
             let newCreatedCasseAssetId = '';
+            let assetToCreate = e.data.extreme_asset;
+            const promises = [];
 
-            await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
-              async function success(result) {
-                var newId = result.id;
-                newCreatedCasseAssetId = result.id;
-                console.log(newId);
-              },
-              function (error) {
-                console.log(error.message);
-              }
-            );
+            // Check if the asset has a parent asset
+            if (assetsArray.find(item => item.id === e.data.extreme_asset).extreme_parentasset) {
+              assetToCreate = assetsArray.find(item => item.id === e.data.extreme_asset).extreme_parentasset;
 
-            const childAssetPromises = assetsArray.filter(item => item.extreme_parentasset === e.data.extreme_asset).map(async elm => {
-              var childRecord = {};
-              childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-              childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
-              childRecord.extreme_isparent = false; // Boolean
-              childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+              // Create the parent asset
+              var parentRecord = {};
+              parentRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+              parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
+              parentRecord.extreme_isparent = true; // Boolean
 
-              return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
+              await Xrm.WebApi.createRecord("extreme_caseasset", parentRecord).then(
                 async function success(result) {
-                  var newIdChild = result.id;
-                  console.log(newIdChild);
+                  var newId = result.id;
+                  newCreatedCasseAssetId = result.id;
+                  console.log(newId);
                 },
                 function (error) {
                   console.log(error.message);
                 }
               );
-            });
 
-            await Promise.all(childAssetPromises);
+              // Create all child assets of the parent
+              const childPromises = assetsArray.filter(item => item.extreme_parentasset === assetToCreate).map(async elm => {
+                var childRecord = {};
+                childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
+                childRecord.extreme_isparent = false; // Boolean
+                childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+
+                return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
+                  async function success(result) {
+                    var newIdChild = result.id;
+                    console.log(newIdChild);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+              });
+
+              promises.push(...childPromises);
+            } else {
+              // Create the selected asset
+              var record = {};
+              record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+              record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
+              record.extreme_isparent = assetsArray.find(item => item.id === e.data.extreme_asset).extreme_isparent; // Boolean
+
+              await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
+                async function success(result) {
+                  var newId = result.id;
+                  newCreatedCasseAssetId = result.id;
+                  console.log(newId);
+                },
+                function (error) {
+                  console.log(error.message);
+                }
+              );
+
+              // Create all child assets of the selected asset
+              const childPromises = assetsArray.filter(item => item.extreme_parentasset === e.data.extreme_asset).map(async elm => {
+                var childRecord = {};
+                childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
+                childRecord.extreme_isparent = false; // Boolean
+                childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+
+                return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
+                  async function success(result) {
+                    var newIdChild = result.id;
+                    console.log(newIdChild);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+              });
+
+              promises.push(...childPromises);
+            }
+
+            await Promise.all(promises);
 
             // Refresh grid for case assets
             await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
@@ -630,10 +672,8 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('caseLineUnit: ', e.data.extreme_unit);
           console.log('unitsArray: ', unitsArray);
 
-          // 
           if (e.data.extreme_producttypecode == 3) {
-
-            let description = null
+            let description = null;
             let highestScheduledEnd = null;
             await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
               function success(results) {
@@ -641,14 +681,12 @@ async function setClientApiContext(Xrm, formContext) {
 
                 for (var i = 0; i < results.entities.length; i++) {
                   var result = results.entities[i];
-                  // Columns
                   var activityid = result["activityid"]; // Guid
                   var scheduledend = result["scheduledend"]; // Date Time
                   var scheduledend_formatted = result["scheduledend@OData.Community.Display.V1.FormattedValue"];
 
                   description = result["description"];
                   highestScheduledEnd = scheduledend;
-
                 }
               },
               function (error) {
@@ -659,51 +697,34 @@ async function setClientApiContext(Xrm, formContext) {
             const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             dateTo.addMinutes(e.data.extreme_quantity * 60);
-            // dateFrom.setHours(8, 0, 0, 0);
-            // dateTo.setHours(dateFrom.getHours() + e.data.extreme_quantity, 0, 0, 0);
-            const timeSpent = e.data.extreme_quantity * 60
+            const timeSpent = e.data.extreme_quantity * 60;
             console.log(e.data.extreme_quantity);
-            // Create time entry on another web resource
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false);
+
+            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
+              e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
+            );
+
             // Refresh grid for time entries
             await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
 
-          // if (caseLinesData._array.length > 0) {
-          //   console.log(caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid);
-          //   caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid = newCreateId;
-          //   console.log(caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid);
-          //   await getCaseLines(caseIdForm);
-          //   dataGrid.refresh();
-          // } else {
-          //   console.log('caseLinesData._array is empty');
-          // }
-
-
-          // }, 1000);
+          await getCaseLines(caseIdForm);
+          dataGrid.refresh();
 
           setTimeout(() => {
             Xrm.Utility.closeProgressIndicator();
           }, 1000);
-
-
         },
         onRowUpdating: async (e) => {
+
+          Xrm.Utility.showProgressIndicator('Updating... Please wait...');
+
           console.log('RowUpdating');
           console.log(e);
 
-          // console.log("OLD ASSET ID");
-          // console.log(e.oldData.extreme_asset);
           const oldDataAssetId = e.oldData.extreme_asset;
 
-          var record = {};
-          // e.newData.extreme_name ? record.extreme_name = e.newData.extreme_name : undefined // Text
-          if (e.newData.extreme_asset) record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.newData.extreme_asset})` // Lookup
-          record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-          if (e.newData.owner) record["ownerid@odata.bind"] = `/systemusers(${e.newData.owner})` // Owner
-          if (e.newData.extreme_product) record["extreme_Product@odata.bind"] = `/products(${e.newData.extreme_product})` // Lookup
-          if (e.newData.extreme_quantity) record.extreme_quantity = e.newData.extreme_quantity // Decimal
-          if (e.newData.extreme_unit) record["extreme_Unit@odata.bind"] = `/uoms(${e.newData.extreme_unit})` // Lookup
+          const promises = [];
 
           if (e.newData.extreme_asset) {
             if (
@@ -716,22 +737,89 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(oneAssetId);
               console.log(oneAssetId.indexOf(e.newData.extreme_asset));
 
-              var record = {};
-              record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-              record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.newData.extreme_asset})`; // Lookup
+              let newCreatedCasseAssetId = '';
+              let assetToCreate = e.newData.extreme_asset;
 
-              await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
-                async function success(result) {
-                  var newId = result.id;
-                  console.log(newId);
-                  // Refresh grid for case assets
-                  await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-                },
-                function (error) {
-                  console.log(error.message);
-                }
-              );
+              // Check if the asset has a parent asset
+              if (assetsArray.find(item => item.id === e.newData.extreme_asset).extreme_parentasset) {
+                assetToCreate = assetsArray.find(item => item.id === e.newData.extreme_asset).extreme_parentasset;
 
+                // Create the parent asset
+                var parentRecord = {};
+                parentRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
+                parentRecord.extreme_isparent = true; // Boolean
+
+                await Xrm.WebApi.createRecord("extreme_caseasset", parentRecord).then(
+                  async function success(result) {
+                    var newId = result.id;
+                    newCreatedCasseAssetId = result.id;
+                    console.log(newId);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+
+                // Create all child assets of the parent
+                const childPromises = assetsArray.filter(item => item.extreme_parentasset === assetToCreate).map(async elm => {
+                  var childRecord = {};
+                  childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                  childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
+                  childRecord.extreme_isparent = false; // Boolean
+                  childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+
+                  return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
+                    async function success(result) {
+                      var newIdChild = result.id;
+                      console.log(newIdChild);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+                });
+
+                promises.push(...childPromises);
+              } else {
+                // Create the selected asset
+                var record = {};
+                record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
+                record.extreme_isparent = assetsArray.find(item => item.id === e.newData.extreme_asset).extreme_isparent; // Boolean
+
+                await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
+                  async function success(result) {
+                    var newId = result.id;
+                    newCreatedCasseAssetId = result.id;
+                    console.log(newId);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+
+                // Create all child assets of the selected asset
+                const childPromises = assetsArray.filter(item => item.extreme_parentasset === e.newData.extreme_asset).map(async elm => {
+                  var childRecord = {};
+                  childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                  childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
+                  childRecord.extreme_isparent = false; // Boolean
+                  childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+
+                  return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
+                    async function success(result) {
+                      var newIdChild = result.id;
+                      console.log(newIdChild);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+                });
+
+                promises.push(...childPromises);
+              }
             }
           }
 
@@ -745,6 +833,14 @@ async function setClientApiContext(Xrm, formContext) {
             // Refresh grid for time entries
             await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
+
+          var record = {};
+          if (e.newData.extreme_asset) record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.newData.extreme_asset})`; // Lookup
+          record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+          if (e.newData.owner) record["ownerid@odata.bind"] = `/systemusers(${e.newData.owner})`; // Owner
+          if (e.newData.extreme_product) record["extreme_Product@odata.bind"] = `/products(${e.newData.extreme_product})`; // Lookup
+          if (e.newData.extreme_quantity) record.extreme_quantity = e.newData.extreme_quantity; // Decimal
+          if (e.newData.extreme_unit) record["extreme_Unit@odata.bind"] = `/uoms(${e.newData.extreme_unit})`; // Lookup
 
           await Xrm.WebApi.updateRecord("extreme_caseline", `${e.key}`, record).then(
             async function success(result) {
@@ -765,6 +861,14 @@ async function setClientApiContext(Xrm, formContext) {
             await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
 
+          await Promise.all(promises);
+
+          await getCaseLines(caseIdForm);
+          dataGrid.refresh();
+
+          setTimeout(() => {
+            Xrm.Utility.closeProgressIndicator();
+          }, 1000);
 
         },
         onRowUpdated() {
@@ -794,7 +898,7 @@ async function setClientApiContext(Xrm, formContext) {
           await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
           // Refresh grid for case assets
           await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-          
+
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
           Xrm.Utility.closeProgressIndicator();
