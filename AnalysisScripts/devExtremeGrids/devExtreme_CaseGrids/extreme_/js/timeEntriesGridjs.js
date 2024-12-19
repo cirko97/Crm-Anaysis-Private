@@ -4,6 +4,7 @@ let usersArray = [];
 let timeEntryTypesArray = [];
 let newCreateId;
 let isEditable = true;
+let heightAuto = true;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -301,7 +302,6 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'From',
             width: 90,
             dataType: 'datetime',
-            pickerType: 'rollers',
             value: now,
             inputAttr: { 'aria-label': 'Date and time picker' },
             format: "dd.MM.yyyy HH:mm",
@@ -317,6 +317,23 @@ async function setClientApiContext(Xrm, formContext) {
               newData.scheduledend = new Date(dateFrom.addMinutes(currentTime));
               newData.scheduledstart = new Date(value);
             },
+            editorOptions: {
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  if (iframeCorrentHeight < 500) {
+                    wrControl.getObject().style.minHeight = "500px";
+                  }
+                }
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            }
           },
           {
             dataField: 'scheduledend',
@@ -812,10 +829,12 @@ async function setClientApiContext(Xrm, formContext) {
           const gridContainerHeight = gridContainer.offsetHeight;
           // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
           const iframe = wrControl.getObject();
-          if (gridContainerHeight > 350) {
-            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-          } else {
-            iframe.style.minHeight = '350px';
+          if (heightAuto === true) {
+            if (gridContainerHeight > 350) {
+              iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+            } else {
+              iframe.style.minHeight = '350px';
+            }
           }
         }
       });

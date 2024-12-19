@@ -958,8 +958,32 @@ async function setClientApiContext(Xrm, formContext) {
     observer.observe(gridContainer, config);
   });
 
+  // Function to strectch web resource container for date picker
+  function datePickerTrigger(state) {
+    const wrControl = formContext.getControl('WebResource_caseLines');
+    wrControl.getContentWindow().then(function (contentWindow) {
+      console.log('HEIGHT MAIN CONTAINER:');
+      console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
+      gridContainer = contentWindow.document.getElementById('gridContainer');
+      console.log(gridContainer);
 
+      if (state == 'opened') {
+        // Get the current height of the gridContainer
+        const gridContainerHeight = gridContainer.offsetHeight;
+        // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
+        const iframe = wrControl.getObject();
+        if (gridContainerHeight < 500) {
+          iframe.style.minHeight = '500px';
+        }
+      }
 
+      // Configuration of the observer
+      const config = { attributes: true, childList: true, subtree: true };
+
+      // Start observing the gridContainer for changes
+      observer.observe(gridContainer, config);
+    });
+  }
 
   // const wrControl = formContext.getControl('WebResource_caseLines');
   // wrControl.getContentWindow().then(function (contentWindow) {
