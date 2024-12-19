@@ -419,6 +419,73 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Description',
             width: 300,
             dataType: 'string'
+          },
+          {
+            type: 'buttons',
+            width: 110,
+            buttons: ['delete', {
+              hint: 'Clone',
+              icon: 'copy',
+              visible(e) {
+                return !e.row.isEditing;
+              },
+              disabled(e) {
+                return false;
+              },
+              async onClick(e) {
+                const clonedItem = $.extend({}, e.row.data);
+
+                let newCloneId = '';
+
+                var record = {};
+                record["regardingobjectid_extreme_case_extreme_timeentry@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+
+                // if (clonedItem.extreme_caseline) record["extreme_CaseLine_extreme_TimeEntry@odata.bind"] = `/extreme_caselines(${clonedItem.extreme_caseline})`; // Lookup
+                if (clonedItem.extreme_asset) record["extreme_Asset_extreme_TimeEntry@odata.bind"] = `/extreme_assets(${clonedItem.extreme_asset})`; // Lookup
+                if (clonedItem.owner) record["ownerid_extreme_timeentry@odata.bind"] = `/systemusers(${clonedItem.owner})`; // Owner
+                if (clonedItem.scheduledstart) record.scheduledstart = clonedItem.scheduledstart; // Date Time
+                if (clonedItem.scheduledend) record.scheduledend = clonedItem.scheduledend; // Date Time
+                if (clonedItem.extreme_type === 424000000 || clonedItem.extreme_type === 424000001) {
+                  record.extreme_type = 424000001
+                }
+                else if (clonedItem.extreme_type === 424000002) {
+                  record.extreme_type = clonedItem.extreme_type
+                }; // Choice
+                if (clonedItem.scheduleddurationminutes) record.scheduleddurationminutes = clonedItem.scheduleddurationminutes; // Whole Number
+                if (clonedItem.extreme_comuteinkm) record.extreme_comuteinkm = clonedItem.extreme_comuteinkm; // Decimal
+                record.extreme_return = clonedItem.extreme_return === true ? true : clonedItem.extreme_return === false ? false : null; // Boolean
+                if (clonedItem.extreme_expences) record.extreme_expences = clonedItem.extreme_expences; // Decimal
+                if (clonedItem.description) record.description = `${clonedItem.description.trim()}`; // Multiline Text
+
+                await Xrm.WebApi.createRecord("extreme_timeentry", record).then(
+                  function success(result) {
+                    var newId = result.id;
+                    newCloneId = result.id;
+                    console.log(newId);
+
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+
+                console.log(clonedItem);
+
+                timeEntriesData._array.splice(e.row.rowIndex, 0, clonedItem);
+                console.log(timeEntriesData._array[e.row.rowIndex]);
+                console.log(timeEntriesData._array[e.row.rowIndex + 1]);
+                timeEntriesData._array[e.row.rowIndex + 1].activityid = newCloneId;
+                timeEntriesData._array[e.row.rowIndex + 1].extreme_caseline = null;
+                timeEntriesData._array[e.row.rowIndex + 1].extreme_type = record.extreme_type;
+                timeEntriesData._array[e.row.rowIndex + 1].extreme_return = record.extreme_return;
+                timeEntriesData._array[e.row.rowIndex + 1].owner = null;
+                console.log(timeEntriesData._array[e.row.rowIndex + 1]);
+
+                e.component.refresh(true);
+                e.event.preventDefault();
+
+              },
+            }],
           }
         ],
         toolbar: {
@@ -485,7 +552,7 @@ async function setClientApiContext(Xrm, formContext) {
           //   e.editorOptions.disabled = true;
           // }
           // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
-          if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
+          // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
           if (e.row.data.extreme_caseline) {
             if (e.dataField == "owner") e.editorOptions.disabled = true;
             if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = true;

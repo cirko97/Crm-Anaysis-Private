@@ -2110,7 +2110,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('ROW PREPARED');
                   console.log(e);
 
-                  if (e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
+                  if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
                     (
                       // (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
                       (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
@@ -2120,7 +2120,7 @@ async function setClientApiContext(Xrm, formContext) {
                   ) {
                     e.rowElement[0].style.backgroundColor = "#fce3c2";
                   }
-                  else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
+                  else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
                     // (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
                     (item.extreme_area === null || item.extreme_area === undefined) ||
                     (item.extreme_technology === null || item.extreme_technology === undefined) ||
@@ -3304,6 +3304,17 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Asset?',
             width: 60,
             dataType: 'boolean',
+            setCellValue: async function (newData, value, currentRowData) {
+              if (typeof (value) === 'boolean') {
+                if (currentRowData.extreme_isparentitem === true && value === true) {
+                  quoteLinesData._array.filter(item => item.extreme_parentquoteline === currentRowData.quotedetailid).forEach(elm => {
+                    Xrm.WebApi.updateRecord("quotedetail", `${elm.quotedetailid}`, { extreme_createasset: value })
+                    elm.extreme_createasset = value;
+                  })
+                }
+                newData.extreme_createasset = value;
+              }
+            }
           },
           {
             type: 'buttons',
@@ -3818,9 +3829,9 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('ROW PREPARED');
           console.log(e);
 
-          if (e.rowType === "data" && e.data.extreme_isparentitem === false &&
+          if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
             (
-              (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
+              // (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
               (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
               (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
               (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
@@ -3828,18 +3839,18 @@ async function setClientApiContext(Xrm, formContext) {
           ) {
             e.rowElement[0].style.backgroundColor = "#fce3c2";
           }
-          else if (e.rowType === "data" && e.data.extreme_isparentitem === true &&
-            (
-              (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
-              (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
-              (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
-            )) {
-
-          }
-          else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
+          // else if (e.rowType === "data" && e.data.extreme_isparentitem === true &&
+          //   (
+          //     (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
+          //     (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
+          //     (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
+          //   )) {
+          //     e.rowElement[0].style.backgroundColor = "#fce3c2";
+          // }
+          else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
             item.extreme_parentquoteline === e.data.quotedetailid &&
             (
-              (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
+              // (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
               (item.extreme_area === null || item.extreme_area === undefined) ||
               (item.extreme_technology === null || item.extreme_technology === undefined) ||
               (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
@@ -3892,6 +3903,7 @@ async function setClientApiContext(Xrm, formContext) {
             e.dataField !== "quantity" &&
             // e.dataField !== "extreme_vatsetting" &&
             // e.dataField !== "extreme_producttype" &&
+            e.dataField !== "extreme_createasset" &&
             e.dataField !== "extreme_area" &&
             e.dataField !== "extreme_technology" &&
             e.dataField !== "extreme_vendorsupplier"
@@ -4112,19 +4124,19 @@ async function setClientApiContext(Xrm, formContext) {
                         recordForStore.extreme_isparentitem = false; // Boolean
 
                         quoteLinesData.insert(recordForStore);
-                          // .done(function (dataObj, key) {
-                          //   // Process the key and data object here
-                          //   console.log('dataObj');
-                          //   console.log(dataObj);
-                          //   console.log('key');
-                          //   console.log(key);
-                          //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
-                          //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
-                          // })
-                          // .fail(function (error) {
-                          //   // Handle the "error" here
-                          //   console.log(error);
-                          // });
+                        // .done(function (dataObj, key) {
+                        //   // Process the key and data object here
+                        //   console.log('dataObj');
+                        //   console.log(dataObj);
+                        //   console.log('key');
+                        //   console.log(key);
+                        //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
+                        //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
+                        // })
+                        // .fail(function (error) {
+                        //   // Handle the "error" here
+                        //   console.log(error);
+                        // });
 
                       }
                     },
@@ -4168,6 +4180,7 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
           dataGrid.columnOption("extreme_createasset", "allowEditing", true);
           dataGrid.columnOption("extreme_vatsetting", "allowEditing", true);
+          dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
 
           formContext.data.refresh(true);
 
@@ -4331,6 +4344,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
             dataGrid.columnOption("extreme_createasset", "allowEditing", true);
             dataGrid.columnOption("extreme_vatsetting", "allowEditing", true);
+            dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
           }
         },
         onEditCanceling() {
