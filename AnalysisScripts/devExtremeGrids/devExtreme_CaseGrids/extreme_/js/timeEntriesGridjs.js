@@ -322,15 +322,14 @@ async function setClientApiContext(Xrm, formContext) {
                 heightAuto = false;
                 if (heightAuto === false) {
                   const iframeCorrentHeight = wrControl.getObject().offsetHeight;
-                  if (iframeCorrentHeight < 500) {
-                    wrControl.getObject().style.minHeight = "500px";
-                  }
+                  wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
                 }
               },
               onClosed: function (e) {
                 heightAuto = true;
               },
-              onFocusOut: function (e) {
+              onDisposing: function (e) {
+                // Handler of the "onDisposing" event
                 heightAuto = true;
               }
             }
@@ -340,7 +339,6 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'To',
             width: 90,
             dataType: 'datetime',
-            pickerType: 'rollers',
             value: now,
             inputAttr: { 'aria-label': 'Date and time picker' },
             format: "dd.MM.yyyy HH:mm"
@@ -585,7 +583,6 @@ async function setClientApiContext(Xrm, formContext) {
               e.editorElement[0].querySelector("textarea").style.height = "auto";
             }, 200);
           }
-
 
         },
         onEditingStart: (e) => {
