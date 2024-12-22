@@ -841,6 +841,10 @@ async function setClientApiContext(Xrm, formContext) {
                     }
                   });
 
+                  caseAssetsData._array.filter(item => item.extreme_isparent === true).forEach(elm => {
+                    dataGrid.collapseRow(elm.extreme_caseassetid);
+                  })
+
                   dataGrid.option('filterValue', [
                     [
                       ["extreme_serialnumber", "=", null],
