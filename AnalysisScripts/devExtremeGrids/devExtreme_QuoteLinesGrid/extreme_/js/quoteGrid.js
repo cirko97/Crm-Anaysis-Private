@@ -3701,6 +3701,10 @@ async function setClientApiContext(Xrm, formContext) {
                     }
                   });
 
+                  quoteLinesData._array.filter(item => item.extreme_isparentitem === true).forEach(elm => {
+                    dataGrid.collapseRow(elm.quotedetailid);
+                  })
+
                   dataGrid.option('filterValue', [
                     // [
                     //   ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",

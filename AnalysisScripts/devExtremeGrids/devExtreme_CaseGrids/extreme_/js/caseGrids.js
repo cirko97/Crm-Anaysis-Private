@@ -7,6 +7,7 @@ let newCreateId;
 let oneAssetId = undefined;
 let timeEntryTypesArray = [];
 let isEditable = true;
+let treeView;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -377,6 +378,7 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
+            editCellTemplate: dropDownBoxEditorTemplate,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -921,6 +923,63 @@ async function setClientApiContext(Xrm, formContext) {
         }
       }).dxDataGrid('instance');
     });
+
+    const syncTreeViewSelection = function (treeViewInstance, value) {
+      if (!value) {
+        treeViewInstance.unselectAll();
+      } else {
+        treeViewInstance.selectItem(value);
+      }
+    };
+
+    // Lookup drowpdown template dxDropDownBox editor
+    function dropDownBoxEditorTemplate(cellElement, cellInfo) {
+
+      console.log('cellElement');
+      console.log(cellElement);
+      console.log('cellInfo');
+      console.log(cellInfo);
+
+      return $('<div>').dxDropDownBox({
+        value: cellInfo.data.extreme_asset ? cellInfo.data.extreme_asset : null,
+        valueExpr: 'id',
+        displayExpr: 'name',
+        placeholder: 'Select a value...',
+        showClearButton: true,
+        inputAttr: { 'aria-label': 'Asset' },
+        dataSource: assetsArray,
+        contentTemplate(e) {
+          const $treeView = $('<div>').dxTreeView({
+            dataSource: e.component.getDataSource(),
+            dataStructure: 'plain',
+            keyExpr: 'id',
+            parentIdExpr: 'extreme_parentasset',
+            selectionMode: 'single',
+            displayExpr: 'name',
+            selectByClick: true,
+            onContentReady(args) {
+              const value = e.component.option('value');
+              syncTreeViewSelection(args.component, value);
+            },
+            selectNodesRecursive: false,
+            onItemSelectionChanged(args) {
+              const selectedKeys = args.component.getSelectedNodeKeys();
+              e.component.option('value', selectedKeys);
+            },
+          });
+
+          treeView = $treeView.dxTreeView('instance');
+
+          e.component.on('valueChanged', (args) => {
+            syncTreeViewSelection(treeView, args.value);
+            e.component.close();
+          });
+
+          return $treeView;
+        },
+      });
+    }
+
   }
 
 
