@@ -7,7 +7,8 @@ let newCreateId;
 let oneAssetId = undefined;
 let timeEntryTypesArray = [];
 let isEditable = true;
-let treeView;
+let heightAuto = true;
+var treeList, searchTimer, focusedRowKey;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -378,7 +379,7 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
-            // editCellTemplate: dropDownBoxEditorTemplate,
+            editCellTemplate: dropDownBoxEditorTemplate,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -957,94 +958,116 @@ async function setClientApiContext(Xrm, formContext) {
     // Lookup drowpdown template dxDropDownBox editor
     function dropDownBoxEditorTemplate(cellElement, cellInfo) {
 
-      let searchTimer;
-
       console.log('cellElement');
       console.log(cellElement);
       console.log('cellInfo');
       console.log(cellInfo);
 
-      return $('<div>').dxDropDownBox({
-        value: cellInfo.data.extreme_asset ? cellInfo.data.extreme_asset : null,
-        valueExpr: 'id',
-        displayExpr: 'name',
-        placeholder: 'Select a value...',
+      return $("<div>").dxDropDownBox({
+        onValueChanged: function (e) {
+          console.log('onValueChanged');
+          console.log(e);
+
+          if (!e.value) {
+            treeList.deselectAll()
+            return;
+          }
+          else {
+            e.component.option("value", e.value)
+          }
+        },
+        showClearButton: true,
         acceptCustomValue: true,
         openOnFieldClick: false,
-        valueChangeEvent: "",
-        showClearButton: true,
-        inputAttr: { 'aria-label': 'Asset' },
+        valueChangeEvent: "input",
+        hoverStateEnabled: true,
+        focusedRowIndex: 0,
+        remoteOperations: true,
+        height: "100%",
+        width: '100%',
+        keyExpr: "id",
+        valueExpr: "id",
         dataSource: assetsStore,
+        displayExpr: function (item) {
+          return item.name;
+        },
         onInput: function (e) {
-          clearTimeout(searchTimer);
-          searchTimer = setTimeout(function () {
-            var text = e.component.option("text"),
-              opened = e.component.option("opened");
-
-              assetsStore.searchValue(text);
-            if (opened && isSearchIncomplete(e.component)) {
-              assetsStore.load();
-            } else {
-              e.component.open();
-            }
-          }, 1000);
+          let ddbInstance = e.component;
+          if (!ddbInstance.option("opened")) ddbInstance.open();
+          let text = ddbInstance.option("text");
+          let value = ddbInstance.option("value");
+          if (typeof value === "string") {
+            treeList.option("searchPanel.text", text)
+          };
         },
         onOpened: function (e) {
-          console.log('onOpened event:');
-          console.log(e);
-
-          if (isSearchIncomplete(e.component)) {
-            assetsStore.load();
-          }
-        },
-        onClosed: function (e) {
-          console.log('onClosed event:');
-          console.log(e);
-
-          var value = e.component.option("value"),
-            searchValue = assetsStore.searchValue();
-
-          if (isSearchIncomplete(e.component)) {
-            e.component.reset();
-            e.component.option("value", value);
-          }
-
-          if (searchValue) {
-            assetsStore.searchValue(null);
-            assetsStore.load();
-          }
-        },
-        contentTemplate(e) {
-          const $treeView = $('<div>').dxTreeView({
-            dataSource: e.component.getDataSource(),
-            dataStructure: 'plain',
-            keyExpr: 'id',
-            parentIdExpr: 'extreme_parentasset',
-            selectionMode: 'single',
-            displayExpr: 'name',
-            selectByClick: true,
-            onContentReady(args) {
-              const value = e.component.option('value');
-              syncTreeViewSelection(args.component, value);
-            },
-            selectNodesRecursive: false,
-            onItemSelectionChanged(args) {
-              const selectedKeys = args.component.getSelectedNodeKeys();
-              e.component.option('value', selectedKeys);
-            },
+          heightAuto = false;
+          if (heightAuto === false) {
+            const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+            wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
+          };
+          e.component._popup.option('width', 500);
+          setTimeout(() => {
+            e.component.focus();
           });
-
-          treeView = $treeView.dxTreeView('instance');
-
-          e.component.on('valueChanged', (args) => {
-            syncTreeViewSelection(treeView, args.value);
-            console.log('syncTreeViewSelection');
-            console.log(syncTreeViewSelection(treeView, args.value));
-            e.component.close();
-          });
-
-          return $treeView;
         },
+        onKeyDown: function (e) {
+          let ddbInstance = e.component;
+          if (e.event.keyCode !== 40) return;
+          if (!ddbInstance.option("opened")) {
+            ddbInstance.open();
+          } else {
+            let treeListInstance = treeList.instance();
+            let focusedIndex = treeListInstance.option("focusedRowIndex");
+            let visibleRows = treeListInstance.getVisibleRows().length - 1;
+            if (focusedIndex === -1 || visibleRows < focusedIndex) focusedIndex = 0;
+            treeList.focus(treeListInstance.getRowElement(focusedIndex));
+            // treeList.focus(treeListInstance.getRowElement(0));
+          }
+        },
+        contentTemplate: function (e, container) {
+          let ddbInstance = e.component;
+          let treeListContainer = $("<div>").dxTreeList({
+            dataSource: assetsStore,
+            keyExpr: "id",
+            parentIdExpr: "extreme_parentasset",
+            columnAutoWidth: true,
+            wordWrapEnabled: true,
+            showBorders: true,
+            height: "100%",
+            width: '100%',
+            focusedRowEnabled: true,
+            searchPanel: {
+              highlightSearchText: false,
+            },
+            selection: {
+              mode: "single"
+            },
+            columns: [
+              {
+                dataField: "id"
+              }, {
+                dataField: "name",
+                width: 300
+              }
+            ],
+            onSelectionChanged: function (e) {
+              console.log('onSelectionChanged');
+              console.log(e);
+              
+              let keys = e.selectedRowKeys,
+                hasSelection = keys.length;
+
+              console.log(keys);
+              console.log(hasSelection);
+
+              ddbInstance.option("value", hasSelection ? keys[0] : null);
+            }
+          });
+          container.append(treeListContainer);
+          treeList = treeListContainer.dxTreeList("instance");
+          return container;
+        }
       });
     }
 
@@ -1069,10 +1092,12 @@ async function setClientApiContext(Xrm, formContext) {
           const gridContainerHeight = gridContainer.offsetHeight;
           // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
           const iframe = wrControl.getObject();
-          if (gridContainerHeight > 250) {
-            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-          } else {
-            iframe.style.minHeight = '250px';
+          if (heightAuto === true) {
+            if (gridContainerHeight > 250) {
+              iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+            } else {
+              iframe.style.minHeight = '250px';
+            }
           }
         }
       });

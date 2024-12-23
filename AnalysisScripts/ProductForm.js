@@ -7,12 +7,20 @@ var ProductForm = window.ProductForm || {};
         formContext = executionContext.getFormContext();
 
         const formType = formContext.ui.getFormType();
+        const isParent = formContext.getAttribute("extreme_isparent");
+
         if (formType === FORM_NEW) {
 
             setDefaults(formContext);
 
-        }
+        }   
 
+        if (isParent.getValue() !== null && isParent.getValue() === true){
+            var tab = formContext.ui.tabs.get("product_details");
+            var section = tab.sections.get("setProducts");
+            section.setVisible(true);
+        }
+        
         formContext.getAttribute("extreme_synchronized").addOnChange(lockProductID);
         lockProductID();
         
@@ -21,6 +29,8 @@ var ProductForm = window.ProductForm || {};
                 formContext.getControl("productnumber").setDisabled(true);
             }
         }
+
+
     }
 
     

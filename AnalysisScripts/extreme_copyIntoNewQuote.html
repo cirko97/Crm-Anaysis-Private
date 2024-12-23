@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Copy Quote</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center; /* Centriranje dugmeta horizontalno */
+            align-items: center; /* Centriranje dugmeta vertikalno */
+            height: 100vh; /* Puni visinu prozora */
+            margin: 0; /* Uklanjanje podrazumevanih margina */
+            background-color: transparent; /* Prozirna pozadina */
+        }
+        #copyQuoteBtn {
+            padding: 10px 20px; /* Smanjenje veliÄine dugmeta */
+            font-size: 14px; /* Manja veliÄina fonta */
+            color: #f0f0f0; /* Svetlija boja teksta */
+            background-color: #005a9e; /* Tamnija plava boja pozadine dugmeta */
+            border: none; /* Uklanjanje ivice */
+            border-radius: 5px; /* Zaobljeni ivici */
+            cursor: pointer; /* PokazivaÄ kursora */
+            transition: background-color 0.3s; /* Efekat prelaza */
+        }
+        #copyQuoteBtn:hover {
+            background-color: #004080; /* JoÅ¡ tamnija boja pri prelazu miÅ¡em */
+        }
+    </style>
+</head>
+<body>
+    <button id="copyQuoteBtn">Copy into New Quote</button>
+
+    <script>
+        $(document).ready(function() {
+            if (typeof window.parent.Xrm !== 'undefined') {
+                $("#copyQuoteBtn").click(function() {
+                    
+                    var formContext = window.parent.Xrm.Page; // Get form context
+                    var entityId = formContext.data.entity.getId();
+
+                    // Check if entityId is valid
+                    if (!entityId) {
+                        console.error("Nije pronadjen nijedan zapis ponude.");
+                        return;
+                    }
+                    var confirmStrings = { text:"Are you sure you want to create a new Quote based of this one?", title:"Copy Quote Dialog" };
+                    var confirmOptions = { height: 200, width: 450 };
+                    Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+                    function (success) {    
+                        if (success.confirmed){
+                            console.log("Dialog closed using OK button.");
+                            Xrm.Utility.showProgressIndicator("Copying Quote... Please Wait...")
+
+                            const extreme_deliveryinfo = formContext.getAttribute("extreme_deliveryinfo");
+                            const extreme_printoutinfo = formContext.getAttribute("extreme_printoutinfo");
+                            const extreme_newquotecurrency = formContext.getAttribute("extreme_newquotecurrency");
+
+                            //create header and include logic for setup
+
+                            //create lines
+
+                            //ask user to open new quote in a new window
+
+                        }
+                        else {
+
+                        }
+                    });
+                });
+            } else {
+                console.error("Xrm nije definisan. Uverite se da se ovo izvrsava u Dynamics 365 okruzenju.");
+            }
+        });
+    </script>
+</body>
+</html>

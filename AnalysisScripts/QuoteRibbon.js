@@ -411,7 +411,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 		}
 	);
 	// creates everything DESC isParent
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quantity,extreme_producttype,_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
 		async function success(results) {
 			console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
@@ -503,10 +503,33 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
 					if(extreme_vendorsupplier !== null)
 					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
-					if(extreme_producttype !== null)
-					record.producttypecode = extreme_producttype; // Choice   //1 products 3services
+					if(extreme_producttype !== null){
+						record.producttypecode = extreme_producttype; // Choice   //1 products 3services
+					} else {
+						record.producttypecode = 1;
+					}
 					if(extreme_vatgroup !== null)
 					record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${extreme_vatgroup})`; 
+					if(extreme_isparentitem !== null)
+					record["extreme_isparent"] = extreme_isparentitem;
+					if(extreme_parentquoteline !== null){
+						var parentProductId = await Xrm.WebApi.retrieveRecord("quotedetail", extreme_parentquoteline, "?$select=_productid_value").then(
+							function success(result) {
+								console.log(result);
+								// Columns
+								return result["_productid_value"]; // Lookup
+							},
+							function(error) {
+								console.log(error.message);
+							}
+						);
+						record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
+						record["extreme_quantityforparent"] = quantity;
+					}
+					
+
+					
+
 
 					var newProductId = await Xrm.WebApi.createRecord("product", record).then(
 						function success(result) {
@@ -590,6 +613,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 								);
 								var record = {};
 								record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
+								record["extreme_quantityforparent"] = quantity;
 
 								await Xrm.WebApi.updateRecord("product", productid, record).then(
 									function success(result) {

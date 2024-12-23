@@ -10,6 +10,8 @@ var AccountRibbon = window.AccountRibbon || {};
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
 		function (success) {    
 			if (success.confirmed){
+				
+
 				var executeWorkflowRequest = {
 					entity: { entityType: "workflow", id: `${workflowId}` },
 					EntityId: { guid: `${accountId}` },
