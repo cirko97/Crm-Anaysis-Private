@@ -38,6 +38,10 @@ function form_onload(executionContext) {
   resolutionTab.addTabStateChange(showHeader);
   generalTab.addTabStateChange(showHeader);
 
+  //customCalendarFetch
+  calendarTab.addTabStateChange(filterCalendarSubgrid);
+  filterCalendarSubgrid();
+
   //schedule fields logic
   formContext.getAttribute("extreme_scheduledstart").addOnChange(PopulateScheduledEnd);
   formContext.getAttribute("extreme_scheduledstart").addOnChange(ValidateDates);
@@ -48,6 +52,102 @@ function form_onload(executionContext) {
 
 
 //functions
+let isFilterApplied = false; // Flag to prevent infinite refresh loop
+
+async function filterCalendarSubgrid() {
+    var subgrid = formContext.getControl("Subgrid_new_1");
+
+    if (subgrid) {
+        console.log("Subgrid control found. Waiting for it to load...");
+
+        subgrid.addOnLoad(() => {
+            if (!isFilterApplied) {
+                console.log("Subgrid is loaded. Applying FilterXml...");
+                applyCalendarFilter();
+                isFilterApplied = true; // Set flag after first application
+            } else {
+                console.log("Filter already applied. Skipping...");
+            }
+        });
+
+        // Fallback in case `addOnLoad` doesn't trigger
+        ensureSubgridIsReady(subgrid);
+    } else {
+        console.error("Subgrid control not found!");
+    }
+}
+
+// Fallback retry logic to ensure the grid is loaded
+function ensureSubgridIsReady(subgrid, retries = 5, delay = 500) {
+    if (retries === 0) {
+        console.error("Subgrid failed to load after multiple retries.");
+        return;
+    }
+
+    // Check if subgrid data is available
+    if (subgrid && subgrid.getGrid && subgrid.getGrid().getRows().getLength() >= 0) {
+        if (!isFilterApplied) {
+            console.log("Subgrid is ready (via fallback retry). Applying FilterXml...");
+            applyCalendarFilter();
+            isFilterApplied = true; // Set flag after first application
+        } else {
+            console.log("Filter already applied (via fallback retry). Skipping...");
+        }
+    } else {
+        console.warn(`Subgrid not ready. Retrying... (${retries} retries left)`);
+        setTimeout(() => ensureSubgridIsReady(subgrid, retries - 1, delay), delay);
+    }
+}
+
+// Apply the filter to the calendar subgrid
+async function applyCalendarFilter() {
+    var subgrid = formContext.getControl("Subgrid_new_1");
+    var ownerId = formContext.getAttribute("ownerid").getValue();
+
+    if (ownerId !== null) {
+        var ownerGuid = ownerId[0].id.slice(1, -1); // Extract GUID without braces
+
+        var fetchXml = `<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="true">
+                            <entity name="appointment">
+                                <attribute name="statecode"/>
+                                <attribute name="subject"/>
+                                <attribute name="scheduledstart"/>
+                                <attribute name="scheduledend"/>
+                                <attribute name="regardingobjectid"/>
+                                <attribute name="prioritycode"/>
+                                <attribute name="activityid"/>
+                                <attribute name="instancetypecode"/>
+                                <attribute name="location"/>
+                                <order attribute="scheduledstart" descending="false"/>
+                                <filter type="and">
+                                    <condition attribute="statecode" operator="in">
+                                        <value>0</value>
+                                        <value>3</value>
+                                    </condition>
+                                </filter>
+                                <link-entity name="activityparty" from="activityid" to="activityid" alias="aa" link-type="inner">
+                                    <filter type="and">
+                                        <condition attribute="partyid" operator="eq" value="${ownerGuid}" uitype="systemuser"/>
+                                        <condition attribute="participationtypemask" operator="in">
+                                            <value>7</value>
+                                            <value>9</value>
+                                            <value>5</value>
+                                            <value>6</value>
+                                        </condition>
+                                    </filter>
+                                </link-entity>
+                            </entity>
+                        </fetch>`;
+
+        subgrid.setFilterXml(fetchXml);
+        subgrid.refresh();
+        console.log("Filter applied and grid refreshed.");
+    } else {
+        console.warn("Owner ID is null. Hiding subgrid.");
+        subgrid.setVisible(false);
+    }
+}
+
 async function checkIfFileExists() { 
   var FileColumnValue = fileColumn.getValue();
   const statusReason = formContext.getAttribute("statuscode").getValue();
