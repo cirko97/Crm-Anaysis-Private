@@ -378,7 +378,7 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
-            editCellTemplate: dropDownBoxEditorTemplate,
+            // editCellTemplate: dropDownBoxEditorTemplate,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -924,7 +924,22 @@ async function setClientApiContext(Xrm, formContext) {
       }).dxDataGrid('instance');
     });
 
+    const isSearchIncomplete = function (dropoDownBox) {
+      let value = dropoDownBox.option("value"),
+        displayValue = dropoDownBox.option("displayValue"),
+        text = dropoDownBox.option("text");
+
+      text = text && text.length && text[0];
+      displayValue = displayValue && displayValue.length && displayValue[0];
+
+      return text !== displayValue;
+    };
+
     const syncTreeViewSelection = function (treeViewInstance, value) {
+
+      console.log(treeViewInstance);
+      console.log(value);
+
       if (!value) {
         treeViewInstance.unselectAll();
       } else {
@@ -932,8 +947,17 @@ async function setClientApiContext(Xrm, formContext) {
       }
     };
 
+    const assetsStore = new DevExpress.data.DataSource({
+      store: new DevExpress.data.ArrayStore({
+        key: 'id',
+        data: assetsArray,
+      })
+    });
+
     // Lookup drowpdown template dxDropDownBox editor
     function dropDownBoxEditorTemplate(cellElement, cellInfo) {
+
+      let searchTimer;
 
       console.log('cellElement');
       console.log(cellElement);
@@ -945,9 +969,51 @@ async function setClientApiContext(Xrm, formContext) {
         valueExpr: 'id',
         displayExpr: 'name',
         placeholder: 'Select a value...',
+        acceptCustomValue: true,
+        openOnFieldClick: false,
+        valueChangeEvent: "",
         showClearButton: true,
         inputAttr: { 'aria-label': 'Asset' },
-        dataSource: assetsArray,
+        dataSource: assetsStore,
+        onInput: function (e) {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(function () {
+            var text = e.component.option("text"),
+              opened = e.component.option("opened");
+
+              assetsStore.searchValue(text);
+            if (opened && isSearchIncomplete(e.component)) {
+              assetsStore.load();
+            } else {
+              e.component.open();
+            }
+          }, 1000);
+        },
+        onOpened: function (e) {
+          console.log('onOpened event:');
+          console.log(e);
+
+          if (isSearchIncomplete(e.component)) {
+            assetsStore.load();
+          }
+        },
+        onClosed: function (e) {
+          console.log('onClosed event:');
+          console.log(e);
+
+          var value = e.component.option("value"),
+            searchValue = assetsStore.searchValue();
+
+          if (isSearchIncomplete(e.component)) {
+            e.component.reset();
+            e.component.option("value", value);
+          }
+
+          if (searchValue) {
+            assetsStore.searchValue(null);
+            assetsStore.load();
+          }
+        },
         contentTemplate(e) {
           const $treeView = $('<div>').dxTreeView({
             dataSource: e.component.getDataSource(),
@@ -972,6 +1038,8 @@ async function setClientApiContext(Xrm, formContext) {
 
           e.component.on('valueChanged', (args) => {
             syncTreeViewSelection(treeView, args.value);
+            console.log('syncTreeViewSelection');
+            console.log(syncTreeViewSelection(treeView, args.value));
             e.component.close();
           });
 
