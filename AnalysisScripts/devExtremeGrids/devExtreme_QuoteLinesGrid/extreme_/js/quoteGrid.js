@@ -3703,7 +3703,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                   quoteLinesData._array.filter(item => item.extreme_isparentitem === true).forEach(elm => {
                     dataGrid.collapseRow(elm.quotedetailid);
-                  })
+                  });
 
                   dataGrid.option('filterValue', [
                     // [
@@ -3876,8 +3876,8 @@ async function setClientApiContext(Xrm, formContext) {
             // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
           }
           else if (e.rowType === 'data' && $('#classifyBtn').dxButton('instance').option('disabled') === true) {
-            e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
-            e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
+            e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+            e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
           }
 
         },
