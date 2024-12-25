@@ -36,7 +36,10 @@
                 $("#copyQuoteBtn").click(function() {
                     
                     var formContext = window.parent.Xrm.Page; // Get form context
+                    var Xrm = window.parent.Xrm;
                     var entityId = formContext.data.entity.getId();
+                    
+  
 
                     // Check if entityId is valid
                     if (!entityId) {
@@ -46,21 +49,101 @@
                     var confirmStrings = { text:"Are you sure you want to create a new Quote based of this one?", title:"Copy Quote Dialog" };
                     var confirmOptions = { height: 200, width: 450 };
                     Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-                    function (success) {    
+                    async function (success) {    
                         if (success.confirmed){
                             console.log("Dialog closed using OK button.");
-                            Xrm.Utility.showProgressIndicator("Copying Quote... Please Wait...")
+                            Xrm.Utility.showProgressIndicator("Copying Quote... Please Wait...");
 
                             const extreme_deliveryinfo = formContext.getAttribute("extreme_deliveryinfo");
                             const extreme_printoutinfo = formContext.getAttribute("extreme_printoutinfo");
                             const extreme_newquotecurrency = formContext.getAttribute("extreme_newquotecurrency");
 
-                            //create header and include logic for setup
+                            var originalQuote = await Xrm.WebApi.retrieveRecord("quote", entityId.slice(1,-1), "?$select=extreme_bankaccountonprintout,_transactioncurrencyid_value,_extreme_deliverymethod_value,extreme_detailedprintoutdescription,freighttermscode,extreme_incotermsplace,extreme_note,_extreme_paymentterms_value,_customerid_value,_extreme_primarycontact_value,extreme_printinenglish,extreme_printoutname,willcall,shipto_name,_extreme_shippingpostalcode_value").then(
+                                function success(result) {
+                                    console.log(result);
+                                    // Columns
+                                    var quoteid = result["quoteid"]; // Guid
+                                    var extreme_bankaccountonprintout = result["extreme_bankaccountonprintout"]; // Choice
+                                    var extreme_bankaccountonprintout_formatted = result["extreme_bankaccountonprintout@OData.Community.Display.V1.FormattedValue"];
+                                    var transactioncurrencyid = result["_transactioncurrencyid_value"]; // Lookup
+                                    var transactioncurrencyid_formatted = result["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"];
+                                    var transactioncurrencyid_lookuplogicalname = result["_transactioncurrencyid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                    var extreme_deliverymethod = result["_extreme_deliverymethod_value"]; // Lookup
+                                    var extreme_deliverymethod_formatted = result["_extreme_deliverymethod_value@OData.Community.Display.V1.FormattedValue"];
+                                    var extreme_deliverymethod_lookuplogicalname = result["_extreme_deliverymethod_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                    var extreme_detailedprintoutdescription = result["extreme_detailedprintoutdescription"]; // Multiline Text
+                                    var freighttermscode = result["freighttermscode"]; // Choice
+                                    var freighttermscode_formatted = result["freighttermscode@OData.Community.Display.V1.FormattedValue"];
+                                    var extreme_incotermsplace = result["extreme_incotermsplace"]; // Text
+                                    var extreme_note = result["extreme_note"]; // Multiline Text
+                                    var extreme_paymentterms = result["_extreme_paymentterms_value"]; // Lookup
+                                    var extreme_paymentterms_formatted = result["_extreme_paymentterms_value@OData.Community.Display.V1.FormattedValue"];
+                                    var extreme_paymentterms_lookuplogicalname = result["_extreme_paymentterms_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                    var customerid = result["_customerid_value"]; // Customer
+                                    var customerid_formatted = result["_customerid_value@OData.Community.Display.V1.FormattedValue"];
+                                    var customerid_lookuplogicalname = result["_customerid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                    var extreme_primarycontact = result["_extreme_primarycontact_value"]; // Lookup
+                                    var extreme_primarycontact_formatted = result["_extreme_primarycontact_value@OData.Community.Display.V1.FormattedValue"];
+                                    var extreme_primarycontact_lookuplogicalname = result["_extreme_primarycontact_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                    var extreme_printinenglish = result["extreme_printinenglish"]; // Boolean
+                                    var extreme_printinenglish_formatted = result["extreme_printinenglish@OData.Community.Display.V1.FormattedValue"];
+                                    var extreme_printoutname = result["extreme_printoutname"]; // Choice
+                                    var extreme_printoutname_formatted = result["extreme_printoutname@OData.Community.Display.V1.FormattedValue"];
+                                    var willcall = result["willcall"]; // Boolean
+                                    var willcall_formatted = result["willcall@OData.Community.Display.V1.FormattedValue"];
+                                    var shipto_name = result["shipto_name"]; // Text
+                                    var extreme_shippingpostalcode = result["_extreme_shippingpostalcode_value"]; // Lookup
+                                    var extreme_shippingpostalcode_formatted = result["_extreme_shippingpostalcode_value@OData.Community.Display.V1.FormattedValue"];
+                                    var extreme_shippingpostalcode_lookuplogicalname = result["_extreme_shippingpostalcode_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
+                                    return result;
+                                },
+                                function(error) {
+                                    console.log(error.message);
+                                }
+                            );
+
+                            var record = {};
+                            if(originalQuote["_customerid_value"] !== null)
+                            record["customerid_account@odata.bind"] = `/accounts(${originalQuote["_customerid_value"]})`; // Customer
+                            if(originalQuote["_extreme_primarycontact_value"] !== null)
+                            record["extreme_PrimaryContact@odata.bind"] = `/contacts(${originalQuote["_extreme_primarycontact_value"]})`; // Lookup
+
+
+                            record["transactioncurrencyid@odata.bind"] = `/transactioncurrencies(${originalQuote["_transactioncurrencyid_value"]})`; // Lookup
+
+
+                            if(originalQuote["_extreme_deliverymethod_value"] !== null)
+                            record["extreme_DeliveryMethod@odata.bind"] = `/extreme_deliverymethods(${originalQuote["_extreme_deliverymethod_value"]})`; // Lookup
+                            if(originalQuote["_extreme_paymentterms_value"] !== null)
+                            record["extreme_Paymentterms@odata.bind"] = `/extreme_paymenttermses(${originalQuote["_extreme_paymentterms_value"]})`; // Lookup
+                            record.freighttermscode = originalQuote["freighttermscode"]; // Choice
+                            record.extreme_incotermsplace = originalQuote["extreme_incotermsplace"]; // Text
+                            record.willcall = originalQuote["willcall"]; // Boolean
+                            record.shipto_name = originalQuote["shipto_name"]; // Text
+                            if(originalQuote["_extreme_shippingpostalcode_value"] !== null)
+                            record["extreme_ShippingPostalCode@odata.bind"] = `/extreme_postaladdresses(${originalQuote["_extreme_shippingpostalcode_value"]})`; // Lookup
+
+
+                            record.extreme_printinenglish = originalQuote["extreme_printinenglish"]; // Boolean
+                            record.extreme_printoutname = originalQuote["extreme_printoutname"]; // Choice
+                            record.extreme_bankaccountonprintout = originalQuote["extreme_bankaccountonprintout"];
+                            record.extreme_note = originalQuote["extreme_note"]; // Multiline Text
+                            record.extreme_detailedprintoutdescription = originalQuote["extreme_detailedprintoutdescription"]; // Multiline Text
+
+                            var newQoute = await Xrm.WebApi.createRecord("quote", record).then(
+                                function success(result) {
+                                    var newId = result.id;
+                                    console.log(newId);
+                                },
+                                function(error) {
+                                    console.log(error.message);
+                                }
+                            );
                             //create lines
-
+                            
                             //ask user to open new quote in a new window
-
+                            Xrm.Utility.closeProgressIndicator();
                         }
                         else {
 

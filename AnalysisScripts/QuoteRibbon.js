@@ -41,11 +41,20 @@ var QuoteRibbon = window.QuoteRibbon || {};
 
 		Xrm.Utility.showProgressIndicator("Creating email...");
 
-		var emailId = await createEmail(quoteId);
+		var brojPonude = formContext.getAttribute("quotenumber").getValue();
+		var revBroj = formContext.getAttribute("revisionnumber").getValue();
+		var puniBrojPonude = "";
+		if(revBroj > 0){
+			puniBrojPonude = brojPonude +"/"+ revBroj;
+		}else{
+			puniBrojPonude = brojPonude;
+		}
+
+		var emailId = await createEmail(quoteId, puniBrojPonude, formContext);
 
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
-		await attachFileToDraftEmail(blobData, emailId, "test.pdf", "application/pdf"); //smisliti naming konvenciju za PDF
+		await attachFileToDraftEmail(blobData, emailId, `${puniBrojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
 		
 		Xrm.Utility.closeProgressIndicator();
 
@@ -82,18 +91,39 @@ var QuoteRibbon = window.QuoteRibbon || {};
 	}
 	this.CheckAndSyncQuote = async function (formContext) {
 		var quoteId = formContext.data.entity.getId().slice(1, -1);
+		var stop = false;
 		// Checks
 		Xrm.Utility.showProgressIndicator(
 			'Synchronizing Data... Please Wait.');
 		//isAccountSynced
 		var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
-		if (await isAccountSynced(accountId) == false) {
+		
+		if (await isAccountValidForSync(accountId) == false){
+			var alertStrings = { confirmButtonLabel: "OK", text: "Please make sure that you have entered a valid VAT No. and Tax % for this customer and try again!", title: "Synchronization Validation" };
+			var alertOptions = { height: 240, width: 260 };
+			await Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+				function (success) {
+					console.log("Alert dialog closed");
+					stop = true;
+				},
+				function (error) {
+					console.log(error.message);
+					stop = true;
+				}
+			);
+		}
+		if (stop)
+			Xrm.Utility.closeProgressIndicator();
+		if (stop)
+			return;
+
+		if (await isAccountSynced(accountId) == false && await isAccountValidForSync(accountId) == true) {
 			Xrm.Utility.showProgressIndicator(
 				'Account Sync In Progress... Please Wait.');
 			await syncAccount(accountId);
 			Xrm.Utility.showProgressIndicator(
 				'Account Synchronized....... Please Wait.');
-		}
+		} 
 		//isCostDriveNeededAndSynced
 		if (isCostDriveNeeded) {
 			if (formContext.getAttribute("opportunityid").getValue() !== null) {
@@ -253,26 +283,101 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
         }
     });
 };
-const createEmail = async function (quoteId) {
-	var record = {};
-	record["regardingobjectid_quote_email@odata.bind"] = `/quotes(${quoteId})`; // Lookup
-	record.subject = "PONUDA BATO"; // Text
-	record.sender = "vladimir.djordjevic@extreme.rs"; // Text
-	record.torecipients = "vladimir.djordjevic@extreme.rs"; // Text
-	record.description = "NEKI TEKST"; // Multiline Text
-	
-	var newId = await Xrm.WebApi.createRecord("email", record).then(
-		function success(result) {
-			return result.id;
-		},
-		function(error) {
-			console.log(error.message);
-		}
-	);
+const createEmail = async function (quoteId, quoteNumber, formContext) {
+    var emailActivityParties = [];
+    //
+    // Retrieve current user details for the sender
+    const userId = Xrm.Utility.getGlobalContext().userSettings.userId.slice(1, -1); // Remove curly braces
+    const currentUserName = Xrm.Utility.getGlobalContext().userSettings.userName;
 
-	return newId;
+    // Add the sender (current user) to the email_activity_parties array
+    emailActivityParties.push({
+        "partyid_systemuser@odata.bind": `/systemusers(${userId})`,
+        "participationtypemask": 1 // Sender
+    });
 
-}
+    // Retrieve primary contact or account for the To recipient
+    const contact = formContext.getAttribute("extreme_primarycontact");
+    const account = formContext.getAttribute("customerid");
+
+    if (contact && contact.getValue() !== null) {
+        const contactId = contact.getValue()[0].id;
+        const contactName = contact.getValue()[0].name;
+
+        let contactEmail = null;
+        try {
+            contactEmail = await Xrm.WebApi.retrieveRecord("contact", contactId, "?$select=emailaddress1")
+                .then(result => result["emailaddress1"]);
+        } catch (error) {
+            console.error("Error fetching contact email: ", error.message);
+        }
+
+        if (contactEmail) {
+            emailActivityParties.push({
+                "partyid_contact@odata.bind": `/contacts(${contactId.slice(1,-1)})`,
+                "participationtypemask": 2 // To recipient
+            });
+        }
+    } else if (account && account.getValue() !== null) {
+        const accountId = account.getValue()[0].id;
+        const accountName = account.getValue()[0].name;
+
+        let accountEmail = null;
+        try {
+            accountEmail = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=emailaddress1")
+                .then(result => result["emailaddress1"]);
+        } catch (error) {
+            console.error("Error fetching account email: ", error.message);
+        }
+
+        if (accountEmail) {
+            emailActivityParties.push({
+                "partyid_account@odata.bind": `/accounts(${accountId.slice(1,-1)})`,
+                "participationtypemask": 2 // To recipient
+            });
+        }
+    }
+
+    // Prepare the email record
+    var record = {
+        "regardingobjectid_quote_email@odata.bind": `/quotes(${quoteId})`, // Regarding field
+        "subject": `PONUDA ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
+        "description": `
+            Poštovani,<br><br>
+
+            u prilogu Vam dostavljamo našu prodajnu ponudu pripremljenu u skladu sa Vašim zahtevima.<br><br>
+
+            <b>Detalji ponude uključuju:</b><br>
+            - Opis proizvoda/usluga<br>
+            - Količine i cene<br>
+            - Rok isporuke<br>
+            - Načini plaćanja<br><br>
+
+            Ukoliko imate dodatna pitanja ili želite da razjasnimo bilo koji deo ponude, slobodno nas kontaktirajte.<br>
+            Stojimo Vam na raspolaganju za dalje korake i saradnju.<br><br>
+
+            Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
+
+            Srdačan pozdrav,<br>
+            <b>${currentUserName}</b><br>
+            Analysis d.o.o, Japanska 4, 11070 Beograd<br>
+            +381 11 318 64 46 / info@analysis.rs<br>
+            https://www.analysis.rs/
+        `,
+        "email_activity_parties": emailActivityParties
+    };
+
+    // Create the email record
+    try {
+        const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
+        console.log("Email created successfully with ID:", newId);
+        return newId;
+    } catch (error) {
+        console.error("Error creating email record: ", error.message);
+        return null;
+    }
+};
+
 const isAccountSynced = async function (accountId) {
 	var isAccountSynced = null;
 	isAccountSynced = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=extreme_synchronized").then(
@@ -289,6 +394,23 @@ const isAccountSynced = async function (accountId) {
 		}
 	);
 	return isAccountSynced;
+}
+const isAccountValidForSync = async function (accountId) {
+	var isAccountValidForSync = null;
+	isAccountValidForSync = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=extreme_vatnumber").then(
+		async function success(result) {
+			console.log(result);
+			// Columns
+			if(result["extreme_vatnumber"] !== null)
+			return true;
+			else
+			return false;
+		},
+		function (error) {
+			console.log(error.message);
+		}
+	);
+	return isAccountValidForSync;
 }
 const syncAccount = async function (accountId) {
 	// DDBFFDDD-0328-4F96-8A3C-E9235550F347 - Account SYNC Insert Workflow
