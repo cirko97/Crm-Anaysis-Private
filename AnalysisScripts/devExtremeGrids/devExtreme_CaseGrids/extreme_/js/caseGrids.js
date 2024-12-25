@@ -968,22 +968,15 @@ async function setClientApiContext(Xrm, formContext) {
         onValueChanged: function (e) {
           console.log('onValueChanged');
           console.log(e);
-          console.log(assetsStore);
 
-          if (!e.value || e.value == '') {
-            cellInfo.setValue(null);
-            e.component.option("value", null);
+          if (!e.value) {
+            treeList.deselectAll()
             return;
           }
           else {
-            if (assetsArray.find(item => item.id === e.value)) {
-              console.log('FOUND');
-              cellInfo.setValue(e.value);
-              e.component.option("value", e.value);
-            }
+            e.component.option("value", e.value)
           }
         },
-        value: cellInfo.value ? cellInfo.value : null,
         showClearButton: true,
         acceptCustomValue: true,
         openOnFieldClick: false,
@@ -1000,9 +993,6 @@ async function setClientApiContext(Xrm, formContext) {
           return item.name;
         },
         onInput: function (e) {
-          console.log('onInput');
-          console.log(e);
-        
           let ddbInstance = e.component;
           if (!ddbInstance.option("opened")) ddbInstance.open();
           let text = ddbInstance.option("text");
@@ -1012,29 +1002,17 @@ async function setClientApiContext(Xrm, formContext) {
           };
         },
         onOpened: function (e) {
-          console.log('onOpened');
-          console.log(e);
-
           heightAuto = false;
           if (heightAuto === false) {
             const iframeCorrentHeight = wrControl.getObject().offsetHeight;
             wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
           };
-          e.component._popup.option('width', 600);
+          e.component._popup.option('width', 500);
           setTimeout(() => {
             e.component.focus();
           });
         },
-        onDisposing: function (e) {
-          console.log('onDisposing');
-          console.log(e);
-
-          heightAuto = true;
-        },
         onKeyDown: function (e) {
-          console.log('onKeyDown');
-          console.log(e);
-
           let ddbInstance = e.component;
           if (e.event.keyCode !== 40) return;
           if (!ddbInstance.option("opened")) {
@@ -1056,7 +1034,7 @@ async function setClientApiContext(Xrm, formContext) {
             parentIdExpr: "extreme_parentasset",
             columnAutoWidth: true,
             wordWrapEnabled: true,
-            showBorders: false,
+            showBorders: true,
             height: "100%",
             width: '100%',
             focusedRowEnabled: true,
@@ -1078,7 +1056,7 @@ async function setClientApiContext(Xrm, formContext) {
             onSelectionChanged: function (e) {
               console.log('onSelectionChanged');
               console.log(e);
-
+              
               let keys = e.selectedRowKeys,
                 hasSelection = keys.length;
 

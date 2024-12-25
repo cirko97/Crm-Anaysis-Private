@@ -25,6 +25,8 @@ async function form_onload(executionContext) {
         && formContext.getAttribute("extreme_paymentterms").getValue() === null){
             populateAccountDefaults();
         }
+        var publishingLocation = await readConfigurationValue("QuotePublishingLocation")
+        formContext.getAttribute("extreme_placeofpublishing").setValue(publishingLocation);   
     }
 
     formContext.getAttribute("customerid").addOnChange(populateAccountDefaults);
@@ -119,4 +121,5 @@ async function form_onload(executionContext) {
             console.error("Max retries reached. Unable to set client API context.");
         }
     }
+    
 }
