@@ -4389,7 +4389,7 @@ async function setClientApiContext(Xrm, formContext) {
 
       // function for changing exchange rates
       const exchangeRateChange = async (currency, newValue) => {
-        await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
+        await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
           async function success(results) {
             console.log(results);
             for (var i = 0; i < results.entities.length; i++) {
@@ -4409,6 +4409,9 @@ async function setClientApiContext(Xrm, formContext) {
               var tax = ((pricePerUnit * (1 - extreme_discount / 100)) * quantity * (1 + extreme_tax / 100)) - (pricePerUnit * (1 - extreme_discount / 100) * quantity);
               var extendedAmount = tax + (pricePerUnit * (1 - extreme_discount / 100) * quantity);
 
+              var newPd =  result["extreme_pd"] * parseFloat(newValue);
+              var newFullPd = result["extreme_fullpd"] * parseFloat(newValue);
+
               await Xrm.WebApi.updateRecord("quotedetail", `${quotedetailid}`, {
                 extreme_supplierpriceperunit: extreme_pricelistpriceperunit * parseFloat(newValue),
                 extreme_supplierbaseamount: (extreme_pricelistpriceperunit * parseFloat(newValue)) * quantity,
@@ -4417,7 +4420,9 @@ async function setClientApiContext(Xrm, formContext) {
                 manualdiscountamount: manualDiscountAmount,
                 extreme_fullpricewithdiscount: fullPriceWithDiscount,
                 tax: tax,
-                extendedamount: extendedAmount
+                extendedamount: extendedAmount,
+                extreme_pd: newPd,
+                extreme_fullpd: newFullPd
               });
 
               quoteLinesData.update(quotedetailid, {
@@ -4428,7 +4433,9 @@ async function setClientApiContext(Xrm, formContext) {
                 manualdiscountamount: manualDiscountAmount,
                 extreme_fullpricewithdiscount: fullPriceWithDiscount,
                 tax: tax,
-                extendedamount: extendedAmount
+                extendedamount: extendedAmount,
+                extreme_pd: newPd,
+                extreme_fullpd: newFullPd
               });
 
               if (quoteLinesData._array.find((item) => item.quotedetailid === quotedetailid).extreme_parentquoteline) {

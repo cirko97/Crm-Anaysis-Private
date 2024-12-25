@@ -12,6 +12,11 @@ async function form_onload(executionContext) {
     // Check form type for quote grid
     if (formType !== FORM_NEW) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
+
+        formContext.getControl("extreme_deliveryinfo").setDisabled(false);
+        formContext.getControl("extreme_printoutinfo").setDisabled(false);
+        formContext.getControl("extreme_newquotecurrency").setDisabled(false);
+
     }
 
     if (formType === FORM_NEW) {
@@ -29,8 +34,16 @@ async function form_onload(executionContext) {
         formContext.getAttribute("extreme_placeofpublishing").setValue(publishingLocation);   
     }
 
+    if(formContext.getAttribute("effectivefrom").getValue() === null){
+        formContext.getAttribute("effectivefrom").setValue(new Date());
+        var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
+        var newEffectiveTo = addDays(new Date(), parseInt(defaultQuoteValidDays, 10));
+        formContext.getAttribute("effectiveto").setValue(newEffectiveTo);           
+    }
+
+
     formContext.getAttribute("customerid").addOnChange(populateAccountDefaults);
-   
+
     function addDays(date, days) {
         var result = new Date(date.valueOf());
         result.setDate(result.getDate() + days);
