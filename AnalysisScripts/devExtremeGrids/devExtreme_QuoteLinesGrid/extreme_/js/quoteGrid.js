@@ -4116,12 +4116,154 @@ async function setClientApiContext(Xrm, formContext) {
                         var producttypecode = result["producttypecode"]; // Choice
                         var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
 
+                        let productType = null;
+                        let defaultVatSetting = null;
+                        let defaultTax = null;
+
+                        if (typeof (productid) !== 'number') {
+                          if (productid !== null) {
+                            productType = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode");
+                            productType = productType.producttypecode;
+
+                            console.log('PRODUCT TYPE CHILD');
+                            console.log(productType);
+                            console.log(taxPercentOfAccount.extreme_tax);
+
+                            defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
+                            defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
+                          }
+                        }
+
+                        let priceListItemInfo = [];
+                        let classifyLookupsInfo = null;
+                        let supplierPricePerUnit = 0;
+
+                        if (productsStore._array.find((item) => item.id === productid).pricelevelid) {
+                          if (productid !== null) {
+                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === productid).pricelevelid} and _productid_value eq ${productid})`);
+                            classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+                          }
+                        }
+
+                        let area = null;
+                        let technology = null;
+                        let vendorSupplier = null;
+                        let vatGroup = null;
+                        let defaultUomid = null;
+                        let priceList = null;
+                        let priceListPPU = null;
+                        let priceListCurrecy = null;
+                        let taxAmount = null;
+                        let discountAmount = null;
+                        let extendedAmount = null;
+                        let pd = null;
+                        let fullPD = null;
+                        let PPU = null;
+                        let baseAmount = null;
+                        let supplierBaseAmount = null;
+                        let quantity = null;
+                        let fullPriceWithDiscount = null;
+                        let vatSetting = null;
+
+                        if (classifyLookupsInfo !== null) {
+                          if (classifyLookupsInfo.producttypecode) productType = classifyLookupsInfo.producttypecode;
+                          if (classifyLookupsInfo._extreme_area_value) area = classifyLookupsInfo._extreme_area_value;
+                          if (classifyLookupsInfo._extreme_technology_value) technology = classifyLookupsInfo._extreme_technology_value;
+                          if (classifyLookupsInfo._extreme_supplier_value) vendorSupplier = classifyLookupsInfo._extreme_supplier_value;
+                        }
+
+                        const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : null;
+                        const priceListItemAmountFormatted = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
+                        const priceListItemCurrency = priceListItemInfo.length !== 0 ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
+
+                        defaultTax = defaultVatSetting === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatSetting).vat
+                        if (defaultVatSetting !== null) {
+                          vatSetting = defaultVatSetting;
+                          vatGroup = vatSettingsArray.find(item => item.id === defaultVatSetting).idVatGroup;
+                        };
+                        if (productsStore._array.find((item) => item.id === productid).productDefaultUnit !== null) defaultUomid = productsStore._array.find((item) => item.id === productid).productDefaultUnit;
+                        if (productsStore._array.find((item) => item.id === productid).pricelevelid) {
+                          priceList = productsStore._array.find((item) => item.id === productid).pricelevelid;
+                          priceListPPU = priceListItemAmount;
+                          priceListCurrecy = priceListItemCurrency;
+                          if (quoteCurrencySymbol !== priceListItemCurrency) {
+                            // newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
+                            supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
+                          } else {
+                            // newData.extreme_supplierpriceperunit = priceListItemAmount;
+                            supplierPricePerUnit = priceListItemAmount;
+                          }
+                        };
+
+                        if (defaultMargin !== null &&
+                          supplierPricePerUnit !== null) {
+                          const supplierDiscount = 0;
+                          const discount = 0;
+                          quantity = 1;
+                          supplierBaseAmount = supplierPricePerUnit * 1;
+                          PPU = Math.ceil(defaultMargin * supplierPricePerUnit);
+                          const pricePerUnit = Math.ceil(defaultMargin * supplierPricePerUnit);
+                          baseAmount = Math.ceil(defaultMargin * supplierPricePerUnit) * 1;
+                          fullPriceWithDiscount = ((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1;
+                          discountAmount = (1 * (Math.ceil(defaultMargin * supplierPricePerUnit))) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
+                          taxAmount = ((((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
+                          extendedAmount = (((((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1)) + (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
+                          pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (supplierDiscount / 100)));
+                          const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (supplierDiscount / 100)));
+                          fullPD = pdPerUnit * 1;
+                        }
+
+                        console.log(area,
+                          technology,
+                          vendorSupplier,
+                          vatGroup,
+                          defaultUomid,
+                          priceList,
+                          priceListPPU,
+                          priceListCurrecy,
+                          taxAmount,
+                          discountAmount,
+                          extendedAmount,
+                          pd,
+                          fullPD,
+                          PPU,
+                          baseAmount,
+                          supplierBaseAmount,
+                          quantity,
+                          fullPriceWithDiscount,
+                          vatSetting)
+
+
                         var record = {};
                         record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
                         record["productid@odata.bind"] = `/products(${productid})`;
                         record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${newId})`;
                         record.quotedetailname = name; // Text
                         record["uomid@odata.bind"] = `/uoms(${defaultuomid})`;
+
+                        // additional fields
+                        if (productType) record.extreme_producttype = productType; // Choice
+                        if (vatSetting) record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${vatSetting})`; // Lookup
+                        if (taxAmount) record.tax = Number(parseFloat(taxAmount !== null ? taxAmount : 0).toFixed(4)); // Currency
+                        if (defaultTax) record.extreme_tax = defaultTax; // Decimal
+                        if (area) record["extreme_Area@odata.bind"] = `/extreme_areas(${area})`; // Lookup
+                        if (technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${technology})`; // Lookup
+                        if (vendorSupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${vendorSupplier})`; // Lookup
+                        if (vatGroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatGroup})`; // Lookup
+                        if (priceList) record["extreme_pricelist@odata.bind"] = `/pricelevels(${priceList})`; // Lookup
+                        if (priceListPPU) record.extreme_pricelistpriceperunit = priceListPPU; // Decimal
+                        if (priceListCurrecy) record.extreme_pricelistcurrency = priceListCurrecy; // Text
+                        record.manualdiscountamount = discountAmount ? Number(parseFloat(discountAmount).toFixed(4)) : 0; // Currency
+                        if (pd) record.extreme_pd = pd; // Decimal
+                        if (fullPD) record.extreme_fullpd = fullPD; // Decimal
+                        if (supplierBaseAmount) record.extreme_supplierbaseamount = supplierBaseAmount; // Decimal
+                        if (quantity) record.quantity = quantity; // Decimal
+                        if (fullPriceWithDiscount) record.extreme_fullpricewithdiscount = fullPriceWithDiscount; // Decimal
+                        if (PPU) record.priceperunit = Number(parseFloat(PPU).toFixed(4)); // Currency
+                        record.extreme_discount = 0; // Decimal
+                        record.extreme_supplierdiscount = 0; // Decimal
+                        if (defaultMargin) record.extreme_margin = defaultMargin; // Decimal
+                        if (supplierPricePerUnit) record.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
 
                         record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
                         record.extreme_isparentitem = false; // Boolean
@@ -4141,6 +4283,20 @@ async function setClientApiContext(Xrm, formContext) {
                           }
                         );
 
+                        // var record = {};
+                        // if (baseAmount) record.baseamount = Number(parseFloat(baseAmount).toFixed(4)); // Currency
+                        // if (extendedAmount) record.extendedamount = Number(parseFloat(extendedAmount).toFixed(4)); // Currency
+
+                        // await Xrm.WebApi.updateRecord("quotedetail", `${newIdChild}`, record).then(
+                        //   function success(result) {
+                        //     var updatedId = result.id;
+                        //     console.log(updatedId);
+                        //   },
+                        //   function (error) {
+                        //     console.log(error.message);
+                        //   }
+                        // );
+
                         var recordForStore = {};
                         recordForStore.quotedetailid = newIdChild;
                         recordForStore.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
@@ -4149,22 +4305,53 @@ async function setClientApiContext(Xrm, formContext) {
                         recordForStore.extreme_parentquoteline = newId;
                         recordForStore.uomid = defaultuomid;
 
-                        recordForStore.extreme_isparentitem = false; // Boolean
+                        // additional fields
+                        if (productType) recordForStore.extreme_producttype = productType; // Choice
+                        if (vatSetting) recordForStore.extreme_vatsetting = vatSetting; // Lookup
+                        if (taxAmount) recordForStore.tax = taxAmount; // Currency
+                        if (defaultTax) recordForStore.extreme_tax = defaultTax; // Decimal
+                        if (area) recordForStore.extreme_area = area; // Lookup
+                        if (technology) recordForStore.extreme_technology = technology; // Lookup
+                        if (vendorSupplier) recordForStore.extreme_vendorsupplier = vendorSupplier; // Lookup
+                        if (vatGroup) recordForStore.extreme_vatgroup = vatGroup; // Lookup
+                        if (priceList) recordForStore.extreme_pricelist = priceList; // Lookup
+                        if (priceListPPU) recordForStore.extreme_pricelistpriceperunit = priceListPPU; // Decimal
+                        if (priceListCurrecy) recordForStore.extreme_pricelistcurrency = priceListCurrecy; // Text
+                        if (discountAmount) recordForStore.manualdiscountamount = discountAmount; // Currency
+                        if (pd) recordForStore.extreme_pd = pd; // Decimal
+                        if (fullPD) recordForStore.extreme_fullpd = fullPD; // Decimal
+                        if (supplierBaseAmount) recordForStore.extreme_supplierbaseamount = supplierBaseAmount; // Decimal
+                        if (quantity) recordForStore.quantity = quantity; // Decimal
+                        if (fullPriceWithDiscount) recordForStore.extreme_fullpricewithdiscount = fullPriceWithDiscount; // Decimal
+                        if (PPU) recordForStore.priceperunit = PPU; // Currency
+                        recordForStore.extreme_discount = 0; // Decimal
+                        recordForStore.extreme_supplierdiscount = 0; // Decimal
+                        if (defaultMargin) recordForStore.extreme_margin = defaultMargin; // Decimal
+                        if (baseAmount) recordForStore.baseamount = baseAmount; // Currency
+                        if (extendedAmount) recordForStore.extendedamount = extendedAmount; // Currency
+                        if (supplierPricePerUnit) recordForStore.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
 
-                        quoteLinesData.insert(recordForStore);
-                        // .done(function (dataObj, key) {
-                        //   // Process the key and data object here
-                        //   console.log('dataObj');
-                        //   console.log(dataObj);
-                        //   console.log('key');
-                        //   console.log(key);
-                        //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
-                        //   console.log(quoteLinesData._array.find(item => item.quotedetailid == key));
-                        // })
-                        // .fail(function (error) {
-                        //   // Handle the "error" here
-                        //   console.log(error);
-                        // });
+                        recordForStore.extreme_isparentitem = false; // Boolean
+                        recordForStore.extreme_createasset = false; // Boolean
+
+                        quoteLinesData.insert(recordForStore)
+                          .done(function (dataObj, key) {
+                            // Process the key and data object here
+                            console.log(key);
+                          })
+                          .fail(function (error) {
+                            // Handle the "error" here
+                            console.log(error);
+                          });
+
+                        // recalculate parent item
+                        // if (baseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).baseamount += baseAmount;
+                        // if (extendedAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extendedamount += extendedAmount;
+                        // if (fullPD) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpd += fullPD;
+                        // if (fullPriceWithDiscount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpricewithdiscount += fullPriceWithDiscount;
+                        // if (discountAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).manualdiscountamount += discountAmount;
+                        // if (supplierBaseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_supplierbaseamount += supplierBaseAmount;
+                        // if (taxAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).tax += taxAmount;
 
                       }
                     },
@@ -4389,7 +4576,7 @@ async function setClientApiContext(Xrm, formContext) {
 
       // function for changing exchange rates
       const exchangeRateChange = async (currency, newValue) => {
-        await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
+        await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
           async function success(results) {
             console.log(results);
             for (var i = 0; i < results.entities.length; i++) {
@@ -4409,8 +4596,8 @@ async function setClientApiContext(Xrm, formContext) {
               var tax = ((pricePerUnit * (1 - extreme_discount / 100)) * quantity * (1 + extreme_tax / 100)) - (pricePerUnit * (1 - extreme_discount / 100) * quantity);
               var extendedAmount = tax + (pricePerUnit * (1 - extreme_discount / 100) * quantity);
 
-              var newPd =  result["extreme_pd"] * parseFloat(newValue);
-              var newFullPd = result["extreme_fullpd"] * parseFloat(newValue);
+              var newPd = pricePerUnit - (extreme_pricelistpriceperunit * parseFloat(newValue) - ((extreme_pricelistpriceperunit * parseFloat(newValue)) * (result.extreme_supplierdiscount / 100)));
+              var newFullPd = newPd * quantity;
 
               await Xrm.WebApi.updateRecord("quotedetail", `${quotedetailid}`, {
                 extreme_supplierpriceperunit: extreme_pricelistpriceperunit * parseFloat(newValue),
