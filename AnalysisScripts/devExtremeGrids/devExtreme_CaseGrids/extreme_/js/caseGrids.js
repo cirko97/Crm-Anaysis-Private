@@ -216,7 +216,8 @@ async function setClientApiContext(Xrm, formContext) {
 
           assetsArray.push({
             "id": extreme_assetid,
-            "name": extreme_serialnumber ? `${extreme_serialnumber} - ${extreme_name}` : extreme_name,
+            "sn": extreme_serialnumber,
+            "name": extreme_name,
             "extreme_isparent": extreme_isparent,
             "extreme_parentasset": extreme_parentasset
           });
@@ -1067,10 +1068,11 @@ async function setClientApiContext(Xrm, formContext) {
             },
             columns: [
               {
-                dataField: "id"
+                dataField: "sn",
+                caption: "S/N"
               }, {
                 dataField: "name",
-                width: 300
+                caption: "Name"
               }
             ],
             onSelectionChanged: function (e) {
