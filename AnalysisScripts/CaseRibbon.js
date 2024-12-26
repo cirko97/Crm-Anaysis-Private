@@ -373,7 +373,7 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
         }
     });
 };
-const createEmail = async function (quoteId) {
+const acreateEmail = async function (quoteId) {
 	var record = {};
 	record["regardingobjectid_quote_email@odata.bind"] = `/quotes(${quoteId})`; // Lookup
 	record.subject = "PONUDA BATO"; // Text

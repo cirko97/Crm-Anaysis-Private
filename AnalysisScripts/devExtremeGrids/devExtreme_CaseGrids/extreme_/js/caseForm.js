@@ -12,15 +12,6 @@ function form_onload(executionContext) {
   const retryDelay = 1000; // 1-second delay
   let isFilterApplied = false; // Flag to prevent infinite refresh loop
 
-  // Get Nav. Item
-  var navItem = formContext.ui.navigation.items.get("navSPDocuments");
-  // First set focus on Nav. Item to open related tab
-  navItem.setFocus();
-  // get Main tab (replace it with your tab name)
-  var mainTab =  formContext.ui.tabs.get("generalTab");
-  // Then move to Main Tab
-  mainTab.setFocus();
-
   if (formType == FORM_EDIT) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseLines"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
@@ -30,6 +21,17 @@ function form_onload(executionContext) {
     if (fileColumn) {
       fileColumn.addOnChange(checkIfFileExists);
     }
+  } else {
+    
+    // Get Nav. Item
+    var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+    // First set focus on Nav. Item to open related tab
+    navItem.setFocus();
+    // get Main tab (replace it with your tab name)
+    var mainTab =  formContext.ui.tabs.get("generalTab");
+    // Then move to Main Tab
+    mainTab.setFocus();
+
   }
 
   //case complaint

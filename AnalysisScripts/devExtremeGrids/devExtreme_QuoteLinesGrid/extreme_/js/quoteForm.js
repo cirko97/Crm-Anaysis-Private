@@ -9,15 +9,6 @@ async function form_onload(executionContext) {
     const maxRetries = 100;
     const retryDelay = 1000; // 1-second delay
 
-      // Get Nav. Item
-        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
-        // First set focus on Nav. Item to open related tab
-        navItem.setFocus();
-        // get Main tab (replace it with your tab name)
-        var mainTab =  formContext.ui.tabs.get("general");
-        // Then move to Main Tab
-        mainTab.setFocus();
-
     // Check form type for quote grid
     if (formType !== FORM_NEW) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
@@ -41,6 +32,15 @@ async function form_onload(executionContext) {
         }
         var publishingLocation = await readConfigurationValue("QuotePublishingLocation")
         formContext.getAttribute("extreme_placeofpublishing").setValue(publishingLocation);   
+    } else {
+        // Get Nav. Item
+        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+        // First set focus on Nav. Item to open related tab
+        navItem.setFocus();
+        // get Main tab (replace it with your tab name)
+        var mainTab =  formContext.ui.tabs.get("general");
+        // Then move to Main Tab
+        mainTab.setFocus();
     }
 
     if(formContext.getAttribute("effectivefrom").getValue() === null){
@@ -52,6 +52,11 @@ async function form_onload(executionContext) {
 
 
     formContext.getAttribute("customerid").addOnChange(populateAccountDefaults);
+    formContext.getAttribute("statecode").addOnChange(async () => {
+        await Xrm.Page.getControl('WebResource_quoteLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+    })
+
+
 
     function addDays(date, days) {
         var result = new Date(date.valueOf());

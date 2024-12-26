@@ -285,7 +285,7 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
 };
 const createEmail = async function (quoteId, quoteNumber, formContext) {
     var emailActivityParties = [];
-    //
+	//
     // Retrieve current user details for the sender
     const userId = Xrm.Utility.getGlobalContext().userSettings.userId.slice(1, -1); // Remove curly braces
     const currentUserName = Xrm.Utility.getGlobalContext().userSettings.userName;
