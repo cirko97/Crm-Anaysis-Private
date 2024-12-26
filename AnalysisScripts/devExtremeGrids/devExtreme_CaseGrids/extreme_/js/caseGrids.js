@@ -970,16 +970,18 @@ async function setClientApiContext(Xrm, formContext) {
           console.log(e);
 
           if (!e.value) {
-            treeList.deselectAll()
             return;
           }
           else {
-            e.component.option("value", e.value)
+            cellInfo.setValue(e.value);
+            e.component.option("value", e.value);
+            e.component.close();
           }
         },
-        showClearButton: true,
+        value: cellInfo.value ? cellInfo.value : null,
+        showClearButton: false,
         acceptCustomValue: true,
-        openOnFieldClick: false,
+        openOnFieldClick: true,
         valueChangeEvent: "input",
         hoverStateEnabled: true,
         focusedRowIndex: 0,
@@ -1011,6 +1013,12 @@ async function setClientApiContext(Xrm, formContext) {
           setTimeout(() => {
             e.component.focus();
           });
+        },
+        onClosed: function (e) {
+          heightAuto = true;
+        },
+        onDisposing: function (e) {
+          heightAuto = true;
         },
         onKeyDown: function (e) {
           let ddbInstance = e.component;
@@ -1063,6 +1071,7 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(keys);
               console.log(hasSelection);
 
+              cellInfo.setValue(hasSelection ? keys[0] : null);
               ddbInstance.option("value", hasSelection ? keys[0] : null);
             }
           });
