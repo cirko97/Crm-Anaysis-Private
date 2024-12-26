@@ -8,18 +8,15 @@ var AccountForm = window.AccountForm || {};
 
     this.OnLoad = async function (executionContext) {
         formContext = executionContext.getFormContext();
-
-        // eslint-disable-next-line no-undef
-        // var countryCode = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'countryCode'&$top=1").then(
-        //     function success(results) {
-        //         return results.entities[0]["extreme_value"];
-        //     },
-        //     function (error) {
-        //         console.log(error.message);
-        //     }
-        // );
-
         
+        // Get Nav. Item
+        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+        // First set focus on Nav. Item to open related tab
+        navItem.setFocus();
+        // get Main tab (replace it with your tab name)
+        var mainTab =  formContext.ui.tabs.get("general");
+        // Then move to Main Tab
+        mainTab.setFocus();
 
         const formType = formContext.ui.getFormType();
         if (formType === FORM_NEW) {

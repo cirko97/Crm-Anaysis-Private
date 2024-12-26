@@ -6,6 +6,15 @@ var ProductForm = window.ProductForm || {};
     this.OnLoad = async function (executionContext) {
         formContext = executionContext.getFormContext();
 
+          // Get Nav. Item
+        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+        // First set focus on Nav. Item to open related tab
+        navItem.setFocus();
+        // get Main tab (replace it with your tab name)
+        var mainTab =  formContext.ui.tabs.get("product_details");
+        // Then move to Main Tab
+        mainTab.setFocus();
+
         const formType = formContext.ui.getFormType();
         const isParent = formContext.getAttribute("extreme_isparent");
 

@@ -9,6 +9,15 @@ async function form_onload(executionContext) {
     const maxRetries = 100;
     const retryDelay = 1000; // 1-second delay
 
+      // Get Nav. Item
+        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+        // First set focus on Nav. Item to open related tab
+        navItem.setFocus();
+        // get Main tab (replace it with your tab name)
+        var mainTab =  formContext.ui.tabs.get("general");
+        // Then move to Main Tab
+        mainTab.setFocus();
+
     // Check form type for quote grid
     if (formType !== FORM_NEW) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
