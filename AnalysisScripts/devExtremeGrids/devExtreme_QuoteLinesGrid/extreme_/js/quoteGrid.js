@@ -4244,7 +4244,7 @@ async function setClientApiContext(Xrm, formContext) {
                         // additional fields
                         if (productType) record.extreme_producttype = productType; // Choice
                         if (vatSetting) record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${vatSetting})`; // Lookup
-                        if (taxAmount) record.tax = Number(parseFloat(taxAmount !== null ? taxAmount : 0).toFixed(4)); // Currency
+                        if (taxAmount) record.tax = Number(parseFloat(taxAmount).toFixed(4)); // Currency
                         if (defaultTax) record.extreme_tax = defaultTax; // Decimal
                         if (area) record["extreme_Area@odata.bind"] = `/extreme_areas(${area})`; // Lookup
                         if (technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${technology})`; // Lookup
@@ -4253,7 +4253,7 @@ async function setClientApiContext(Xrm, formContext) {
                         if (priceList) record["extreme_pricelist@odata.bind"] = `/pricelevels(${priceList})`; // Lookup
                         if (priceListPPU) record.extreme_pricelistpriceperunit = priceListPPU; // Decimal
                         if (priceListCurrecy) record.extreme_pricelistcurrency = priceListCurrecy; // Text
-                        record.manualdiscountamount = discountAmount ? Number(parseFloat(discountAmount).toFixed(4)) : 0; // Currency
+                        if (discountAmount) Number(parseFloat(discountAmount).toFixed(4)); // Currency
                         if (pd) record.extreme_pd = pd; // Decimal
                         if (fullPD) record.extreme_fullpd = fullPD; // Decimal
                         if (supplierBaseAmount) record.extreme_supplierbaseamount = supplierBaseAmount; // Decimal
@@ -4282,20 +4282,6 @@ async function setClientApiContext(Xrm, formContext) {
                             console.log(error.message);
                           }
                         );
-
-                        // var record = {};
-                        // if (baseAmount) record.baseamount = Number(parseFloat(baseAmount).toFixed(4)); // Currency
-                        // if (extendedAmount) record.extendedamount = Number(parseFloat(extendedAmount).toFixed(4)); // Currency
-
-                        // await Xrm.WebApi.updateRecord("quotedetail", `${newIdChild}`, record).then(
-                        //   function success(result) {
-                        //     var updatedId = result.id;
-                        //     console.log(updatedId);
-                        //   },
-                        //   function (error) {
-                        //     console.log(error.message);
-                        //   }
-                        // );
 
                         var recordForStore = {};
                         recordForStore.quotedetailid = newIdChild;
