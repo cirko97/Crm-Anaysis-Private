@@ -1365,7 +1365,7 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     cellTemplate(container, info) {
                       console.log(container, info);
-                      return info.data.extreme_pricelistpriceperunit !== null ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
+                      return info.data.extreme_pricelistpriceperunit !== null && info.data.extreme_pricelistpriceperunit !== undefined ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
                     },
                     visible: dataGrid.columnOption("extreme_pricelistpriceperunit", "visible"),
                     allowEditing: false
@@ -2694,7 +2694,7 @@ async function setClientApiContext(Xrm, formContext) {
             },
             cellTemplate(container, info) {
               console.log(container, info);
-              return info.data.extreme_pricelistpriceperunit !== null ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
+              return info.data.extreme_pricelistpriceperunit !== null && info.data.extreme_pricelistpriceperunit ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
             },
             visible: false,
             allowEditing: false
@@ -4240,6 +4240,8 @@ async function setClientApiContext(Xrm, formContext) {
                         record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${newId})`;
                         record.quotedetailname = name; // Text
                         record["uomid@odata.bind"] = `/uoms(${defaultuomid})`;
+                        // Override Price
+                        record.ispriceoverridden = true; // Boolean
 
                         // additional fields
                         if (productType) record.extreme_producttype = productType; // Choice
@@ -4273,9 +4275,24 @@ async function setClientApiContext(Xrm, formContext) {
 
                         let newIdChild = '';
                         await Xrm.WebApi.createRecord("quotedetail", record).then(
-                          function success(result) {
+                          async function success(result) {
                             var newId = result.id;
                             newIdChild = result.id;
+
+                            var record = {};
+                            if (baseAmount) record.baseamount = Number(parseFloat(baseAmount).toFixed(4)); // Currency
+                            if (extendedAmount) record.extendedamount = Number(parseFloat(extendedAmount).toFixed(4)); // Currency
+
+                            await Xrm.WebApi.updateRecord("quotedetail", `${result.id}`, record).then(
+                              function success(result) {
+                                var updatedId = result.id;
+                                console.log(updatedId);
+                              },
+                              function (error) {
+                                console.log(error.message);
+                              }
+                            );
+
                             console.log(newId);
                           },
                           function (error) {
@@ -4331,13 +4348,13 @@ async function setClientApiContext(Xrm, formContext) {
                           });
 
                         // recalculate parent item
-                        // if (baseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).baseamount += baseAmount;
-                        // if (extendedAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extendedamount += extendedAmount;
-                        // if (fullPD) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpd += fullPD;
-                        // if (fullPriceWithDiscount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpricewithdiscount += fullPriceWithDiscount;
-                        // if (discountAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).manualdiscountamount += discountAmount;
-                        // if (supplierBaseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_supplierbaseamount += supplierBaseAmount;
-                        // if (taxAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).tax += taxAmount;
+                        if (baseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).baseamount += baseAmount;
+                        if (extendedAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extendedamount += extendedAmount;
+                        if (fullPD) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpd += fullPD;
+                        if (fullPriceWithDiscount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpricewithdiscount += fullPriceWithDiscount;
+                        if (discountAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).manualdiscountamount += discountAmount;
+                        if (supplierBaseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_supplierbaseamount += supplierBaseAmount;
+                        if (taxAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).tax += taxAmount;
 
                       }
                     },
