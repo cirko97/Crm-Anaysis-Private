@@ -9,6 +9,8 @@ async function form_onload(executionContext) {
     const maxRetries = 100;
     const retryDelay = 1000; // 1-second delay
 
+    formContext.getControl("customerid").setEntityTypes(["account"]);
+
     // Check form type for quote grid
     if (formType !== FORM_NEW) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
@@ -16,6 +18,10 @@ async function form_onload(executionContext) {
         formContext.getControl("extreme_deliveryinfo").setDisabled(false);
         formContext.getControl("extreme_printoutinfo").setDisabled(false);
         formContext.getControl("extreme_newquotecurrency").setDisabled(false);
+
+        formContext.getControl("extreme_printinenglish").setDisabled(false);
+        formContext.getControl("extreme_printoutname").setDisabled(false);
+        formContext.getControl("extreme_bankaccountonprintout").setDisabled(false);
 
     }
 
