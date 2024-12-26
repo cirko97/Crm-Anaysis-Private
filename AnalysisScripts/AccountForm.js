@@ -9,21 +9,22 @@ var AccountForm = window.AccountForm || {};
     this.OnLoad = async function (executionContext) {
         formContext = executionContext.getFormContext();
         
-        // Get Nav. Item
-        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
-        // First set focus on Nav. Item to open related tab
-        navItem.setFocus();
-        // get Main tab (replace it with your tab name)
-        var mainTab =  formContext.ui.tabs.get("general");
-        // Then move to Main Tab
-        mainTab.setFocus();
-
         const formType = formContext.ui.getFormType();
         if (formType === FORM_NEW) {
             await setDefaults(formContext);
         }
         else if(formType === FORM_EDIT){
             formContext.getControl("extreme_paname30characters").setDisabled(true);
+
+            // Get Nav. Item
+            var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+            // First set focus on Nav. Item to open related tab
+            navItem.setFocus();
+            // get Main tab (replace it with your tab name)
+            var mainTab =  formContext.ui.tabs.get("general");
+            // Then move to Main Tab
+            mainTab.setFocus();
+
         } else if (formType === FORM_EDIT && formContext.getAttribute("extreme_tax").getValue() == null) {
             await setDefaults(formContext);
             

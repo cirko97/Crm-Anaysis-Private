@@ -1,4 +1,4 @@
-var AssetForm = window.AssetForm || {};
+var OpportunityForm = window.OpportunityForm || {};
 (function () {
     const FORM_NEW = 1;
     var formContext = null;
@@ -9,16 +9,16 @@ var AssetForm = window.AssetForm || {};
         const formType = formContext.ui.getFormType();
 
         if (formType === FORM_NEW) {
-
-        }  else {
-              // Get Nav. Item
-            var navItem = formContext.ui.navigation.items.get("navSPDocuments");
-            // First set focus on Nav. Item to open related tab
-            navItem.setFocus();
-            // get Main tab (replace it with your tab name)
-            var mainTab =  formContext.ui.tabs.get("general");
-            // Then move to Main Tab
-            mainTab.setFocus();
+ 
+        } else {
+        // Get Nav. Item
+        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+        // First set focus on Nav. Item to open related tab
+        navItem.setFocus();
+        // get Main tab (replace it with your tab name)
+        var mainTab =  formContext.ui.tabs.get("general");
+        // Then move to Main Tab
+        mainTab.setFocus();
         }
     }
 
@@ -52,5 +52,5 @@ var AssetForm = window.AssetForm || {};
             
     // }
     
-}).call(AssetForm);
+}).call(OpportunityForm);
 
