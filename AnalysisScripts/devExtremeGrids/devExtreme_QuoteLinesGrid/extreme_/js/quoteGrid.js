@@ -2580,7 +2580,17 @@ async function setClientApiContext(Xrm, formContext) {
                 type: 'custom',
                 message: 'Must be at least 3 characters',
                 validationCallback(params) {
-                  return productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number' ? false : true;
+                  if(productsArray.find(item => item.id === params.value)) {
+                    if(productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number') {
+                      return false;
+                    }
+                    else {
+                      return true;
+                    }
+                  }
+                  else {
+                    return true;
+                  }
                 },
               }
             ]
