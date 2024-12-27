@@ -926,30 +926,10 @@ async function setClientApiContext(Xrm, formContext) {
       }).dxDataGrid('instance');
     });
 
-    const isSearchIncomplete = function (dropoDownBox) {
-      let value = dropoDownBox.option("value"),
-        displayValue = dropoDownBox.option("displayValue"),
-        text = dropoDownBox.option("text");
-
-      text = text && text.length && text[0];
-      displayValue = displayValue && displayValue.length && displayValue[0];
-
-      return text !== displayValue;
-    };
-
-    const syncTreeViewSelection = function (treeViewInstance, value) {
-
-      console.log(treeViewInstance);
-      console.log(value);
-
-      if (!value) {
-        treeViewInstance.unselectAll();
-      } else {
-        treeViewInstance.selectItem(value);
-      }
-    };
-
     const assetsStore = new DevExpress.data.DataSource({
+      onLoadError: function (error) {
+        console.log(error.message);
+      },
       store: new DevExpress.data.ArrayStore({
         key: 'id',
         data: assetsArray,
@@ -969,13 +949,14 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('onValueChanged');
           console.log(e);
 
-          if (!e.value) {
+          if (!e.value || !assetsArray.find(item => item.id === e.value)) {
             return;
           }
           else {
             cellInfo.setValue(e.value);
             e.component.option("value", e.value);
             e.component.close();
+            e.component.focus();
           }
         },
         value: cellInfo.value ? cellInfo.value : null,
@@ -985,7 +966,6 @@ async function setClientApiContext(Xrm, formContext) {
         valueChangeEvent: "input",
         hoverStateEnabled: true,
         focusedRowIndex: 0,
-        remoteOperations: true,
         height: "100%",
         width: '100%',
         keyExpr: "id",
@@ -995,6 +975,9 @@ async function setClientApiContext(Xrm, formContext) {
           return item.name;
         },
         onInput: function (e) {
+          console.log('onInput');
+          console.log(e);
+
           let ddbInstance = e.component;
           if (!ddbInstance.option("opened")) ddbInstance.open();
           let text = ddbInstance.option("text");
@@ -1064,14 +1047,14 @@ async function setClientApiContext(Xrm, formContext) {
             onSelectionChanged: function (e) {
               console.log('onSelectionChanged');
               console.log(e);
-              
+
               let keys = e.selectedRowKeys,
                 hasSelection = keys.length;
 
               console.log(keys);
               console.log(hasSelection);
 
-              cellInfo.setValue(hasSelection ? keys[0] : null);
+              // cellInfo.setValue(hasSelection ? keys[0] : null);
               ddbInstance.option("value", hasSelection ? keys[0] : null);
             }
           });
