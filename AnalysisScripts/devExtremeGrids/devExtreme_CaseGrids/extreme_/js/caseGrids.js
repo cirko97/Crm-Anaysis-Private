@@ -961,6 +961,7 @@ async function setClientApiContext(Xrm, formContext) {
         },
         value: cellInfo.value ? cellInfo.value : null,
         showClearButton: false,
+        errorRowEnabled: false,
         acceptCustomValue: true,
         openOnFieldClick: true,
         valueChangeEvent: "input",
@@ -983,7 +984,7 @@ async function setClientApiContext(Xrm, formContext) {
           let text = ddbInstance.option("text");
           let value = ddbInstance.option("value");
           if (typeof value === "string") {
-            treeList.option("searchPanel.text", text)
+            treeList.option("searchPanel.text", text);
           };
         },
         onOpened: function (e) {
