@@ -94,6 +94,20 @@ var CaseRibbon = window.CaseRibbon || {};
 	}
 	this.SetCaseOnHoldButton = function (formContext) {
 		const caseId = formContext.data.entity.getId().slice(1,-1);
+		const onHoldReason = formContext.getAttribute("extreme_onholdreason");
+
+		if(onHoldReason.getValue() === null){
+			formContext.getControl("extreme_onholdreason").setVisible(true);
+			formContext.getControl("extreme_onholdreason").setNotification("Please enter a reason for HOLD status.", "FieldNotificationId");
+			formContext.getControl("extreme_onholdreason").setFocus();
+			formContext.ui.setFormNotification("Please enter a reason for HOLD status.", "WARNING", "FormNotificationId");
+			return;
+		}
+		else {
+			formContext.getControl("extreme_onholdreason").clearNotification("FieldNotificationId");
+			formContext.ui.clearFormNotification("FormNotificationId");
+		}
+
 		var confirmStrings = { text:"Are you sure you want to put this case on HOLD?", title:"Case On Hold Prompt" };
 		var confirmOptions = { height: 200, width: 450 };
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
@@ -122,6 +136,7 @@ var CaseRibbon = window.CaseRibbon || {};
 					var record = {};
 					record.statecode = 0; // State
 					record.statuscode = 934670001; // Status
+					record.extreme_onholdreason = null;
 					
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 					formContext.data.refresh(true);
@@ -130,7 +145,8 @@ var CaseRibbon = window.CaseRibbon || {};
 					var record = {};
 					record.statecode = 0; // State
 					record.statuscode = 1; // Status
-					
+					record.extreme_onholdreason = null;
+
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 					formContext.data.refresh(true);
 				}

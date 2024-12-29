@@ -10,13 +10,14 @@ function form_onload(executionContext) {
   let retry = 0;
   const maxRetries = 100;
   const retryDelay = 1000; // 1-second delay
-  let isFilterApplied = false; // Flag to prevent infinite refresh loop
 
   if (formType == FORM_EDIT) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseLines"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
 
+    if (formContext.getAttribute("extreme_onholdreason").getValue()!== null)
+      formContext.getControl("extreme_onholdreason").setVisible(true);
     // addonchange for file column when form is loaded
     if (fileColumn) {
       fileColumn.addOnChange(checkIfFileExists);
@@ -34,6 +35,245 @@ function form_onload(executionContext) {
 
   }
 
+
+  formContext.getAttribute("extreme_calendaruser").setValue(934670000);
+  formContext.getAttribute("extreme_calendaruser").addOnChange(changeCalendarView);
+
+  function changeCalendarView(){
+
+    const calendarUser = formContext.getAttribute("extreme_calendaruser").getValue();
+    const calendarGridContext = formContext.getControl("calendarSubgrid"); // get the grid context
+    const viewSelector = calendarGridContext.getViewSelector();
+
+    var viewAleksandarStevanov = {
+      entityType: 1039,
+      id: "aa865266-1fc6-ef11-b8e8-6045bd898d29",
+      name: "Service Team - Aleksandar Stevanov"
+    };
+    var viewBojanJovic = {
+      entityType: 1039,
+      id: "7830d98e-1ac6-ef11-b8e8-6045bd898d29",
+      name: "Service Team - Bojan Jović"
+    };
+    var viewBojanSajatovic = {
+      entityType: 1039,
+      id: "6773848f-1fc6-ef11-b8e9-0022487f5548",
+      name: "Service Team - Bojan Sajatović"
+    };
+    var viewDimitrijeAndrejic = {
+      entityType: 1039,
+      id: "8e6021fc-1fc6-ef11-b8e9-0022487f5548",
+      name: "Service Team - Dimitrije Andrejić"
+    };
+    var viewDusanPopovic = {
+      entityType: 1039,
+      id: "e600da0e-20c6-ef11-b8e8-6045bdf313bb",
+      name: "Service Team - Dusan Popović"
+    };    
+    var viewGoranPoprzen = {
+      entityType: 1039,
+      id: "9276e428-20c6-ef11-b8e8-6045bd898d29",
+      name: "Service Team - Goran Popržen"
+    };    
+    var viewJovanMitrovic = {
+      entityType: 1039,
+      id: "e0c99442-20c6-ef11-b8e8-6045bdf313bb",
+      name: "Service Team - Jovan Mitrović"
+    };    
+    var viewLukaMihajlovic = {
+      entityType: 1039,
+      id: "2e307a59-20c6-ef11-b8e9-0022487f5548",
+      name: "Service Team - Luka Mihajlović"
+    };
+    var viewMarkoMitic = {
+      entityType: 1039,
+      id: "7a2b1f73-20c6-ef11-b8e8-6045bd898d29",
+      name: "Service Team - Marko Mitić"
+    };
+    var viewMilanCosic = {
+      entityType: 1039,
+      id: "18e4f883-20c6-ef11-b8e8-6045bdf313bb",
+      name: "Service Team - Milan Ćosić"
+    };
+    var viewMilanMisic = {
+      entityType: 1039,
+      id: "589a3d9d-20c6-ef11-b8e9-0022487f5548",
+      name: "Service Team - Milan Mišić"
+    };
+    var viewMilanVidovic = {
+      entityType: 1039,
+      id: "2c929cb2-20c6-ef11-b8e8-6045bd898d29",
+      name: "Service Team - Milan Vidović"
+    };
+    var viewMiroslavHavran = {
+      entityType: 1039,
+      id: "8607fac7-20c6-ef11-b8e8-6045bd898d29",
+      name: "Service Team - Miroslav Havran"
+    };
+    var viewNikolaStevanovic = {
+      entityType: 1039,
+      id: "278a3bdd-20c6-ef11-b8e8-6045bdf313bb",
+      name: "Service Team - Nikola Stevanović"
+    };
+    var viewRodoljubRadulovic = {
+      entityType: 1039,
+      id: "7a42acf7-20c6-ef11-b8e9-0022487f5548",
+      name: "Service Team - Rodoljub Radulović"
+    };
+    var viewSanjaDjekic = {
+      entityType: 1039,
+      id: "8814560b-21c6-ef11-b8e8-6045bdf313bb",
+      name: "Service Team - Sanja Đekić"
+    };
+    var viewSilviaBabarci = {
+      entityType: 1039,
+      id: "ae307120-21c6-ef11-b8e8-6045bdf313bb",
+      name: "Service Team - Silvia Babarci"
+    };
+    var myAppointmentsView = {
+      entityType: 1039,
+      id: "606eea12-0c33-47d3-96e1-ba1529ee8205",
+      name: "My Appointments"
+    }
+    
+    var selectedView;
+
+    // Dobijanje vrednosti iz option set polja
+    switch (calendarUser) {
+      case 934670000:
+        var owner = formContext.getAttribute("ownerid").getValue();
+        
+        if (owner && owner.length > 0) {
+          var ownerName = owner[0].name; // Dobijamo ime vlasnika
+    
+          switch (ownerName) {
+            case "Aleksandar Stevanov":
+              selectedView = viewAleksandarStevanov;
+              break;
+            case "Bojan Jovic":
+              selectedView = viewBojanJovic;
+              break;
+            case "Bojan Sajatovic":
+              selectedView = viewBojanSajatovic;
+              break;
+            case "Dimitrije Andrejic":
+              selectedView = viewDimitrijeAndrejic;
+              break;
+            case "Dusan Popovic":
+              selectedView = viewDusanPopovic;
+              break;
+            case "Goran Poprzen":
+              selectedView = viewGoranPoprzen;
+              break;
+            case "Jovan Mitrovic":
+              selectedView = viewJovanMitrovic;
+              break;
+            case "Luka Mihajlovic":
+              selectedView = viewLukaMihajlovic;
+              break;
+            case "Marko Mitic":
+              selectedView = viewMarkoMitic;
+              break;
+            case "Milan Cosic":
+              selectedView = viewMilanCosic;
+              break;
+            case "Milan Misic":
+              selectedView = viewMilanMisic;
+              break;
+            case "Milan Vidovic":
+              selectedView = viewMilanVidovic;
+              break;
+            case "Miroslav Havran":
+              selectedView = viewMiroslavHavran;
+              break;
+            case "Nikola Stevanovic":
+              selectedView = viewNikolaStevanovic;
+              break;
+            case "Rodoljub Radulovic":
+              selectedView = viewRodoljubRadulovic;
+              break;
+            case "Sanja Djekic":
+              selectedView = viewSanjaDjekic;
+              break;
+            case "Silvia Babarci":
+              selectedView = viewSilviaBabarci;
+              break;
+            default:
+              console.warn("Nema definisanog view-a za vlasnika: " + ownerName);
+              selectedView = myAppointmentsView;
+              break;
+          }
+        } else {
+          console.warn("Nije pronađen owner za zapis.");
+          selectedView = null;
+        }
+        break;
+    
+      case 934670001:
+        selectedView = viewAleksandarStevanov;
+        break;
+      case 934670002:
+        selectedView = viewBojanJovic;
+        break;
+      case 934670003:
+        selectedView = viewBojanSajatovic;
+        break;
+      case 934670004:
+        selectedView = viewDimitrijeAndrejic;
+        break;
+      case 934670005:
+        selectedView = viewDusanPopovic;
+        break;
+      case 934670006:
+        selectedView = viewGoranPoprzen;
+        break;
+      case 934670007:
+        selectedView = viewJovanMitrovic;
+        break;
+      case 934670008:
+        selectedView = viewLukaMihajlovic;
+        break;
+      case 934670009:
+        selectedView = viewMarkoMitic;
+        break;
+      case 934670010:
+        selectedView = viewMilanCosic;
+        break;
+      case 934670011:
+        selectedView = viewMilanMisic;
+        break;
+      case 934670012:
+        selectedView = viewMilanVidovic;
+        break;
+      case 934670013:
+        selectedView = viewMiroslavHavran;
+        break;
+      case 934670014:
+        selectedView = viewNikolaStevanovic;
+        break;
+      case 934670015:
+        selectedView = viewRodoljubRadulovic;
+        break;
+      case 934670016:
+        selectedView = viewSanjaDjekic;
+        break;
+      case 934670017:
+        selectedView = viewSilviaBabarci;
+        break;
+      default:
+        console.warn("Nepoznata vrednost za option set polje.");
+        selectedView = myAppointmentsView;
+        break;
+    }
+    
+    
+
+
+    viewSelector.setCurrentView(selectedView);
+    //calendarGridContext.refresh();
+    }
+
+
   //case complaint
   formContext.getAttribute("extreme_casetype").addOnChange(showHideRelatedCase);
   showHideRelatedCase();
@@ -44,15 +284,11 @@ function form_onload(executionContext) {
 
   //Header Body hide when on Calendar TAB
   var calendarTab = formContext.ui.tabs.get("calendarTab");
-  var resolutionTab = formContext.ui.tabs.get("resolutionTab");
+  var caseDetailsTab = formContext.ui.tabs.get("caseDetailsTab");
   var generalTab = formContext.ui.tabs.get("generalTab");
   calendarTab.addTabStateChange(hideHeader);
-  resolutionTab.addTabStateChange(showHeader);
+  caseDetailsTab.addTabStateChange(showHeader);
   generalTab.addTabStateChange(showHeader);
-
-  //customCalendarFetch
-  calendarTab.addTabStateChange(filterCalendarSubgrid);
-  filterCalendarSubgrid();
 
   //schedule fields logic
   formContext.getAttribute("extreme_scheduledstart").addOnChange(PopulateScheduledEnd);
@@ -64,101 +300,6 @@ function form_onload(executionContext) {
 
 
   //functions
-
-  async function filterCalendarSubgrid() {
-    var subgrid = formContext.getControl("Subgrid_new_1");
-
-    if (subgrid) {
-      console.log("Subgrid control found. Waiting for it to load...");
-
-      subgrid.addOnLoad(() => {
-        if (!isFilterApplied) {
-          console.log("Subgrid is loaded. Applying FilterXml...");
-          applyCalendarFilter();
-          isFilterApplied = true; // Set flag after first application
-        } else {
-          console.log("Filter already applied. Skipping...");
-        }
-      });
-
-      // Fallback in case `addOnLoad` doesn't trigger
-      ensureSubgridIsReady(subgrid);
-    } else {
-      console.error("Subgrid control not found!");
-    }
-  }
-
-  // Fallback retry logic to ensure the grid is loaded
-  function ensureSubgridIsReady(subgrid, retries = 5, delay = 500) {
-    if (retries === 0) {
-      console.error("Subgrid failed to load after multiple retries.");
-      return;
-    }
-
-    // Check if subgrid data is available
-    if (subgrid && subgrid.getGrid && subgrid.getGrid().getRows().getLength() >= 0) {
-      if (!isFilterApplied) {
-        console.log("Subgrid is ready (via fallback retry). Applying FilterXml...");
-        applyCalendarFilter();
-        isFilterApplied = true; // Set flag after first application
-      } else {
-        console.log("Filter already applied (via fallback retry). Skipping...");
-      }
-    } else {
-      console.warn(`Subgrid not ready. Retrying... (${retries} retries left)`);
-      setTimeout(() => ensureSubgridIsReady(subgrid, retries - 1, delay), delay);
-    }
-  }
-
-  // Apply the filter to the calendar subgrid
-  async function applyCalendarFilter() {
-    var subgrid = formContext.getControl("Subgrid_new_1");
-    var ownerId = formContext.getAttribute("ownerid").getValue();
-
-    if (ownerId !== null) {
-      var ownerGuid = ownerId[0].id.slice(1, -1); // Extract GUID without braces
-
-      var fetchXml = `<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="true">
-                            <entity name="appointment">
-                                <attribute name="statecode"/>
-                                <attribute name="subject"/>
-                                <attribute name="scheduledstart"/>
-                                <attribute name="scheduledend"/>
-                                <attribute name="regardingobjectid"/>
-                                <attribute name="prioritycode"/>
-                                <attribute name="activityid"/>
-                                <attribute name="instancetypecode"/>
-                                <attribute name="location"/>
-                                <order attribute="scheduledstart" descending="false"/>
-                                <filter type="and">
-                                    <condition attribute="statecode" operator="in">
-                                        <value>0</value>
-                                        <value>3</value>
-                                    </condition>
-                                </filter>
-                                <link-entity name="activityparty" from="activityid" to="activityid" alias="aa" link-type="inner">
-                                    <filter type="and">
-                                        <condition attribute="partyid" operator="eq" value="${ownerGuid}" uitype="systemuser"/>
-                                        <condition attribute="participationtypemask" operator="in">
-                                            <value>7</value>
-                                            <value>9</value>
-                                            <value>5</value>
-                                            <value>6</value>
-                                        </condition>
-                                    </filter>
-                                </link-entity>
-                            </entity>
-                        </fetch>`;
-
-      subgrid.setFilterXml(fetchXml);
-      subgrid.refresh();
-      console.log("Filter applied and grid refreshed.");
-    } else {
-      console.warn("Owner ID is null. Hiding subgrid.");
-      subgrid.setVisible(false);
-    }
-  }
-
   async function checkIfFileExists() {
     var FileColumnValue = fileColumn.getValue();
     const statusReason = formContext.getAttribute("statuscode").getValue();
@@ -238,11 +379,13 @@ function form_onload(executionContext) {
     const statusReason = formContext.getAttribute("statuscode").getValue();
     if (statusReason === RESOLVED || statusReason === ONHOLD) {
       lockOrUnlockFieldsInSection("generalTab", "general", true);
-      lockOrUnlockFieldsInSection("resolutionTab", "ResolutionDetails", true);
+      lockOrUnlockFieldsInSection("generalTab", "ResolutionDetails", true);
+      lockOrUnlockFieldsInSection("calendarTab", "Calendar_section_3", true);
       formContext.getControl("extreme_dateofcompletion").setDisabled(false);
     } else {
       lockOrUnlockFieldsInSection("generalTab", "general", false);
-      lockOrUnlockFieldsInSection("resolutionTab", "ResolutionDetails", false);
+      lockOrUnlockFieldsInSection("generalTab", "ResolutionDetails", false);
+      lockOrUnlockFieldsInSection("calendarTab", "Calendar_section_3", false);
     }
   }
   function lockOrUnlockFieldsInSection(tabName, sectionName, lock) {
