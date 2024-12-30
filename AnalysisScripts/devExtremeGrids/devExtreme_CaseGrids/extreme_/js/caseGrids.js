@@ -26,7 +26,7 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+  Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
     formContext.getAttribute("statuscode").getValue() === 1 ||
@@ -1150,6 +1150,8 @@ async function setClientApiContext(Xrm, formContext) {
   // });
 
   // Xrm.Utility.closeProgressIndicator();
+
+  Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseLines");
 
 }
 

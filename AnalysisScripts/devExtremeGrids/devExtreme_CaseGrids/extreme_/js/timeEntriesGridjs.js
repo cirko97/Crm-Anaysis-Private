@@ -22,7 +22,7 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+  Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
     formContext.getAttribute("statuscode").getValue() === 1 ||
@@ -448,6 +448,9 @@ async function setClientApiContext(Xrm, formContext) {
                 return false;
               },
               async onClick(e) {
+
+                Xrm.Utility.showProgressIndicator("Duplication in progress... Please wait...");
+
                 const clonedItem = $.extend({}, e.row.data);
 
                 let newCloneId = '';
@@ -498,6 +501,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                 e.component.refresh(true);
                 e.event.preventDefault();
+
+                Xrm.Utility.closeProgressIndicator();
 
               },
             }],
@@ -864,6 +869,8 @@ async function setClientApiContext(Xrm, formContext) {
 
   // Xrm.Utility.closeProgressIndicator();
 
+  setWebResourceLoaded('WebResource_timeEntries');
+
 }
 
 // Function to replace curly brackets from IDs
@@ -964,6 +971,28 @@ async function deleteTimeEntry(caseLineId) {
       console.log(error.message);
     }
   );
+}
+
+// Check if all web resources are loaded
+let timeEntriesLoaded = false;
+let caseLinesLoaded = false;
+let caseAssetsLoaded = false;
+
+function setWebResourceLoaded(resourceName) {
+  if (resourceName === 'WebResource_timeEntries') {
+    timeEntriesLoaded = true;
+  } else if (resourceName === 'WebResource_caseLines') {
+    caseLinesLoaded = true;
+  } else if (resourceName === 'WebResource_caseAssets') {
+    caseAssetsLoaded = true;
+  }
+  checkIfAllWebResourcesLoaded();
+}
+
+function checkIfAllWebResourcesLoaded() {
+  if (timeEntriesLoaded && caseLinesLoaded && caseAssetsLoaded) {
+    Xrm.Utility.closeProgressIndicator();
+  }
 }
 
 // Check assets on delete

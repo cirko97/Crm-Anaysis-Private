@@ -22,7 +22,7 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+  Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
     formContext.getAttribute("statuscode").getValue() === 1 ||
@@ -79,7 +79,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     caseAssetsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_inventoryno,extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -107,6 +107,7 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_Asset_extreme_warrantystartdate = result["extreme_Asset"]["extreme_warrantystartdate"]; // Date Time
             var extreme_Asset_extreme_warrantystartdate_formatted = result["extreme_Asset"]["extreme_warrantystartdate@OData.Community.Display.V1.FormattedValue"];
             var extreme_Asset_extreme_preventiveservicecycle = result["extreme_Asset"]["extreme_preventiveservicecycle"]; // Choice
+            var extreme_Asset_extreme_inventoryno = result["extreme_Asset"]["extreme_inventoryno"]; // Text
 
             caseAssetsArray.push({
               "extreme_caseassetid": extreme_caseassetid,
@@ -123,7 +124,8 @@ async function setClientApiContext(Xrm, formContext) {
               "extreme_solution": extreme_solution,
               "extreme_isparent": extreme_isparent,
               "extreme_parentcaseasset": extreme_parentcaseasset,
-              "extreme_preventiveservicecycle": extreme_Asset_extreme_preventiveservicecycle
+              "extreme_preventiveservicecycle": extreme_Asset_extreme_preventiveservicecycle,
+              "extreme_inventoryno": extreme_Asset_extreme_inventoryno
             });
           }
 
@@ -273,6 +275,12 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'extreme_serialnumber',
                     caption: 'S/N',
+                    dataType: 'string',
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_inventoryno',
+                    caption: 'Inventory No.',
                     dataType: 'string',
                     allowEditing: false
                   },
@@ -558,6 +566,12 @@ async function setClientApiContext(Xrm, formContext) {
             allowEditing: false
           },
           {
+            dataField: 'extreme_inventoryno',
+            caption: 'Inventory No.',
+            dataType: 'string',
+            allowEditing: false
+          },
+          {
             dataField: 'extreme_location',
             caption: 'Location',
             dataType: 'string',
@@ -753,6 +767,7 @@ async function setClientApiContext(Xrm, formContext) {
                       col.dataField == "extreme_assetcode" ||
                       col.dataField == "extreme_lastactivitydate" ||
                       col.dataField == "extreme_serialnumber" ||
+                      col.dataField == "extreme_inventoryno" ||
                       col.dataField == "extreme_warrantyend" ||
                       col.dataField == "extreme_warrantyenddatevendor" ||
                       col.dataField == "extreme_description" ||
@@ -821,6 +836,7 @@ async function setClientApiContext(Xrm, formContext) {
                     if (
                       col.dataField == "extreme_name" ||
                       col.dataField == "extreme_serialnumber" ||
+                      col.dataField == "extreme_inventoryno" ||
                       col.dataField == "extreme_location" ||
                       col.dataField == "extreme_warrantystartdate" ||
                       col.dataField == "extreme_warrantyend" ||
@@ -848,6 +864,8 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.option('filterValue', [
                     [
                       ["extreme_serialnumber", "=", null],
+                      "or",
+                      ["extreme_inventoryno", "=", null],
                       "or",
                       ["extreme_location", "=", null],
                       "or",
@@ -893,6 +911,7 @@ async function setClientApiContext(Xrm, formContext) {
           // Check calssify
           if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && (e.data.extreme_isparent === true || e.data.extreme_isparent === false) && (
             (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
+            (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
             (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
             (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
             (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
@@ -904,6 +923,7 @@ async function setClientApiContext(Xrm, formContext) {
           }
           else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparent === true && caseAssetsData._array.find(item =>
             (item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
+            (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
             (item.extreme_location === null || item.extreme_location === undefined) ||
             (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
             (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
@@ -1018,6 +1038,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_solution) record.extreme_solution = e.newData.extreme_solution; // Multiline Text
 
           if (e.newData.extreme_serialnumber) assetRecord.extreme_serialnumber = `${e.newData.extreme_serialnumber}`; // Text
+          if (e.newData.extreme_inventoryno) assetRecord.extreme_inventoryno = `${e.newData.extreme_inventoryno}`; // Text
           if (e.newData.extreme_location) assetRecord.extreme_location = `${e.newData.extreme_location}`; // Text
           if (e.newData.extreme_warrantystartdate) assetRecord.extreme_warrantystartdate = e.newData.extreme_warrantystartdate; // Date Time
           if (e.newData.extreme_warrantyend) assetRecord.extreme_warrantyend = e.newData.extreme_warrantyend; // Date Time
@@ -1186,6 +1207,8 @@ async function setClientApiContext(Xrm, formContext) {
   });
 
   // Xrm.Utility.closeProgressIndicator();
+
+  Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets");
 
 }
 
