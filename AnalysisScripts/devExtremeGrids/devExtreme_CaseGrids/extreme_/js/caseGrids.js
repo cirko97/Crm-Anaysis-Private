@@ -382,6 +382,10 @@ async function setClientApiContext(Xrm, formContext) {
               valueExpr: 'id'
             },
             editCellTemplate: dropDownBoxEditorTemplate,
+            setCellValue: async function (newData, value, currentRowData) {
+              newData.extreme_asset = value;
+              newData.extreme_assetType = assetsArray.find(item => item.id === value).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === value).extreme_parentasset ? 'Component' : 'Regular';
+            },
             validationRules: [{ type: 'required' }]
           },
           {

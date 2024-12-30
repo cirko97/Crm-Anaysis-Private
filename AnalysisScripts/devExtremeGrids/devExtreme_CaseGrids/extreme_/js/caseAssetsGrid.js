@@ -1141,6 +1141,7 @@ async function setClientApiContext(Xrm, formContext) {
           // item.extreme_isparentitem === false &&
           (
             (item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
+            (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
             (item.extreme_location === null || item.extreme_location === undefined) ||
             (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
             (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
