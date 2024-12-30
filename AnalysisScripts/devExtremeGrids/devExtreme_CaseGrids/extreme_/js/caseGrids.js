@@ -64,11 +64,11 @@ async function setClientApiContext(Xrm, formContext) {
 
   console.log('User id: ' + userId);
   console.log('GUID: ' + caseIdForm);
-  await getCaseLines(caseIdForm);
   await getAssetsLookUp(accountIdForm);
   await getUsers();
   await getProductsLookUp();
   await getUnitsLookUp();
+  await getCaseLines(caseIdForm);
 
 
   initDataGrid(caseIdForm, userId);
@@ -184,6 +184,7 @@ async function setClientApiContext(Xrm, formContext) {
               'extreme_caselineid': extreme_caselineid,
               'extreme_name': extreme_name,
               'extreme_asset': extreme_asset,
+              'extreme_assetType': assetsArray.find(item => item.id === extreme_asset).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === extreme_asset).extreme_parentasset ? 'Component': 'Regular',
               'extreme_case': extreme_case,
               'owner': ownerid,
               'extreme_product': extreme_product,
@@ -382,6 +383,12 @@ async function setClientApiContext(Xrm, formContext) {
             },
             editCellTemplate: dropDownBoxEditorTemplate,
             validationRules: [{ type: 'required' }]
+          },
+          {
+            dataField: 'extreme_assetType',
+            caption: 'Asset Type',
+            dataType: 'string',
+            allowEditing: false
           },
           {
             dataField: 'extreme_product',
