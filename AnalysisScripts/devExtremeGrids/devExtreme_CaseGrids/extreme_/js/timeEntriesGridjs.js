@@ -514,6 +514,16 @@ async function setClientApiContext(Xrm, formContext) {
               },
             },
             {
+              location: 'before',
+              locateInMenu: "auto",
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
+            {
+              location: 'before',
               name: 'addRowButton',
               showText: 'always'
             }

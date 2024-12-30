@@ -156,7 +156,7 @@ async function setClientApiContext(Xrm, formContext) {
           [
             ["extreme_parentcaseasset", "=", null],
             "and",
-            ["extreme_isparent", "=", false]
+            [["extreme_isparent", "=", false], "or", ["extreme_isparent", "=", null]]
           ],
           "or",
           [
@@ -210,7 +210,7 @@ async function setClientApiContext(Xrm, formContext) {
               .dxDataGrid({
                 dataSource: caseAssetsData,
                 filterValue: [
-                  ["extreme_isparent", "=", false],
+                  [["extreme_isparent", "=", false], "or", ["extreme_isparent", "=", null]],
                   "and",
                   ["extreme_parentcaseasset", "=", assetData.extreme_caseassetid]
                 ],
@@ -776,7 +776,7 @@ async function setClientApiContext(Xrm, formContext) {
                     [
                       ["extreme_parentcaseasset", "=", null],
                       "and",
-                      ["extreme_isparent", "=", false]
+                      [["extreme_isparent", "=", false], "or", ["extreme_isparent", "=", null]]
                     ],
                     "or",
                     [
