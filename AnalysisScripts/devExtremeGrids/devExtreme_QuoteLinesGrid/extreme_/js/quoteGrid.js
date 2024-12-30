@@ -2116,7 +2116,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('Editor Preparing');
                   console.log(e);
 
-                  if (e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number') e.editorOptions.disabled = true;
+                  // if (e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number') e.editorOptions.disabled = true;
 
                   if (e.dataField == "extreme_supplierdiscount" || e.dataField == "extreme_discount" || e.dataField == "extreme_tax") {
                     e.editorOptions.min = 0;
@@ -2819,6 +2819,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'priceperunit',
             caption: 'Sales PPU',
             dataType: 'number',
+            cssClass: "cell-highlighted",
             //width: 100,
             format: {
               type: "fixedPoint",
@@ -3927,7 +3928,7 @@ async function setClientApiContext(Xrm, formContext) {
           //   e.editorElement[0].parentElement.setAttribute('colspan', '2');
           // }
 
-          if ((e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number')) e.editorOptions.disabled = true;
+          // if ((e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number')) e.editorOptions.disabled = true;
 
           if (e.dataField == "extreme_supplierdiscount" || e.dataField == "extreme_discount" || e.dataField == "extreme_tax") {
             e.editorOptions.min = 0;
