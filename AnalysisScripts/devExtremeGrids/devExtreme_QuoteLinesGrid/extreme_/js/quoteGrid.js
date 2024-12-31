@@ -1261,6 +1261,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataType: 'string',
                     wordWrapEnabled: true,
                     width: 180,
+                    validationRules: [{ type: 'required' }],
                     visible: dataGrid.columnOption("quotedetailname", "visible")
                   },
                   {
@@ -2047,7 +2048,7 @@ async function setClientApiContext(Xrm, formContext) {
                             height: 200,
                             container: '.dx-viewport',
                             showTitle: true,
-                            title: `Description for ${e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname}`,
+                            title: `Description for ${e.row.data.quotedetailname ? e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname : ''}`,
                             visible: false,
                             dragEnabled: false,
                             hideOnOutsideClick: true,
@@ -2603,6 +2604,7 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Name',
             dataType: 'string',
             width: 180,
+            validationRules: [{ type: 'required' }],
             wordWrapEnabled: true,
           },
           {
@@ -3390,7 +3392,7 @@ async function setClientApiContext(Xrm, formContext) {
                     height: 200,
                     container: '.dx-viewport',
                     showTitle: true,
-                    title: `Description for ${e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname}`,
+                    title: `Description for ${e.row.data.quotedetailname ? e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname : ''}`,
                     visible: false,
                     dragEnabled: false,
                     hideOnOutsideClick: true,
