@@ -549,7 +549,10 @@ async function setClientApiContext(Xrm, formContext) {
           e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
           console.log('oneAssetId');
           console.log(oneAssetId);
-          if (oneAssetId !== undefined && oneAssetId !== 'none' && typeof (oneAssetId) === 'string') e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
+          if (oneAssetId !== undefined && oneAssetId !== 'none' && typeof (oneAssetId) === 'string') {
+            e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
+            e.data.extreme_assetType = assetsArray.find(item => item.id === oneAssetId).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === oneAssetId).extreme_parentasset ? 'Component' : 'Regular';
+          }
         },
         onRowInserting: async (e) => {
 

@@ -388,6 +388,13 @@ async function setClientApiContext(Xrm, formContext) {
                 newData.extreme_comuteinkm = null;
                 dataGrid.columnOption('extreme_asset', 'validationRules', null);
               }
+              else {
+                newData.extreme_type = value;
+                newData.extreme_type = value;
+                newData.extreme_return = null;
+                newData.extreme_comuteinkm = null;
+                dataGrid.columnOption('extreme_asset', 'validationRules', [{ type: 'required' }]);
+              }
             },
             validationRules: [
               { type: 'required' }
@@ -1222,7 +1229,6 @@ async function checkAssetsAfterDelete(assetId, caseId) {
         }
       );
     }
-
   }
 
 }

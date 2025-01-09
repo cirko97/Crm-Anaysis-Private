@@ -79,7 +79,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     caseAssetsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_inventoryno,extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_productid,extreme_inventoryno,extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -108,6 +108,7 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_Asset_extreme_warrantystartdate_formatted = result["extreme_Asset"]["extreme_warrantystartdate@OData.Community.Display.V1.FormattedValue"];
             var extreme_Asset_extreme_preventiveservicecycle = result["extreme_Asset"]["extreme_preventiveservicecycle"]; // Choice
             var extreme_Asset_extreme_inventoryno = result["extreme_Asset"]["extreme_inventoryno"]; // Text
+            var extreme_Asset_extreme_productid = result["extreme_Asset"]["extreme_productid"]; // Text
 
             caseAssetsArray.push({
               "extreme_caseassetid": extreme_caseassetid,
@@ -125,7 +126,8 @@ async function setClientApiContext(Xrm, formContext) {
               "extreme_isparent": extreme_isparent,
               "extreme_parentcaseasset": extreme_parentcaseasset,
               "extreme_preventiveservicecycle": extreme_Asset_extreme_preventiveservicecycle,
-              "extreme_inventoryno": extreme_Asset_extreme_inventoryno
+              "extreme_inventoryno": extreme_Asset_extreme_inventoryno,
+              "extreme_productid": extreme_Asset_extreme_productid
             });
           }
 
@@ -250,6 +252,12 @@ async function setClientApiContext(Xrm, formContext) {
                   scrollByThumb: true
                 },
                 columns: [
+                  {
+                    dataField: 'extreme_productid',
+                    caption: 'ID',
+                    dataType: 'string',
+                    allowEditing: false
+                  },
                   {
                     dataField: 'extreme_name',
                     caption: 'Name',
@@ -537,6 +545,12 @@ async function setClientApiContext(Xrm, formContext) {
           },
         },
         columns: [
+          {
+            dataField: 'extreme_productid',
+            caption: 'ID',
+            dataType: 'string',
+            allowEditing: false
+          },
           {
             dataField: 'extreme_name',
             caption: 'Name',
