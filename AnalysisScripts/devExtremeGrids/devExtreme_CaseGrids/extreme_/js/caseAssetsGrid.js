@@ -347,8 +347,9 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log(e);
 
                   // Check calssify
-                  if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && (e.data.extreme_isparent === true || e.data.extreme_isparent === false) && (
+                  if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === false && (
                     (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
+                    // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
                     (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
                     (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
                     (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
@@ -357,16 +358,6 @@ async function setClientApiContext(Xrm, formContext) {
                   )) {
                     // promeniti bg color za classify
                     e.rowElement[0].style.backgroundColor = "#fce3c2";
-                  }
-                  else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparent === true && caseAssetsData._array.find(item =>
-                    (item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
-                    (item.extreme_location === null || item.extreme_location === undefined) ||
-                    (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
-                    (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
-                    (item.extreme_warrantyenddatevendor === null || item.extreme_warrantyenddatevendor === undefined) ||
-                    (item.extreme_preventiveservicecycle === null || item.extreme_preventiveservicecycle === undefined)
-                  )) {
-                    e.cells[1].cellElement[0].style.backgroundColor = "#fce3c2";
                   }
                   else {
                     e.rowElement[0].style.backgroundColor = "#fff";
@@ -577,13 +568,52 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_serialnumber',
             caption: 'S/N',
             dataType: 'string',
-            allowEditing: false
+            allowEditing: false,
+            validationRules: [
+              {
+                type: 'custom',
+                message: 'Required',
+                validationCallback(params) {
+                  console.log('VALIDATION PARAMS');
+                  console.log(params);
+
+                  if(params.data.extreme_isparent === true) {
+                    return true;
+                  }
+                  else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
+                    return params.value !== null ? true : false;
+                  }
+                  else {
+                    return params.value !== null ? true : false;
+                  }
+                  
+                },
+              }
+            ]
           },
           {
             dataField: 'extreme_inventoryno',
             caption: 'Inventory No.',
             dataType: 'string',
-            allowEditing: false
+            allowEditing: false,
+            validationRules: [
+              {
+                type: 'custom',
+                message: 'Required',
+                validationCallback(params) {
+                  console.log('VALIDATION PARAMS');
+                  console.log(params);
+
+                  if(params.data.extreme_isparent === true) {
+                    return true;
+                  }
+                  else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
+                    return true;
+                  }
+                  
+                },
+              }
+            ]
           },
           {
             dataField: 'extreme_location',
@@ -777,6 +807,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log(dataGrid.option('columns'));
                   dataGrid.option('columns').forEach(col => {
                     if (
+                      col.dataField == "extreme_productid" ||
                       col.dataField == "extreme_name" ||
                       col.dataField == "extreme_assetcode" ||
                       col.dataField == "extreme_lastactivitydate" ||
@@ -848,6 +879,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log(dataGrid.option('columns'));
                   dataGrid.option('columns').forEach(col => {
                     if (
+                      col.dataField == "extreme_productid" ||
                       col.dataField == "extreme_name" ||
                       col.dataField == "extreme_serialnumber" ||
                       col.dataField == "extreme_inventoryno" ||
@@ -923,9 +955,21 @@ async function setClientApiContext(Xrm, formContext) {
 
 
           // Check calssify
-          if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && (e.data.extreme_isparent === true || e.data.extreme_isparent === false) && (
+          if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === false && (
             (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
-            (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+            // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+            (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
+            (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
+            (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
+            (e.data.extreme_warrantyenddatevendor === null || e.data.extreme_warrantyenddatevendor === undefined) ||
+            (e.data.extreme_preventiveservicecycle === null || e.data.extreme_preventiveservicecycle === undefined)
+          )) {
+            // promeniti bg color za classify
+            e.rowElement[0].style.backgroundColor = "#fce3c2";
+          }
+          else if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === true && (
+            // (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
+            // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
             (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
             (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
             (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
@@ -936,14 +980,16 @@ async function setClientApiContext(Xrm, formContext) {
             e.rowElement[0].style.backgroundColor = "#fce3c2";
           }
           else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparent === true && caseAssetsData._array.find(item =>
-            (item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
-            (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
-            (item.extreme_location === null || item.extreme_location === undefined) ||
-            (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
-            (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
-            (item.extreme_warrantyenddatevendor === null || item.extreme_warrantyenddatevendor === undefined) ||
-            (item.extreme_preventiveservicecycle === null || item.extreme_preventiveservicecycle === undefined)
+            item.extreme_parentcaseasset === e.data.extreme_caseassetid &&
+            ((item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
+              // (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
+              (item.extreme_location === null || item.extreme_location === undefined) ||
+              (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
+              (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
+              (item.extreme_warrantyenddatevendor === null || item.extreme_warrantyenddatevendor === undefined) ||
+              (item.extreme_preventiveservicecycle === null || item.extreme_preventiveservicecycle === undefined))
           )) {
+            // promeniti bg color za classify
             e.cells[0].cellElement[0].style.backgroundColor = "#fce3c2";
           }
           else {
