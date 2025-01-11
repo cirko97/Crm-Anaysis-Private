@@ -1,8 +1,10 @@
 let caseAssetsArray = [];
 let usersArray = [];
 let timeEntryTypesArray = [];
+let preventiveCycleTypesArray = [];
 let newCreateId;
 let isEditable = true;
+let heightAuto = true;
 
 // Add hours to Date method
 Date.prototype.addMinutes = function (h) {
@@ -20,7 +22,7 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
+  Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
     formContext.getAttribute("statuscode").getValue() === 1 ||
@@ -31,6 +33,17 @@ async function setClientApiContext(Xrm, formContext) {
   else {
     isEditable = false;
   }
+
+  const preventiveCycleTypes = await Xrm.Utility.getEntityMetadata('extreme_asset', ['extreme_preventiveservicecycle']).then(
+    result => result.Attributes._collection.extreme_preventiveservicecycle.OptionSet,
+    error => console.log(error)
+  );
+  preventiveCycleTypesArray = Object.keys(preventiveCycleTypes).map(key => {
+    return preventiveCycleTypes[key];
+  });
+
+  console.log('preventiveCycleTypesArray');
+  console.log(preventiveCycleTypesArray);
 
   const caseIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
@@ -66,7 +79,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     caseAssetsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_productid,extreme_inventoryno,extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -76,6 +89,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           // Many To One Relationships
           if (result.hasOwnProperty("extreme_Asset") && result["extreme_Asset"] !== null) {
+            var extreme_Asset_extreme_assetid = result["extreme_Asset"]["extreme_assetid"]; // Guid
             var extreme_Asset_extreme_assetcode = result["extreme_Asset"]["extreme_assetcode"]; // Text
             var extreme_Asset_extreme_lastactivitydate = result["extreme_Asset"]["extreme_lastactivitydate"]; // Date Time
             var extreme_Asset_extreme_lastactivitydate_formatted = result["extreme_Asset"]["extreme_lastactivitydate@OData.Community.Display.V1.FormattedValue"];
@@ -89,19 +103,31 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_solution = result["extreme_solution"]; // Multiline Text
             var extreme_isparent = result["extreme_isparent"]; // Boolean
             var extreme_parentcaseasset = result["_extreme_parentcaseasset_value"]; // Lookup
+            var extreme_Asset_extreme_location = result["extreme_Asset"]["extreme_location"]; // Text
+            var extreme_Asset_extreme_warrantystartdate = result["extreme_Asset"]["extreme_warrantystartdate"]; // Date Time
+            var extreme_Asset_extreme_warrantystartdate_formatted = result["extreme_Asset"]["extreme_warrantystartdate@OData.Community.Display.V1.FormattedValue"];
+            var extreme_Asset_extreme_preventiveservicecycle = result["extreme_Asset"]["extreme_preventiveservicecycle"]; // Choice
+            var extreme_Asset_extreme_inventoryno = result["extreme_Asset"]["extreme_inventoryno"]; // Text
+            var extreme_Asset_extreme_productid = result["extreme_Asset"]["extreme_productid"]; // Text
 
             caseAssetsArray.push({
               "extreme_caseassetid": extreme_caseassetid,
+              "extreme_assetid": extreme_Asset_extreme_assetid,
               "extreme_name": extreme_Asset_extreme_name,
               "extreme_assetcode": extreme_Asset_extreme_assetcode,
               "extreme_lastactivitydate": extreme_Asset_extreme_lastactivitydate,
               "extreme_serialnumber": extreme_Asset_extreme_serialnumber,
+              "extreme_location": extreme_Asset_extreme_location,
+              "extreme_warrantystartdate": extreme_Asset_extreme_warrantystartdate,
               "extreme_warrantyend": extreme_Asset_extreme_warrantyend,
               "extreme_warrantyenddatevendor": extreme_Asset_extreme_warrantyenddatevendor,
               "extreme_description": extreme_description,
               "extreme_solution": extreme_solution,
               "extreme_isparent": extreme_isparent,
-              "extreme_parentcaseasset": extreme_parentcaseasset
+              "extreme_parentcaseasset": extreme_parentcaseasset,
+              "extreme_preventiveservicecycle": extreme_Asset_extreme_preventiveservicecycle,
+              "extreme_inventoryno": extreme_Asset_extreme_inventoryno,
+              "extreme_productid": extreme_Asset_extreme_productid
             });
           }
 
@@ -134,7 +160,7 @@ async function setClientApiContext(Xrm, formContext) {
           [
             ["extreme_parentcaseasset", "=", null],
             "and",
-            ["extreme_isparent", "=", false]
+            [["extreme_isparent", "=", false], "or", ["extreme_isparent", "=", null]]
           ],
           "or",
           [
@@ -147,7 +173,7 @@ async function setClientApiContext(Xrm, formContext) {
         wordWrapEnabled: true,
         showColumnLines: true,
         showRowLines: true,
-        rowAlternationEnabled: true,
+        rowAlternationEnabled: false,
         showBorders: true,
         // headerFilter: {
         //   visible: true,
@@ -188,7 +214,7 @@ async function setClientApiContext(Xrm, formContext) {
               .dxDataGrid({
                 dataSource: caseAssetsData,
                 filterValue: [
-                  ["extreme_isparent", "=", false],
+                  [["extreme_isparent", "=", false], "or", ["extreme_isparent", "=", null]],
                   "and",
                   ["extreme_parentcaseasset", "=", assetData.extreme_caseassetid]
                 ],
@@ -196,7 +222,7 @@ async function setClientApiContext(Xrm, formContext) {
                 wordWrapEnabled: true,
                 showColumnLines: true,
                 showRowLines: true,
-                rowAlternationEnabled: true,
+                rowAlternationEnabled: false,
                 showBorders: true,
                 // headerFilter: {
                 //   visible: true,
@@ -227,6 +253,12 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 columns: [
                   {
+                    dataField: 'extreme_productid',
+                    caption: 'ID',
+                    dataType: 'string',
+                    allowEditing: false
+                  },
+                  {
                     dataField: 'extreme_name',
                     caption: 'Name',
                     dataType: 'string',
@@ -251,6 +283,12 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'extreme_serialnumber',
                     caption: 'S/N',
+                    dataType: 'string',
+                    allowEditing: false
+                  },
+                  {
+                    dataField: 'extreme_inventoryno',
+                    caption: 'Inventory No.',
                     dataType: 'string',
                     allowEditing: false
                   },
@@ -308,15 +346,22 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('ROW PREPARED');
                   console.log(e);
 
-                  // if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
-                  //   console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
-                  //   console.log(dataGrid.hasEditData());
-                  //   console.log(e.cells[1].cellElement[0]);
-                  //   e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
-                  //   e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
-                  //   // e.cells[1].cellElement[0].style.display = "none";
-                  //   // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
-                  // }
+                  // Check calssify
+                  if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === false && (
+                    (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
+                    // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+                    (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
+                    (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
+                    (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
+                    (e.data.extreme_warrantyenddatevendor === null || e.data.extreme_warrantyenddatevendor === undefined) ||
+                    (e.data.extreme_preventiveservicecycle === null || e.data.extreme_preventiveservicecycle === undefined)
+                  )) {
+                    // promeniti bg color za classify
+                    e.rowElement[0].style.backgroundColor = "#fce3c2";
+                  }
+                  else {
+                    e.rowElement[0].style.backgroundColor = "#fff";
+                  }
 
                 },
                 onEditorPreparing: async (e) => {
@@ -492,6 +537,12 @@ async function setClientApiContext(Xrm, formContext) {
         },
         columns: [
           {
+            dataField: 'extreme_productid',
+            caption: 'ID',
+            dataType: 'string',
+            allowEditing: false
+          },
+          {
             dataField: 'extreme_name',
             caption: 'Name',
             dataType: 'string',
@@ -517,27 +568,179 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_serialnumber',
             caption: 'S/N',
             dataType: 'string',
-            allowEditing: false
+            allowEditing: false,
+            validationRules: [
+              {
+                type: 'custom',
+                message: 'Required',
+                validationCallback(params) {
+                  console.log('VALIDATION PARAMS');
+                  console.log(params);
+
+                  if(params.data.extreme_isparent === true) {
+                    return true;
+                  }
+                  else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
+                    return params.value !== null ? true : false;
+                  }
+                  else {
+                    return params.value !== null ? true : false;
+                  }
+                  
+                },
+              }
+            ]
+          },
+          {
+            dataField: 'extreme_inventoryno',
+            caption: 'Inventory No.',
+            dataType: 'string',
+            allowEditing: false,
+            validationRules: [
+              {
+                type: 'custom',
+                message: 'Required',
+                validationCallback(params) {
+                  console.log('VALIDATION PARAMS');
+                  console.log(params);
+
+                  if(params.data.extreme_isparent === true) {
+                    return true;
+                  }
+                  else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
+                    return true;
+                  }
+                  
+                },
+              }
+            ]
+          },
+          {
+            dataField: 'extreme_location',
+            caption: 'Location',
+            dataType: 'string',
+            allowEditing: false,
+            visible: false
+          },
+          {
+            dataField: 'extreme_warrantystartdate',
+            caption: 'Warranty start',
+            dataType: 'date',
+            value: now,
+            inputAttr: { 'aria-label': 'Date and time picker' },
+            format: "dd.MM.yyyy",
+            allowEditing: false,
+            visble: false,
+            editorOptions: {
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
+                }
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            }
           },
           {
             dataField: 'extreme_warrantyend',
             caption: 'Warranty end',
-            dataType: 'datetime',
-            pickerType: 'rollers',
+            dataType: 'date',
             value: now,
             inputAttr: { 'aria-label': 'Date and time picker' },
-            format: "dd.MM.yyyy HH:mm",
-            allowEditing: false
+            format: "dd.MM.yyyy",
+            allowEditing: false,
+            editorOptions: {
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
+                }
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            }
           },
           {
             dataField: 'extreme_warrantyenddatevendor',
             caption: 'Warranty end (vendor)',
-            dataType: 'datetime',
-            pickerType: 'rollers',
+            dataType: 'date',
             value: now,
             inputAttr: { 'aria-label': 'Date and time picker' },
-            format: "dd.MM.yyyy HH:mm",
-            allowEditing: false
+            format: "dd.MM.yyyy",
+            allowEditing: false,
+            editorOptions: {
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
+                }
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            }
+          },
+          {
+            dataField: 'extreme_preventiveservicecycle',
+            caption: 'PSC Duration',
+            width: 130,
+            wordWrapEnabled: false,
+            lookup: {
+              dataSource(options) {
+                return {
+                  store: {
+                    type: "array",
+                    data: preventiveCycleTypesArray,
+                    key: "value"
+                  },
+                  paginate: true,
+                  pageSize: 20,
+                  postProcess: function (data) {
+                    // data.unshift({ name: "Price list", amount: "Price", disabled: true });
+                    return data;
+                  }
+                }
+              },
+              displayExpr: 'text',
+              valueExpr: 'value'
+            },
+            editorOptions: {
+              acceptCustomValue: false,
+              // popupWidth: 600,
+              searchEnabled: true,
+              onOpened: function (e) {
+                heightAuto = false;
+                if (heightAuto === false) {
+                  const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                  if (iframeCorrentHeight < 450) {
+                    wrControl.getObject().style.minHeight = "600px";
+                  }
+                }
+                e.component._popup.option('width', 400);
+              },
+              onClosed: function (e) {
+                heightAuto = true;
+              },
+              onFocusOut: function (e) {
+                heightAuto = true;
+              }
+            },
+            visible: false
           },
           {
             dataField: 'extreme_description',
@@ -577,8 +780,155 @@ async function setClientApiContext(Xrm, formContext) {
               },
             },
             {
-              name: 'addRowButton',
-              showText: 'always'
+              location: 'before',
+              locateInMenu: "auto",
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
+            {
+              location: 'before',
+              widget: 'dxButton',
+              locateInMenu: "auto",
+              options: {
+                text: 'Normal',
+                width: 'auto',
+                elementAttr: {
+                  id: "normalBtn",
+                },
+                disabled: true,
+                onClick(e) {
+                  console.log(e);
+                  console.log(dataGrid);
+                  // reset visible for all columns - classify
+                  console.log('ALL COLUMNS');
+                  console.log(dataGrid.option('columns'));
+                  dataGrid.option('columns').forEach(col => {
+                    if (
+                      col.dataField == "extreme_productid" ||
+                      col.dataField == "extreme_name" ||
+                      col.dataField == "extreme_assetcode" ||
+                      col.dataField == "extreme_lastactivitydate" ||
+                      col.dataField == "extreme_serialnumber" ||
+                      col.dataField == "extreme_inventoryno" ||
+                      col.dataField == "extreme_warrantyend" ||
+                      col.dataField == "extreme_warrantyenddatevendor" ||
+                      col.dataField == "extreme_description" ||
+                      col.dataField == "extreme_solution"
+                    ) {
+                      dataGrid.columnOption(col.dataField, 'visible', true);
+                      if (col.dataField == "extreme_description" || col.dataField == "extreme_solution") {
+                        dataGrid.columnOption(col.dataField, 'allowEditing', true);
+                      }
+                      else {
+                        dataGrid.columnOption(col.dataField, 'allowEditing', false);
+                      }
+                    }
+                    else {
+                      dataGrid.columnOption(col.dataField, 'visible', false);
+                      dataGrid.columnOption(col.dataField, 'allowEditing', false);
+                    }
+                  });
+
+                  dataGrid.option('filterValue', [
+                    [
+                      ["extreme_parentcaseasset", "=", null],
+                      "and",
+                      [["extreme_isparent", "=", false], "or", ["extreme_isparent", "=", null]]
+                    ],
+                    "or",
+                    [
+                      ["extreme_parentcaseasset", "=", null],
+                      "and",
+                      ["extreme_isparent", "=", true]
+                    ],
+                  ]);
+
+                  $('#classifyBtn').dxButton('instance').option('disabled', false);
+                  e.component.option('disabled', true);
+                },
+              },
+            },
+            {
+              location: 'before',
+              locateInMenu: "auto",
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
+            {
+              location: 'before',
+              widget: 'dxButton',
+              locateInMenu: "auto",
+              options: {
+                text: 'Classify',
+                width: 'auto',
+                elementAttr: {
+                  id: "classifyBtn",
+                },
+                disabled: false,
+                onClick(e) {
+                  console.log(e);
+                  console.log(dataGrid);
+                  // reset visible for all columns - classify
+                  console.log('ALL COLUMNS');
+                  console.log(dataGrid.option('columns'));
+                  dataGrid.option('columns').forEach(col => {
+                    if (
+                      col.dataField == "extreme_productid" ||
+                      col.dataField == "extreme_name" ||
+                      col.dataField == "extreme_serialnumber" ||
+                      col.dataField == "extreme_inventoryno" ||
+                      col.dataField == "extreme_location" ||
+                      col.dataField == "extreme_warrantystartdate" ||
+                      col.dataField == "extreme_warrantyend" ||
+                      col.dataField == "extreme_warrantyenddatevendor" ||
+                      col.dataField == "extreme_preventiveservicecycle"
+                    ) {
+                      dataGrid.columnOption(col.dataField, 'visible', true);
+                      if (col.dataField !== "extreme_name") {
+                        dataGrid.columnOption(col.dataField, 'allowEditing', true);
+                      }
+                      else {
+                        dataGrid.columnOption(col.dataField, 'allowEditing', false);
+                      };
+                    }
+                    else {
+                      dataGrid.columnOption(col.dataField, 'visible', false);
+                      dataGrid.columnOption(col.dataField, 'allowEditing', false);
+                    }
+                  });
+
+                  caseAssetsData._array.filter(item => item.extreme_isparent === true).forEach(elm => {
+                    dataGrid.collapseRow(elm.extreme_caseassetid);
+                  });
+
+                  dataGrid.option('filterValue', [
+                    [
+                      ["extreme_serialnumber", "=", null],
+                      "or",
+                      ["extreme_inventoryno", "=", null],
+                      "or",
+                      ["extreme_location", "=", null],
+                      "or",
+                      ["extreme_warrantystartdate", "=", null],
+                      "or",
+                      ["extreme_warrantyend", "=", null],
+                      "or",
+                      ["extreme_warrantyenddatevendor", "=", null],
+                      "or",
+                      ["extreme_preventiveservicecycle", "=", null]
+                    ]
+                  ]);
+
+                  $('#normalBtn').dxButton('instance').option('disabled', false);
+                  e.component.option('disabled', true);
+                },
+              },
             }
           ],
         },
@@ -597,6 +947,53 @@ async function setClientApiContext(Xrm, formContext) {
             e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
             // e.cells[1].cellElement[0].style.display = "none";
             // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
+          }
+          else if (e.rowType === 'data' && $('#classifyBtn').dxButton('instance').option('disabled') === true) {
+            e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+            e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
+          }
+
+
+          // Check calssify
+          if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === false && (
+            (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
+            // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+            (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
+            (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
+            (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
+            (e.data.extreme_warrantyenddatevendor === null || e.data.extreme_warrantyenddatevendor === undefined) ||
+            (e.data.extreme_preventiveservicecycle === null || e.data.extreme_preventiveservicecycle === undefined)
+          )) {
+            // promeniti bg color za classify
+            e.rowElement[0].style.backgroundColor = "#fce3c2";
+          }
+          else if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === true && (
+            // (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
+            // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+            (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
+            (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
+            (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
+            (e.data.extreme_warrantyenddatevendor === null || e.data.extreme_warrantyenddatevendor === undefined) ||
+            (e.data.extreme_preventiveservicecycle === null || e.data.extreme_preventiveservicecycle === undefined)
+          )) {
+            // promeniti bg color za classify
+            e.rowElement[0].style.backgroundColor = "#fce3c2";
+          }
+          else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparent === true && caseAssetsData._array.find(item =>
+            item.extreme_parentcaseasset === e.data.extreme_caseassetid &&
+            ((item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
+              // (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
+              (item.extreme_location === null || item.extreme_location === undefined) ||
+              (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
+              (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
+              (item.extreme_warrantyenddatevendor === null || item.extreme_warrantyenddatevendor === undefined) ||
+              (item.extreme_preventiveservicecycle === null || item.extreme_preventiveservicecycle === undefined))
+          )) {
+            // promeniti bg color za classify
+            e.cells[0].cellElement[0].style.backgroundColor = "#fce3c2";
+          }
+          else {
+            e.rowElement[0].style.backgroundColor = "#fff";
           }
 
         },
@@ -696,20 +1093,40 @@ async function setClientApiContext(Xrm, formContext) {
           console.log(e);
 
           var record = {};
+          var assetRecord = {};
           if (e.newData.extreme_description) record.extreme_description = e.newData.extreme_description; // Multiline Text
           if (e.newData.extreme_solution) record.extreme_solution = e.newData.extreme_solution; // Multiline Text
 
-          await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.key}`, record).then(
-            async function success(result) {
+          if (e.newData.extreme_serialnumber) assetRecord.extreme_serialnumber = `${e.newData.extreme_serialnumber}`; // Text
+          if (e.newData.extreme_inventoryno) assetRecord.extreme_inventoryno = `${e.newData.extreme_inventoryno}`; // Text
+          if (e.newData.extreme_location) assetRecord.extreme_location = `${e.newData.extreme_location}`; // Text
+          if (e.newData.extreme_warrantystartdate) assetRecord.extreme_warrantystartdate = e.newData.extreme_warrantystartdate; // Date Time
+          if (e.newData.extreme_warrantyend) assetRecord.extreme_warrantyend = e.newData.extreme_warrantyend; // Date Time
+          if (e.newData.extreme_warrantyenddatevendor) assetRecord.extreme_warrantyenddatevendor = e.newData.extreme_warrantyenddatevendor; // Date Time
+          if (e.newData.extreme_preventiveservicecycle) assetRecord.extreme_preventiveservicecycle = e.newData.extreme_preventiveservicecycle; // Choice
+
+          await Xrm.WebApi.updateRecord("extreme_asset", `${e.oldData.extreme_assetid}`, assetRecord).then(
+            function success(result) {
               var updatedId = result.id;
               console.log(updatedId);
-              await getCaseAssets();
-              dataGrid.refresh();
             },
             function (error) {
               console.log(error.message);
             }
           );
+
+          await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.key}`, record).then(
+            async function success(result) {
+              var updatedId = result.id;
+              console.log(updatedId);
+            },
+            function (error) {
+              console.log(error.message);
+            }
+          );
+
+          await getCaseAssets(caseIdForm);
+          dataGrid.refresh();
 
           // var record = {};
           // if (e.newData.owner) record["ownerid_extreme_timeentry@odata.bind"] = `/systemusers(${e.newData.owner})`; // Owner
@@ -767,13 +1184,52 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onEditCanceled() {
           console.log('EditCanceled');
+        },
+        onContentReady() {
+          checkClassifyRows();
         }
       }).dxDataGrid('instance');
+
+
+      // function for checking classify needed rows
+      const checkClassifyRows = () => {
+
+        let classifyNeededRows = 0;
+
+        if (caseAssetsData._array.length > 0) {
+          caseAssetsData._array.filter((item) =>
+          // item.extreme_isparentitem === false &&
+          (
+            (item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
+            (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
+            (item.extreme_location === null || item.extreme_location === undefined) ||
+            (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
+            (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
+            (item.extreme_warrantyenddatevendor === null || item.extreme_warrantyenddatevendor === undefined) ||
+            (item.extreme_preventiveservicecycle === null || item.extreme_preventiveservicecycle === undefined)
+          )
+          ).forEach((item) => {
+            classifyNeededRows += 1;
+          })
+        }
+
+        if (classifyNeededRows > 0) {
+          $('#classifyBtn')[0].style.backgroundColor = '#fce3c2';
+          $('#classifyBtn')[0].style.display = 'inline-flex';
+        }
+        else {
+          $('#classifyBtn')[0].style.backgroundColor = '#fff';
+          $('#classifyBtn')[0].style.display = 'none';
+        }
+
+        console.log('CLASSIFY NEEDED ROWS');
+        console.log(classifyNeededRows);
+
+      }
+
     });
 
   }
-
-
 
   // Select the gridContainer element
   let gridContainer;
@@ -793,10 +1249,12 @@ async function setClientApiContext(Xrm, formContext) {
           const gridContainerHeight = gridContainer.offsetHeight;
           // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
           const iframe = wrControl.getObject();
-          if (gridContainerHeight > 250) {
-            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-          } else {
-            iframe.style.minHeight = '250px';
+          if (heightAuto === true) {
+            if (gridContainerHeight > 250) {
+              iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+            } else {
+              iframe.style.minHeight = '250px';
+            }
           }
         }
       });
@@ -810,6 +1268,8 @@ async function setClientApiContext(Xrm, formContext) {
   });
 
   // Xrm.Utility.closeProgressIndicator();
+
+  Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets");
 
 }
 

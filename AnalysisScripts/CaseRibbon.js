@@ -70,7 +70,141 @@ var CaseRibbon = window.CaseRibbon || {};
 		);
 
 	}
+	this.CancelCaseEnableRule = function (formContext) {
+		return isSysAdminRole();
+	}
+	this.CancelCaseButton = function (formContext) {
+		const caseId = formContext.data.entity.getId().slice(1,-1);
+		var confirmStrings = { text:"Are you sure you want to cancel this Case?", title:"Case Cancelation" };
+		var confirmOptions = { height: 200, width: 450 };
+		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+		async function (success) {    
+			if (success.confirmed){
+				var record = {};
+				record.statecode = 1; // State
+				record.statuscode = 934670003; // Status
+				
+				await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+				formContext.data.refresh(true);
+			}
+			else{
 
+			}	
+		});
+	}
+	this.SetCaseOnHoldButton = function (formContext) {
+		const caseId = formContext.data.entity.getId().slice(1,-1);
+		const onHoldReason = formContext.getAttribute("extreme_onholdreason");
+
+		if(onHoldReason.getValue() === null){
+			formContext.getControl("extreme_onholdreason").setVisible(true);
+			formContext.getControl("extreme_onholdreason").setNotification("Please enter a reason for HOLD status.", "FieldNotificationId");
+			formContext.getControl("extreme_onholdreason").setFocus();
+			formContext.ui.setFormNotification("Please enter a reason for HOLD status.", "WARNING", "FormNotificationId");
+			return;
+		}
+		else {
+			formContext.getControl("extreme_onholdreason").clearNotification("FieldNotificationId");
+			formContext.ui.clearFormNotification("FormNotificationId");
+		}
+
+		var confirmStrings = { text:"Are you sure you want to put this case on HOLD?", title:"Case On Hold Prompt" };
+		var confirmOptions = { height: 200, width: 450 };
+		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+		async function (success) {    
+			if (success.confirmed){
+				var record = {};
+				record.statecode = 0; // State
+				record.statuscode = 934670002; // Status
+				
+				await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+				formContext.data.refresh(true);
+			}
+			else{
+
+			}	
+		});
+	}
+	this.ResumeCaseButton = function (formContext) {
+		const caseId = formContext.data.entity.getId().slice(1,-1);
+		var confirmStrings = { text:"Are you sure you want to put resume this case?", title:"Case Resume Prompt" };
+		var confirmOptions = { height: 200, width: 450 };
+		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+		async function (success) {    
+			if (success.confirmed){
+				if(formContext.getAttribute("extreme_serviceappointment").getValue() !== null){ //set as scheduled
+					var record = {};
+					record.statecode = 0; // State
+					record.statuscode = 934670001; // Status
+					record.extreme_onholdreason = null;
+					
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+				else{//set as new status
+					var record = {};
+					record.statecode = 0; // State
+					record.statuscode = 1; // Status
+					record.extreme_onholdreason = null;
+
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+			}
+		});
+	}
+	this.ResolveCaseButton = function (formContext) {
+		const caseId = formContext.data.entity.getId().slice(1,-1);
+		var confirmStrings = { text:"Are you sure you want to resolve this case?", title:"Case Resolution Prompt" };
+		var confirmOptions = { height: 200, width: 450 };
+		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+		async function (success) {    
+			if (success.confirmed){
+				if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+					var record = {};
+					record.statecode = 0; // State
+					record.statuscode = 934670004; // Status
+					
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+				else{//set as resolved & signed
+					var record = {};
+					record.statecode = 1; // State
+					record.statuscode = 2; // Status
+					
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+			}	
+		});	
+	}
+	this.ReactivateCaseButton = function (formContext) {
+		const caseId = formContext.data.entity.getId().slice(1,-1);
+		var confirmStrings = { text:"Are you sure you want to reactivate this case?", title:"Case Reactivation Prompt" };
+		var confirmOptions = { height: 200, width: 450 };
+		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+		async function (success) {    
+			if (success.confirmed){
+				if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+					var record = {};
+					record.statecode = 0; // State
+					record.statuscode = 934670004; // Status
+					
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+				else{//set as resolved & signed
+					var record = {};
+					record.statecode = 1; // State
+					record.statuscode = 2; // Status
+					
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+			}	
+		});	
+	}
 	
 	// this.SyncQuoteButton = function (formContext) {
 
@@ -255,7 +389,7 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
         }
     });
 };
-const createEmail = async function (quoteId) {
+const acreateEmail = async function (quoteId) {
 	var record = {};
 	record["regardingobjectid_quote_email@odata.bind"] = `/quotes(${quoteId})`; // Lookup
 	record.subject = "PONUDA BATO"; // Text
@@ -729,4 +863,30 @@ const readConfigurationValue = async function (key) {
 		}
 	);
 	return value;
+}
+const isSysAdminRole = function () {
+	var flag = false;
+	var userRoles = Xrm.Utility.getGlobalContext().userSettings;
+	if (Object.keys(userRoles.roles._collection).length > 0) {
+		for (var rolidcollection in userRoles.roles._collection) {
+			var currentUserRoles = Xrm.Utility.getGlobalContext().userSettings.roles._collection[rolidcollection].name;
+			if (currentUserRoles.toLowerCase() == "system administrator") {
+				flag = true;
+				break;
+			}
+		}
+	}
+	return flag;
+}
+const getRole = function (roleName) {
+	var userRoles = Xrm.Utility.getGlobalContext().userSettings.roles;
+	var hasRole = false;
+
+	userRoles.forEach(function (role) {
+		if (role.name.toLowerCase() === roleName.toLowerCase()) {
+			hasRole = true;
+		}
+	});
+
+	return hasRole;
 }

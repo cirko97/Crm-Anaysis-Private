@@ -4,44 +4,82 @@ var AccountForm = window.AccountForm || {};
     const FORM_NEW = 1;
     const FORM_EDIT = 2;
     var formContext = null;
+    let previousVatCountryValue = null; // Globalna promenljiva za čuvanje prethodne vrednosti
 
     this.OnLoad = async function (executionContext) {
         formContext = executionContext.getFormContext();
-
-        // eslint-disable-next-line no-undef
-        var countryCode = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'countryCode'&$top=1").then(
-            function success(results) {
-                return results.entities[0]["extreme_value"];
-            },
-            function (error) {
-                console.log(error.message);
-            }
-        );
-
+        
         const formType = formContext.ui.getFormType();
         if (formType === FORM_NEW) {
             await setDefaults(formContext);
         }
         else if(formType === FORM_EDIT){
             formContext.getControl("extreme_paname30characters").setDisabled(true);
+
+            // Get Nav. Item
+            var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+            // First set focus on Nav. Item to open related tab
+            navItem.setFocus();
+            // get Main tab (replace it with your tab name)
+            var mainTab =  formContext.ui.tabs.get("general");
+            // Then move to Main Tab
+            mainTab.setFocus();
+
         } else if (formType === FORM_EDIT && formContext.getAttribute("extreme_tax").getValue() == null) {
             await setDefaults(formContext);
             
         }
 
+        previousVatCountryValue = formContext.getAttribute("extreme_vatcountry").getValue();
+
         formContext.getAttribute("extreme_vatnumber").addOnChange(validateVAT);
+        formContext.getAttribute("extreme_vatcountry").addOnChange(resetVat);
         formContext.getAttribute("telephone1").addOnChange(() => formatPhoneNumber("telephone1"));
         formContext.getAttribute("telephone2").addOnChange(() => formatPhoneNumber("telephone2"));
         
+        async function resetVat() {
+            const currentVatCountryValue = formContext.getAttribute("extreme_vatcountry").getValue();
+
+            // Proveri da li je promenjena vrednost
+            if (currentVatCountryValue !== previousVatCountryValue) {
+                var confirmStrings = { 
+                    text: "Changing VAT country will reset the existing VAT No. field. Are you sure?", 
+                    title: "VAT No. Reset!" 
+                };
+                var confirmOptions = { height: 200, width: 450 };
+                
+                await Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+                    function (success) {
+                        if (success.confirmed) {
+                            console.log("Dialog closed using OK button.");
+                            // Resetuj VAT number jer je korisnik potvrdio
+                            formContext.getAttribute("extreme_vatnumber").setValue(null);
+                            // Ažuriraj prethodnu vrednost na novu
+                            previousVatCountryValue = currentVatCountryValue;
+                        } else {
+                            console.log("Dialog closed using Cancel button or X.");
+                            // Vrati prethodnu vrednost VAT country
+                            formContext.getAttribute("extreme_vatcountry").setValue(previousVatCountryValue);
+                        }
+                    },
+                    function (error) {
+                        console.error("Error opening dialog:", error);
+                        // U slučaju greške vrati prethodnu vrednost
+                        formContext.getAttribute("extreme_vatcountry").setValue(previousVatCountryValue);
+                    }
+                );
+            }
+        }
         async function validateVAT() {
             if (formContext.getAttribute("extreme_vatnumber").getValue() !== null) {
+                var countryCode = formContext.getAttribute("extreme_vatcountry").getValue();
                 var vatNumber = formContext.getAttribute("extreme_vatnumber").getValue();
                 var lengthValid = false;
                 var logicValid = false;
                 var errorMessage = "";
-    
-                switch (countryCode.toUpperCase()) {
-                    case 'HR':
+
+                switch (countryCode) {
+                    case 934670002: //HR
                         lengthValid = vatNumber.length === 11;
                         logicValid = validateCroatiaVAT(vatNumber);
                         if (!lengthValid) {
@@ -50,7 +88,7 @@ var AccountForm = window.AccountForm || {};
                             errorMessage = "OIB (VAT number) is not valid.";
                         }
                         break;
-                    case 'SI':
+                    case 934670001: //SI
                         lengthValid = vatNumber.length === 8;
                         logicValid = validateSloveniaVAT(vatNumber);
                         if (!lengthValid) {
@@ -59,7 +97,7 @@ var AccountForm = window.AccountForm || {};
                             errorMessage = "VAT number is not valid.";
                         }
                         break;
-                    case 'RS':
+                    case 934670000: //RS
                         lengthValid = vatNumber.length === 9;
                         logicValid = validateSerbiaVAT(vatNumber);
                         if (!lengthValid) {
@@ -68,7 +106,7 @@ var AccountForm = window.AccountForm || {};
                             errorMessage = "PIB (VAT number) is not valid.";
                         }
                         break;
-                    case 'MK':
+                    case 934670003: //MK
                         lengthValid = vatNumber.length === 13;
                         logicValid = validateMacedoniaVAT(vatNumber);
                         if (!lengthValid) {
@@ -122,23 +160,23 @@ var AccountForm = window.AccountForm || {};
     }
     function formatSerbianPhone(phoneNo) {
         if (phoneNo.length === 9) {
-            return "+381 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
-        } else if (phoneNo.length === 10) {
-            return "+381 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+            return "381 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+        } else if (phoneNo.length === 10 || phoneNo.length === 11 || phoneNo.length === 12 ) {
+            return "381 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
         }
         return phoneNo;
     }
 
     function formatSlovenianPhone(phoneNo) {
         if (phoneNo.length === 9) {
-            return "+386 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+            return "386 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
         }
         return phoneNo;
     }
 
     function formatCroatianPhone(phoneNo) {
         if (phoneNo.length === 9) {
-            return "+385 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
+            return "385 " + phoneNo.substr(3, 2) + " " + phoneNo.substr(5, 3) + " " + phoneNo.substr(8);
         }
         return phoneNo;
     }
