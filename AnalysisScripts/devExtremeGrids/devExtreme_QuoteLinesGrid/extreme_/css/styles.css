@@ -43,3 +43,7 @@ input.currencyRates[type=number] {
 .dx-datagrid-nowrap .dx-header-row>td>.dx-datagrid-text-content {
   white-space: normal !important;
 }
+
+.cell-highlighted {
+  background-color: #e3e3e3;
+}

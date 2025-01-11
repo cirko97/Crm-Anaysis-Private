@@ -217,7 +217,7 @@ async function setClientApiContext(Xrm, formContext) {
     customUnitsArray = [];
     filterForPriceListsQuery = '';
 
-    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatsetting_value,_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteIdForm}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatsetting_value,_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteId}`).then(
       async function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -399,6 +399,25 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_vatsetting": extreme_vatsetting,
             "extreme_producttype": extreme_producttype
           });
+
+          if (formContext.getAttribute('revisionnumber').getValue() > 0) {
+            quoteLinesArray.filter(item => item.extreme_parentquoteline).forEach(async elm => {
+
+              if (!quoteLinesArray.find(item => item.quotedetailid === elm.extreme_parentquoteline)) {
+
+                const nameOfParentQL = await Xrm.WebApi.retrieveRecord("quotedetail", `${elm.extreme_parentquoteline}`, "?$select=quotedetailname");
+                const currentQLParentId = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid&$filter=(quotedetailname eq '${nameOfParentQL.quotedetailname}' and _quoteid_value eq ${quoteIdForm})`);
+
+                var record = {};
+                record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${currentQLParentId.entities[0].quotedetailid})`; // Lookup
+                await Xrm.WebApi.updateRecord("quotedetail", `${elm.quotedetailid}`, record);
+
+                elm.extreme_parentquoteline = currentQLParentId.entities[0].quotedetailid;
+
+              }
+
+            });
+          }
 
           if (!productid) {
             customProductsArray.push({
@@ -710,7 +729,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     vatSettingsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", "?$select=extreme_producttype&$expand=extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)").then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", "?$select=extreme_vatsettingid,extreme_producttype&$expand=extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)").then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -821,7 +840,8 @@ async function setClientApiContext(Xrm, formContext) {
       const dataGrid = $('#gridContainer').dxDataGrid({
         dataSource: {
           store: quoteLinesData,
-          reshapeOnPush: true
+          reshapeOnPush: true,
+          sort: { selector: "sequencenumber", desc: false }
         },
 
         filterValue: [
@@ -879,7 +899,7 @@ async function setClientApiContext(Xrm, formContext) {
           allowReordering: isDraftStatus,
           allowDropInsideItem: false,
           showDragIcons: true,
-          onReorder(e) {
+          async onReorder(e) {
             console.log("reodrering e");
             console.log(e);
 
@@ -905,6 +925,7 @@ async function setClientApiContext(Xrm, formContext) {
               quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
             }
 
+            await getQuoteProducts(quoteIdForm);
             e.component.refresh();
           },
           data: "root",
@@ -986,7 +1007,7 @@ async function setClientApiContext(Xrm, formContext) {
                   allowReordering: isDraftStatus,
                   allowDropInsideItem: false,
                   showDragIcons: true,
-                  onReorder(e) {
+                  async onReorder(e) {
                     console.log("reodrering e");
                     console.log(e);
 
@@ -1016,6 +1037,7 @@ async function setClientApiContext(Xrm, formContext) {
                       quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
                     }
 
+                    await getQuoteProducts(quoteIdForm);
                     e.component.refresh();
                   },
                   data: productsData.quotedetailid,
@@ -1119,7 +1141,7 @@ async function setClientApiContext(Xrm, formContext) {
                         if (value !== null) {
                           productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
                           defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
-                          defaultVatSetting = defaultVatSetting.entities[0].extreme_vatsettingid;
+                          defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
                         }
                       }
 
@@ -1239,6 +1261,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataType: 'string',
                     wordWrapEnabled: true,
                     width: 180,
+                    validationRules: [{ type: 'required' }],
                     visible: dataGrid.columnOption("quotedetailname", "visible")
                   },
                   {
@@ -1343,7 +1366,7 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     cellTemplate(container, info) {
                       console.log(container, info);
-                      return info.data.extreme_pricelistpriceperunit !== null ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
+                      return info.data.extreme_pricelistpriceperunit !== null && info.data.extreme_pricelistpriceperunit !== undefined ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
                     },
                     visible: dataGrid.columnOption("extreme_pricelistpriceperunit", "visible"),
                     allowEditing: false
@@ -1378,6 +1401,9 @@ async function setClientApiContext(Xrm, formContext) {
                         const pdPerUnit = pricePerUnit - (value - (value * (currentRowData.extreme_supplierdiscount / 100)));
                         newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
                       };
+                      if(typeof (currentRowData.productid) === 'number') {
+                        newData.extreme_pricelistpriceperunit = value;
+                      }
                     },
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
@@ -1635,8 +1661,8 @@ async function setClientApiContext(Xrm, formContext) {
                         currentRowData.extreme_supplierpriceperunit !== null &&
                         currentRowData.extreme_discount !== null
                       ) {
-                        newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                        newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                        newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                        newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
                       }
 
                     },
@@ -2022,7 +2048,7 @@ async function setClientApiContext(Xrm, formContext) {
                             height: 200,
                             container: '.dx-viewport',
                             showTitle: true,
-                            title: `Description for ${e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname}`,
+                            title: `Description for ${e.row.data.quotedetailname ? e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname : ''}`,
                             visible: false,
                             dragEnabled: false,
                             hideOnOutsideClick: true,
@@ -2091,7 +2117,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('Editor Preparing');
                   console.log(e);
 
-                  if (e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number') e.editorOptions.disabled = true;
+                  // if (e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number') e.editorOptions.disabled = true;
 
                   if (e.dataField == "extreme_supplierdiscount" || e.dataField == "extreme_discount" || e.dataField == "extreme_tax") {
                     e.editorOptions.min = 0;
@@ -2107,7 +2133,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('ROW PREPARED');
                   console.log(e);
 
-                  if (e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
+                  if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
                     (
                       // (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
                       (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
@@ -2117,7 +2143,7 @@ async function setClientApiContext(Xrm, formContext) {
                   ) {
                     e.rowElement[0].style.backgroundColor = "#fce3c2";
                   }
-                  else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
+                  else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
                     // (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
                     (item.extreme_area === null || item.extreme_area === undefined) ||
                     (item.extreme_technology === null || item.extreme_technology === undefined) ||
@@ -2257,6 +2283,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                   Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
 
+                  quoteLinesData.remove(e.key);
                   await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`).then(
                     async function success(result) {
                       console.log(result);
@@ -2304,6 +2331,17 @@ async function setClientApiContext(Xrm, formContext) {
                       changeType: 'update',
                       rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)]
                     });
+                  }
+
+                  // reodred grid
+                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+                    quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+                  }
+
+                  for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+                    Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+                    quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
                   }
 
                   formContext.data.refresh(true);
@@ -2435,8 +2473,9 @@ async function setClientApiContext(Xrm, formContext) {
               if (typeof (value) !== 'number') {
                 if (value !== null) {
                   productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
+                  newData.extreme_producttype = productType.producttypecode;
                   defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
-                  defaultVatSetting = defaultVatSetting.entities[0].extreme_vatsettingid;
+                  defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
                 }
               }
 
@@ -2545,7 +2584,17 @@ async function setClientApiContext(Xrm, formContext) {
                 type: 'custom',
                 message: 'Must be at least 3 characters',
                 validationCallback(params) {
-                  return productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number' ? false : true;
+                  if(productsArray.find(item => item.id === params.value)) {
+                    if(productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number') {
+                      return false;
+                    }
+                    else {
+                      return true;
+                    }
+                  }
+                  else {
+                    return true;
+                  }
                 },
               }
             ]
@@ -2555,6 +2604,7 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Name',
             dataType: 'string',
             width: 180,
+            validationRules: [{ type: 'required' }],
             wordWrapEnabled: true,
           },
           {
@@ -2659,7 +2709,7 @@ async function setClientApiContext(Xrm, formContext) {
             },
             cellTemplate(container, info) {
               console.log(container, info);
-              return info.data.extreme_pricelistpriceperunit !== null ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
+              return info.data.extreme_pricelistpriceperunit !== null && info.data.extreme_pricelistpriceperunit ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
             },
             visible: false,
             allowEditing: false
@@ -2694,6 +2744,9 @@ async function setClientApiContext(Xrm, formContext) {
                 const pdPerUnit = pricePerUnit - (value - (value * (currentRowData.extreme_supplierdiscount / 100)));
                 newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
               };
+              if(typeof (currentRowData.productid) === 'number') {
+                newData.extreme_pricelistpriceperunit = value;
+              }
             },
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
@@ -2768,6 +2821,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'priceperunit',
             caption: 'Sales PPU',
             dataType: 'number',
+            cssClass: "cell-highlighted",
             //width: 100,
             format: {
               type: "fixedPoint",
@@ -2944,8 +2998,8 @@ async function setClientApiContext(Xrm, formContext) {
                 currentRowData.extreme_supplierpriceperunit !== null &&
                 currentRowData.extreme_discount !== null
               ) {
-                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
+                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
               }
 
             },
@@ -3289,6 +3343,17 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Asset?',
             width: 60,
             dataType: 'boolean',
+            setCellValue: async function (newData, value, currentRowData) {
+              if (typeof (value) === 'boolean') {
+                if (currentRowData.extreme_isparentitem === true && value === true) {
+                  quoteLinesData._array.filter(item => item.extreme_parentquoteline === currentRowData.quotedetailid).forEach(elm => {
+                    Xrm.WebApi.updateRecord("quotedetail", `${elm.quotedetailid}`, { extreme_createasset: value })
+                    elm.extreme_createasset = value;
+                  })
+                }
+                newData.extreme_createasset = value;
+              }
+            }
           },
           {
             type: 'buttons',
@@ -3327,7 +3392,7 @@ async function setClientApiContext(Xrm, formContext) {
                     height: 200,
                     container: '.dx-viewport',
                     showTitle: true,
-                    title: `Description for ${e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname}`,
+                    title: `Description for ${e.row.data.quotedetailname ? e.row.data.quotedetailname.length > 20 ? e.row.data.quotedetailname.substring(0, 17) + '...' : e.row.data.quotedetailname : ''}`,
                     visible: false,
                     dragEnabled: false,
                     hideOnOutsideClick: true,
@@ -3675,6 +3740,10 @@ async function setClientApiContext(Xrm, formContext) {
                     }
                   });
 
+                  quoteLinesData._array.filter(item => item.extreme_isparentitem === true).forEach(elm => {
+                    dataGrid.collapseRow(elm.quotedetailid);
+                  });
+
                   dataGrid.option('filterValue', [
                     // [
                     //   ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",
@@ -3803,9 +3872,9 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('ROW PREPARED');
           console.log(e);
 
-          if (e.rowType === "data" && e.data.extreme_isparentitem === false &&
+          if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
             (
-              (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
+              // (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
               (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
               (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
               (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
@@ -3813,18 +3882,18 @@ async function setClientApiContext(Xrm, formContext) {
           ) {
             e.rowElement[0].style.backgroundColor = "#fce3c2";
           }
-          else if (e.rowType === "data" && e.data.extreme_isparentitem === true &&
-            (
-              (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
-              (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
-              (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
-            )) {
-
-          }
-          else if (e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
+          // else if (e.rowType === "data" && e.data.extreme_isparentitem === true &&
+          //   (
+          //     (e.data.extreme_area === null || e.data.extreme_area === undefined) ||
+          //     (e.data.extreme_technology === null || e.data.extreme_technology === undefined) ||
+          //     (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
+          //   )) {
+          //     e.rowElement[0].style.backgroundColor = "#fce3c2";
+          // }
+          else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparentitem === true && quoteLinesData._array.find(item =>
             item.extreme_parentquoteline === e.data.quotedetailid &&
             (
-              (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
+              // (item.extreme_producttype === null || item.extreme_producttype === undefined) ||
               (item.extreme_area === null || item.extreme_area === undefined) ||
               (item.extreme_technology === null || item.extreme_technology === undefined) ||
               (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
@@ -3845,6 +3914,10 @@ async function setClientApiContext(Xrm, formContext) {
             // e.cells[1].cellElement[0].style.display = "none";
             // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
           }
+          else if (e.rowType === 'data' && $('#classifyBtn').dxButton('instance').option('disabled') === true) {
+            e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+            e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
+          }
 
         },
         onEditorPreparing: async (e) => {
@@ -3857,7 +3930,7 @@ async function setClientApiContext(Xrm, formContext) {
           //   e.editorElement[0].parentElement.setAttribute('colspan', '2');
           // }
 
-          if ((e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number')) e.editorOptions.disabled = true;
+          // if ((e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number')) e.editorOptions.disabled = true;
 
           if (e.dataField == "extreme_supplierdiscount" || e.dataField == "extreme_discount" || e.dataField == "extreme_tax") {
             e.editorOptions.min = 0;
@@ -3877,6 +3950,7 @@ async function setClientApiContext(Xrm, formContext) {
             e.dataField !== "quantity" &&
             // e.dataField !== "extreme_vatsetting" &&
             // e.dataField !== "extreme_producttype" &&
+            e.dataField !== "extreme_createasset" &&
             e.dataField !== "extreme_area" &&
             e.dataField !== "extreme_technology" &&
             e.dataField !== "extreme_vendorsupplier"
@@ -4035,6 +4109,9 @@ async function setClientApiContext(Xrm, formContext) {
                 // If inserting parent item with existing child items
                 if (e.data.extreme_isparentitem === true && typeof (e.data.productid) !== 'number') {
 
+                  console.log('quoteLinesData before parent created');
+                  console.log(quoteLinesData);
+
                   await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
                     async function success(results) {
                       console.log(results);
@@ -4058,12 +4135,156 @@ async function setClientApiContext(Xrm, formContext) {
                         var producttypecode = result["producttypecode"]; // Choice
                         var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
 
+                        let productType = null;
+                        let defaultVatSetting = null;
+                        let defaultTax = null;
+
+                        if (typeof (productid) !== 'number') {
+                          if (productid !== null) {
+                            productType = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode");
+                            productType = productType.producttypecode;
+
+                            console.log('PRODUCT TYPE CHILD');
+                            console.log(productType);
+                            console.log(taxPercentOfAccount.extreme_tax);
+
+                            defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
+                            defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
+                          }
+                        }
+
+                        let priceListItemInfo = [];
+                        let classifyLookupsInfo = null;
+                        let supplierPricePerUnit = 0;
+
+                        if (productsStore._array.find((item) => item.id === productid).pricelevelid) {
+                          if (productid !== null) {
+                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === productid).pricelevelid} and _productid_value eq ${productid})`);
+                            classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+                          }
+                        }
+
+                        let area = null;
+                        let technology = null;
+                        let vendorSupplier = null;
+                        let vatGroup = null;
+                        let defaultUomid = null;
+                        let priceList = null;
+                        let priceListPPU = null;
+                        let priceListCurrecy = null;
+                        let taxAmount = null;
+                        let discountAmount = null;
+                        let extendedAmount = null;
+                        let pd = null;
+                        let fullPD = null;
+                        let PPU = null;
+                        let baseAmount = null;
+                        let supplierBaseAmount = null;
+                        let quantity = null;
+                        let fullPriceWithDiscount = null;
+                        let vatSetting = null;
+
+                        if (classifyLookupsInfo !== null) {
+                          if (classifyLookupsInfo.producttypecode) productType = classifyLookupsInfo.producttypecode;
+                          if (classifyLookupsInfo._extreme_area_value) area = classifyLookupsInfo._extreme_area_value;
+                          if (classifyLookupsInfo._extreme_technology_value) technology = classifyLookupsInfo._extreme_technology_value;
+                          if (classifyLookupsInfo._extreme_supplier_value) vendorSupplier = classifyLookupsInfo._extreme_supplier_value;
+                        }
+
+                        const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : null;
+                        const priceListItemAmountFormatted = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
+                        const priceListItemCurrency = priceListItemInfo.length !== 0 ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
+
+                        defaultTax = defaultVatSetting === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatSetting).vat
+                        if (defaultVatSetting !== null) {
+                          vatSetting = defaultVatSetting;
+                          vatGroup = vatSettingsArray.find(item => item.id === defaultVatSetting).idVatGroup;
+                        };
+                        if (productsStore._array.find((item) => item.id === productid).productDefaultUnit !== null) defaultUomid = productsStore._array.find((item) => item.id === productid).productDefaultUnit;
+                        if (productsStore._array.find((item) => item.id === productid).pricelevelid) {
+                          priceList = productsStore._array.find((item) => item.id === productid).pricelevelid;
+                          priceListPPU = priceListItemAmount;
+                          priceListCurrecy = priceListItemCurrency;
+                          if (quoteCurrencySymbol !== priceListItemCurrency) {
+                            // newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
+                            supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
+                          } else {
+                            // newData.extreme_supplierpriceperunit = priceListItemAmount;
+                            supplierPricePerUnit = priceListItemAmount;
+                          }
+                        };
+
+                        if (defaultMargin !== null &&
+                          supplierPricePerUnit !== null) {
+                          const supplierDiscount = 0;
+                          const discount = 0;
+                          quantity = 1;
+                          supplierBaseAmount = supplierPricePerUnit * 1;
+                          PPU = Math.ceil(defaultMargin * supplierPricePerUnit);
+                          const pricePerUnit = Math.ceil(defaultMargin * supplierPricePerUnit);
+                          baseAmount = Math.ceil(defaultMargin * supplierPricePerUnit) * 1;
+                          fullPriceWithDiscount = ((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1;
+                          discountAmount = (1 * (Math.ceil(defaultMargin * supplierPricePerUnit))) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
+                          taxAmount = ((((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
+                          extendedAmount = (((((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1)) + (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
+                          pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (supplierDiscount / 100)));
+                          const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (supplierDiscount / 100)));
+                          fullPD = pdPerUnit * 1;
+                        }
+
+                        console.log(area,
+                          technology,
+                          vendorSupplier,
+                          vatGroup,
+                          defaultUomid,
+                          priceList,
+                          priceListPPU,
+                          priceListCurrecy,
+                          taxAmount,
+                          discountAmount,
+                          extendedAmount,
+                          pd,
+                          fullPD,
+                          PPU,
+                          baseAmount,
+                          supplierBaseAmount,
+                          quantity,
+                          fullPriceWithDiscount,
+                          vatSetting)
+
+
                         var record = {};
                         record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
                         record["productid@odata.bind"] = `/products(${productid})`;
                         record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${newId})`;
                         record.quotedetailname = name; // Text
                         record["uomid@odata.bind"] = `/uoms(${defaultuomid})`;
+                        // Override Price
+                        record.ispriceoverridden = true; // Boolean
+
+                        // additional fields
+                        if (productType) record.extreme_producttype = productType; // Choice
+                        if (vatSetting) record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${vatSetting})`; // Lookup
+                        if (taxAmount) record.tax = Number(parseFloat(taxAmount).toFixed(4)); // Currency
+                        if (defaultTax) record.extreme_tax = defaultTax; // Decimal
+                        if (area) record["extreme_Area@odata.bind"] = `/extreme_areas(${area})`; // Lookup
+                        if (technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${technology})`; // Lookup
+                        if (vendorSupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${vendorSupplier})`; // Lookup
+                        if (vatGroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatGroup})`; // Lookup
+                        if (priceList) record["extreme_pricelist@odata.bind"] = `/pricelevels(${priceList})`; // Lookup
+                        if (priceListPPU) record.extreme_pricelistpriceperunit = priceListPPU; // Decimal
+                        if (priceListCurrecy) record.extreme_pricelistcurrency = priceListCurrecy; // Text
+                        if (discountAmount) Number(parseFloat(discountAmount).toFixed(4)); // Currency
+                        if (pd) record.extreme_pd = pd; // Decimal
+                        if (fullPD) record.extreme_fullpd = fullPD; // Decimal
+                        if (supplierBaseAmount) record.extreme_supplierbaseamount = supplierBaseAmount; // Decimal
+                        if (quantity) record.quantity = quantity; // Decimal
+                        if (fullPriceWithDiscount) record.extreme_fullpricewithdiscount = fullPriceWithDiscount; // Decimal
+                        if (PPU) record.priceperunit = Number(parseFloat(PPU).toFixed(4)); // Currency
+                        record.extreme_discount = 0; // Decimal
+                        record.extreme_supplierdiscount = 0; // Decimal
+                        if (defaultMargin) record.extreme_margin = defaultMargin; // Decimal
+                        if (supplierPricePerUnit) record.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
 
                         record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
                         record.extreme_isparentitem = false; // Boolean
@@ -4071,15 +4292,88 @@ async function setClientApiContext(Xrm, formContext) {
                         console.log("RECORD AFTER SETTING PROPERTIES");
                         console.log(record);
 
+                        let newIdChild = '';
                         await Xrm.WebApi.createRecord("quotedetail", record).then(
-                          function success(result) {
+                          async function success(result) {
                             var newId = result.id;
+                            newIdChild = result.id;
+
+                            var record = {};
+                            if (baseAmount) record.baseamount = Number(parseFloat(baseAmount).toFixed(4)); // Currency
+                            if (extendedAmount) record.extendedamount = Number(parseFloat(extendedAmount).toFixed(4)); // Currency
+
+                            await Xrm.WebApi.updateRecord("quotedetail", `${result.id}`, record).then(
+                              function success(result) {
+                                var updatedId = result.id;
+                                console.log(updatedId);
+                              },
+                              function (error) {
+                                console.log(error.message);
+                              }
+                            );
+
                             console.log(newId);
                           },
                           function (error) {
                             console.log(error.message);
                           }
                         );
+
+                        var recordForStore = {};
+                        recordForStore.quotedetailid = newIdChild;
+                        recordForStore.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
+                        recordForStore.quotedetailname = name;
+                        recordForStore.productid = productid;
+                        recordForStore.extreme_parentquoteline = newId;
+                        recordForStore.uomid = defaultuomid;
+
+                        // additional fields
+                        if (productType) recordForStore.extreme_producttype = productType; // Choice
+                        if (vatSetting) recordForStore.extreme_vatsetting = vatSetting; // Lookup
+                        if (taxAmount) recordForStore.tax = taxAmount; // Currency
+                        if (defaultTax) recordForStore.extreme_tax = defaultTax; // Decimal
+                        if (area) recordForStore.extreme_area = area; // Lookup
+                        if (technology) recordForStore.extreme_technology = technology; // Lookup
+                        if (vendorSupplier) recordForStore.extreme_vendorsupplier = vendorSupplier; // Lookup
+                        if (vatGroup) recordForStore.extreme_vatgroup = vatGroup; // Lookup
+                        if (priceList) recordForStore.extreme_pricelist = priceList; // Lookup
+                        if (priceListPPU) recordForStore.extreme_pricelistpriceperunit = priceListPPU; // Decimal
+                        if (priceListCurrecy) recordForStore.extreme_pricelistcurrency = priceListCurrecy; // Text
+                        if (discountAmount) recordForStore.manualdiscountamount = discountAmount; // Currency
+                        if (pd) recordForStore.extreme_pd = pd; // Decimal
+                        if (fullPD) recordForStore.extreme_fullpd = fullPD; // Decimal
+                        if (supplierBaseAmount) recordForStore.extreme_supplierbaseamount = supplierBaseAmount; // Decimal
+                        if (quantity) recordForStore.quantity = quantity; // Decimal
+                        if (fullPriceWithDiscount) recordForStore.extreme_fullpricewithdiscount = fullPriceWithDiscount; // Decimal
+                        if (PPU) recordForStore.priceperunit = PPU; // Currency
+                        recordForStore.extreme_discount = 0; // Decimal
+                        recordForStore.extreme_supplierdiscount = 0; // Decimal
+                        if (defaultMargin) recordForStore.extreme_margin = defaultMargin; // Decimal
+                        if (baseAmount) recordForStore.baseamount = baseAmount; // Currency
+                        if (extendedAmount) recordForStore.extendedamount = extendedAmount; // Currency
+                        if (supplierPricePerUnit) recordForStore.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
+
+                        recordForStore.extreme_isparentitem = false; // Boolean
+                        recordForStore.extreme_createasset = false; // Boolean
+
+                        quoteLinesData.insert(recordForStore)
+                          .done(function (dataObj, key) {
+                            // Process the key and data object here
+                            console.log(key);
+                          })
+                          .fail(function (error) {
+                            // Handle the "error" here
+                            console.log(error);
+                          });
+
+                        // recalculate parent item
+                        if (baseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).baseamount += baseAmount;
+                        if (extendedAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extendedamount += extendedAmount;
+                        if (fullPD) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpd += fullPD;
+                        if (fullPriceWithDiscount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpricewithdiscount += fullPriceWithDiscount;
+                        if (discountAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).manualdiscountamount += discountAmount;
+                        if (supplierBaseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_supplierbaseamount += supplierBaseAmount;
+                        if (taxAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).tax += taxAmount;
 
                       }
                     },
@@ -4092,6 +4386,9 @@ async function setClientApiContext(Xrm, formContext) {
                 await getQuoteProducts(quoteIdForm);
                 await getPriceLists();
                 dataGrid.refresh();
+
+                console.log('quoteLinesData after parent created');
+                console.log(quoteLinesData);
 
               }
               else {
@@ -4120,6 +4417,7 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
           dataGrid.columnOption("extreme_createasset", "allowEditing", true);
           dataGrid.columnOption("extreme_vatsetting", "allowEditing", true);
+          dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
 
           formContext.data.refresh(true);
 
@@ -4221,6 +4519,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           try {
             // Delete the main quotedetail record
+            quoteLinesData.remove(e.key);
             await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`);
             console.log('Main record deleted');
 
@@ -4231,9 +4530,21 @@ async function setClientApiContext(Xrm, formContext) {
               // Filter and delete child items
               const childItems = quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.key);
               for (const childItem of childItems) {
+                quoteLinesData.remove(childItem.quotedetailid);
                 await Xrm.WebApi.deleteRecord("quotedetail", `${childItem.quotedetailid}`);
                 console.log(`Child record ${childItem.quotedetailid} deleted`);
               }
+            }
+
+            // reorder grid
+            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
+              quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
+            }
+
+            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
+              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
+              quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
             }
 
             // Refresh the form and data grid
@@ -4270,6 +4581,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
             dataGrid.columnOption("extreme_createasset", "allowEditing", true);
             dataGrid.columnOption("extreme_vatsetting", "allowEditing", true);
+            dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
           }
         },
         onEditCanceling() {
@@ -4286,7 +4598,7 @@ async function setClientApiContext(Xrm, formContext) {
 
       // function for changing exchange rates
       const exchangeRateChange = async (currency, newValue) => {
-        await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
+        await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
           async function success(results) {
             console.log(results);
             for (var i = 0; i < results.entities.length; i++) {
@@ -4306,6 +4618,9 @@ async function setClientApiContext(Xrm, formContext) {
               var tax = ((pricePerUnit * (1 - extreme_discount / 100)) * quantity * (1 + extreme_tax / 100)) - (pricePerUnit * (1 - extreme_discount / 100) * quantity);
               var extendedAmount = tax + (pricePerUnit * (1 - extreme_discount / 100) * quantity);
 
+              var newPd = pricePerUnit - (extreme_pricelistpriceperunit * parseFloat(newValue) - ((extreme_pricelistpriceperunit * parseFloat(newValue)) * (result.extreme_supplierdiscount / 100)));
+              var newFullPd = newPd * quantity;
+
               await Xrm.WebApi.updateRecord("quotedetail", `${quotedetailid}`, {
                 extreme_supplierpriceperunit: extreme_pricelistpriceperunit * parseFloat(newValue),
                 extreme_supplierbaseamount: (extreme_pricelistpriceperunit * parseFloat(newValue)) * quantity,
@@ -4314,7 +4629,9 @@ async function setClientApiContext(Xrm, formContext) {
                 manualdiscountamount: manualDiscountAmount,
                 extreme_fullpricewithdiscount: fullPriceWithDiscount,
                 tax: tax,
-                extendedamount: extendedAmount
+                extendedamount: extendedAmount,
+                extreme_pd: newPd,
+                extreme_fullpd: newFullPd
               });
 
               quoteLinesData.update(quotedetailid, {
@@ -4325,7 +4642,9 @@ async function setClientApiContext(Xrm, formContext) {
                 manualdiscountamount: manualDiscountAmount,
                 extreme_fullpricewithdiscount: fullPriceWithDiscount,
                 tax: tax,
-                extendedamount: extendedAmount
+                extendedamount: extendedAmount,
+                extreme_pd: newPd,
+                extreme_fullpd: newFullPd
               });
 
               if (quoteLinesData._array.find((item) => item.quotedetailid === quotedetailid).extreme_parentquoteline) {

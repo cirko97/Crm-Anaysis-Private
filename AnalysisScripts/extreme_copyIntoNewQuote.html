@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Copy Quote</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center; /* Centriranje dugmeta horizontalno */
+            align-items: center; /* Centriranje dugmeta vertikalno */
+            height: auto;  /* Puni visinu prozora 100vh;*/
+            margin: 0; /* Uklanjanje podrazumevanih margina */
+            background-color: transparent; /* Prozirna pozadina */
+        }
+        #copyQuoteBtn {
+            padding: 10px 20px; /* Smanjenje veliÄine dugmeta */
+            font-size: 14px; /* Manja veliÄina fonta */
+            color: #f0f0f0; /* Svetlija boja teksta */
+            background-color: #005a9e; /* Tamnija plava boja pozadine dugmeta */
+            border: none; /* Uklanjanje ivice */
+            border-radius: 5px; /* Zaobljeni ivici */
+            cursor: pointer; /* PokazivaÄ kursora */
+            transition: background-color 0.3s; /* Efekat prelaza */
+        }
+        #copyQuoteBtn:hover {
+            background-color: #004080; /* JoÅ¡ tamnija boja pri prelazu miÅ¡em */
+        }
+    </style>
+</head>
+<body>
+    <button id="copyQuoteBtn">Copy To New Quote</button>
+
+    <script>
+        $(document).ready(function() {
+            if (typeof window.parent.Xrm !== 'undefined') {
+                $("#copyQuoteBtn").click(function() {
+                                   
+                    var formContext = window.parent.Xrm.Page; // Get form context
+                    var Xrm = window.parent.Xrm;
+                    var entityId = formContext.data.entity.getId();
+                    var newId = null;
+
+                    // Check if entityId is valid
+                    if (!entityId) {
+                        console.error("Nije pronadjen nijedan zapis ponude.");
+                        return;
+                    }
+                    var confirmStrings = { text:"Are you sure you want to create a new Quote based of this one?", title:"Copy Quote Dialog" };
+                    var confirmOptions = { height: 300, width: 450 };
+                    Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+                    async function (success) {    
+                        if (success.confirmed){
+                            console.log("Dialog closed using OK button.");
+                            Xrm.Utility.showProgressIndicator("Copying Quote... Please Wait...");
+                            
+                            var exchangeJson = null;
+                            const extreme_deliveryinfo = formContext.getAttribute("extreme_deliveryinfo");
+                            const extreme_printoutinfo = formContext.getAttribute("extreme_printoutinfo");
+                            const currency = formContext.getAttribute("transactioncurrencyid");
+                            const extreme_newquotecurrency = formContext.getAttribute("extreme_newquotecurrency");
+                            
+                            if(extreme_newquotecurrency.getValue() !== null){
+                                exchangeJson = await readConfigurationValue(Xrm, extreme_newquotecurrency.getValue()[0].name)
+                            }
+                            else{
+                                exchangeJson = await readConfigurationValue(Xrm, currency.getValue()[0].name)
+                            }
+
+                            const exchangeRates = JSON.parse(exchangeJson);
+
+                            async function copyHeader(){
+                                    //retrieve originalQuote
+                                    var originalQuote = await Xrm.WebApi.retrieveRecord("quote", entityId.slice(1,-1), "?$select=name,extreme_bankaccountonprintout,_transactioncurrencyid_value,_extreme_deliverymethod_value,extreme_detailedprintoutdescription,freighttermscode,extreme_incotermsplace,extreme_note,_extreme_paymentterms_value,_customerid_value,_extreme_primarycontact_value,extreme_printinenglish,extreme_printoutname,willcall,shipto_name,_extreme_shippingpostalcode_value").then(
+                                        function success(result) {
+                                            console.log(result);
+                                            // Columns
+                                            var quoteid = result["quoteid"]; // Guid
+                                            var name = result["name"];
+                                            var extreme_bankaccountonprintout = result["extreme_bankaccountonprintout"]; // Choice
+                                            var extreme_bankaccountonprintout_formatted = result["extreme_bankaccountonprintout@OData.Community.Display.V1.FormattedValue"];
+                                            var transactioncurrencyid = result["_transactioncurrencyid_value"]; // Lookup
+                                            var transactioncurrencyid_formatted = result["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"];
+                                            var transactioncurrencyid_lookuplogicalname = result["_transactioncurrencyid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                            var extreme_deliverymethod = result["_extreme_deliverymethod_value"]; // Lookup
+                                            var extreme_deliverymethod_formatted = result["_extreme_deliverymethod_value@OData.Community.Display.V1.FormattedValue"];
+                                            var extreme_deliverymethod_lookuplogicalname = result["_extreme_deliverymethod_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                            var extreme_detailedprintoutdescription = result["extreme_detailedprintoutdescription"]; // Multiline Text
+                                            var freighttermscode = result["freighttermscode"]; // Choice
+                                            var freighttermscode_formatted = result["freighttermscode@OData.Community.Display.V1.FormattedValue"];
+                                            var extreme_incotermsplace = result["extreme_incotermsplace"]; // Text
+                                            var extreme_note = result["extreme_note"]; // Multiline Text
+                                            var extreme_paymentterms = result["_extreme_paymentterms_value"]; // Lookup
+                                            var extreme_paymentterms_formatted = result["_extreme_paymentterms_value@OData.Community.Display.V1.FormattedValue"];
+                                            var extreme_paymentterms_lookuplogicalname = result["_extreme_paymentterms_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                            var customerid = result["_customerid_value"]; // Customer
+                                            var customerid_formatted = result["_customerid_value@OData.Community.Display.V1.FormattedValue"];
+                                            var customerid_lookuplogicalname = result["_customerid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                            var extreme_primarycontact = result["_extreme_primarycontact_value"]; // Lookup
+                                            var extreme_primarycontact_formatted = result["_extreme_primarycontact_value@OData.Community.Display.V1.FormattedValue"];
+                                            var extreme_primarycontact_lookuplogicalname = result["_extreme_primarycontact_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                                            var extreme_printinenglish = result["extreme_printinenglish"]; // Boolean
+                                            var extreme_printinenglish_formatted = result["extreme_printinenglish@OData.Community.Display.V1.FormattedValue"];
+                                            var extreme_printoutname = result["extreme_printoutname"]; // Choice
+                                            var extreme_printoutname_formatted = result["extreme_printoutname@OData.Community.Display.V1.FormattedValue"];
+                                            var willcall = result["willcall"]; // Boolean
+                                            var willcall_formatted = result["willcall@OData.Community.Display.V1.FormattedValue"];
+                                            var shipto_name = result["shipto_name"]; // Text
+                                            var extreme_shippingpostalcode = result["_extreme_shippingpostalcode_value"]; // Lookup
+                                            var extreme_shippingpostalcode_formatted = result["_extreme_shippingpostalcode_value@OData.Community.Display.V1.FormattedValue"];
+                                            var extreme_shippingpostalcode_lookuplogicalname = result["_extreme_shippingpostalcode_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+
+                                            return result;
+                                        },
+                                        function(error) {
+                                            console.log(error.message);
+                                        }
+                                    );
+                                    
+                                    //prep and create a new one
+                                    var record = {};
+                                    if(originalQuote["_customerid_value"] !== null)
+                                    record["customerid_account@odata.bind"] = `/accounts(${originalQuote["_customerid_value"]})`; // Customer
+                                    if(originalQuote["_extreme_primarycontact_value"] !== null)
+                                    record["extreme_PrimaryContact@odata.bind"] = `/contacts(${originalQuote["_extreme_primarycontact_value"]})`; // Lookup
+
+                                    if(extreme_newquotecurrency.getValue() !== null){
+                                        record["transactioncurrencyid@odata.bind"] = `/transactioncurrencies(${extreme_newquotecurrency.getValue()[0].id.slice(1,-1)})`; // Lookup
+                                    }
+                                    else{
+                                        record["transactioncurrencyid@odata.bind"] = `/transactioncurrencies(${originalQuote["_transactioncurrencyid_value"]})`; // Lookup
+                                    }
+                                    
+                                    if(extreme_deliveryinfo.getValue()){
+                                        if(originalQuote["_extreme_deliverymethod_value"] !== null)
+                                        record["extreme_DeliveryMethod@odata.bind"] = `/extreme_deliverymethods(${originalQuote["_extreme_deliverymethod_value"]})`; // Lookup
+                                        if(originalQuote["_extreme_paymentterms_value"] !== null)
+                                        record["extreme_Paymentterms@odata.bind"] = `/extreme_paymenttermses(${originalQuote["_extreme_paymentterms_value"]})`; // Lookup
+                                        record.freighttermscode = originalQuote["freighttermscode"]; // Choice
+                                        record.extreme_incotermsplace = originalQuote["extreme_incotermsplace"]; // Text
+                                        record.willcall = originalQuote["willcall"]; // Boolean
+                                        record.shipto_name = originalQuote["shipto_name"]; // Text
+                                        if(originalQuote["_extreme_shippingpostalcode_value"] !== null)
+                                        record["extreme_ShippingPostalCode@odata.bind"] = `/extreme_postaladdresses(${originalQuote["_extreme_shippingpostalcode_value"]})`; // Lookup
+                                    }                         
+
+                                    if(extreme_printoutinfo.getValue()){
+                                        record.extreme_printinenglish = originalQuote["extreme_printinenglish"]; // Boolean
+                                        record.extreme_printoutname = originalQuote["extreme_printoutname"]; // Choice
+                                        record.extreme_bankaccountonprintout = originalQuote["extreme_bankaccountonprintout"];
+                                        record.extreme_note = originalQuote["extreme_note"]; // Multiline Text
+                                        record.extreme_detailedprintoutdescription = originalQuote["extreme_detailedprintoutdescription"]; // Multiline Text
+                                    }
+                                        record.name = originalQuote["name"] + " - [COPY]"
+                                    
+                                    var newQoute = await Xrm.WebApi.createRecord("quote", record).then(
+                                        function success(result) {
+                                            newId = result.id;
+                                            console.log(newId);
+                                        },
+                                        function(error) {
+                                            console.log(error.message);
+                                        }
+                                    );
+                            }
+                                
+
+
+                            if(extreme_newquotecurrency.getValue()[0].id == currency.getValue()[0].id){
+                                await copyHeader();
+                            
+                                //create lines
+                                //retrieve desc is parent
+                                let originalQuoteDetails = []
+                                await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=sequencenumber,ispriceoverridden,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,extreme_supplierpriceperunit,baseamount,extreme_createasset,extreme_discount,_productid_value,extendedamount,extreme_fullpricewithdiscount,extreme_fullpd,extreme_isparentitem,manualdiscountamount,extreme_margin,quotedetailname,_extreme_parentquoteline_value,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_productdescription,extreme_customproductid,extreme_producttype,extreme_pd,quantity,extreme_supplierbaseamount,extreme_supplierdiscount,tax,extreme_tax,_uomid_value,_extreme_vatgroup_value,_extreme_vatsetting_value,extreme_uomid&$filter=_quoteid_value eq ${entityId}&$orderby=extreme_isparentitem desc`).then(
+                                    function success(results) {
+                                        console.log(results);
+                                        for (var i = 0; i < results.entities.length; i++) {
+                                            var result = results.entities[i];
+                                            // Columns
+                                            let quotedetail = {
+                                                sequencenumber: result["sequencenumber"],
+                                                ispriceoverridden: result["ispriceoverridden"],
+                                                extreme_technology: result["_extreme_technology_value"], // Lookup
+                                                extreme_technology_formatted: result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_technology_lookuplogicalname: result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_area: result["_extreme_area_value"], // Lookup
+                                                extreme_area_formatted: result["_extreme_area_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_area_lookuplogicalname: result["_extreme_area_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_vendorsupplier: result["_extreme_vendorsupplier_value"], // Lookup
+                                                extreme_vendorsupplier_formatted: result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_vendorsupplier_lookuplogicalname: result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                quotedetailid: result["quotedetailid"], // Guid
+                                                baseamount: result["baseamount"], // Currency
+                                                extreme_createasset: result["extreme_createasset"], // Boolean
+                                                extreme_createasset_formatted: result["extreme_createasset@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_discount: result["extreme_discount"], // Decimal
+                                                extreme_discount_formatted: result["extreme_discount@OData.Community.Display.V1.FormattedValue"],
+                                                productid: result["_productid_value"], // Lookup
+                                                productid_formatted: result["_productid_value@OData.Community.Display.V1.FormattedValue"],
+                                                productid_lookuplogicalname: result["_productid_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extendedamount: result["extendedamount"], // Currency
+                                                extreme_supplierpriceperunit: result["extreme_supplierpriceperunit"],
+                                                extreme_fullpricewithdiscount: result["extreme_fullpricewithdiscount"], // Decimal
+                                                extreme_fullpricewithdiscount_formatted: result["extreme_fullpricewithdiscount@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_fullpd: result["extreme_fullpd"], // Decimal
+                                                extreme_fullpd_formatted: result["extreme_fullpd@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_isparentitem: result["extreme_isparentitem"], // Boolean
+                                                extreme_isparentitem_formatted: result["extreme_isparentitem@OData.Community.Display.V1.FormattedValue"],
+                                                manualdiscountamount: result["manualdiscountamount"], // Currency
+                                                extreme_margin: result["extreme_margin"], // Decimal
+                                                extreme_margin_formatted: result["extreme_margin@OData.Community.Display.V1.FormattedValue"],
+                                                quotedetailname: result["quotedetailname"], // Text
+                                                extreme_parentquoteline: result["_extreme_parentquoteline_value"], // Lookup
+                                                extreme_parentquoteline_formatted: result["_extreme_parentquoteline_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_parentquoteline_lookuplogicalname: result["_extreme_parentquoteline_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_pricelist: result["_extreme_pricelist_value"], // Lookup
+                                                extreme_pricelist_formatted: result["_extreme_pricelist_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_pricelist_lookuplogicalname: result["_extreme_pricelist_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_pricelistcurrency: result["extreme_pricelistcurrency"], // Text
+                                                priceperunit: result["priceperunit"], // Currency
+                                                extreme_pricelistpriceperunit: result["extreme_pricelistpriceperunit"], // Decimal
+                                                extreme_pricelistpriceperunit_formatted: result["extreme_pricelistpriceperunit@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_productdescription: result["extreme_productdescription"], // Multiline Text
+                                                extreme_customproductid: result["extreme_customproductid"], // Text
+                                                extreme_producttype: result["extreme_producttype"], // Choice
+                                                extreme_producttype_formatted: result["extreme_producttype@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_pd: result["extreme_pd"], // Decimal
+                                                extreme_pd_formatted: result["extreme_pd@OData.Community.Display.V1.FormattedValue"],
+                                                quantity: result["quantity"], // Decimal
+                                                quantity_formatted: result["quantity@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_supplierbaseamount: result["extreme_supplierbaseamount"], // Decimal
+                                                extreme_supplierbaseamount_formatted: result["extreme_supplierbaseamount@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_supplierdiscount: result["extreme_supplierdiscount"], // Decimal
+                                                extreme_supplierdiscount_formatted: result["extreme_supplierdiscount@OData.Community.Display.V1.FormattedValue"],
+                                                tax: result["tax"], // Currency
+                                                extreme_tax: result["extreme_tax"], // Decimal
+                                                extreme_tax_formatted: result["extreme_tax@OData.Community.Display.V1.FormattedValue"],
+                                                uomid: result["_uomid_value"], // Lookup
+                                                uomid_formatted: result["_uomid_value@OData.Community.Display.V1.FormattedValue"],
+                                                uomid_lookuplogicalname: result["_uomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_vatgroup: result["_extreme_vatgroup_value"], // Lookup
+                                                extreme_vatgroup_formatted: result["_extreme_vatgroup_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_vatgroup_lookuplogicalname: result["_extreme_vatgroup_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_vatsetting: result["_extreme_vatsetting_value"], // Lookup
+                                                extreme_vatsetting_formatted: result["_extreme_vatsetting_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_vatsetting_lookuplogicalname: result["_extreme_vatsetting_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_uomid: result["extreme_uomid"], // Text
+                                            };
+
+                                            originalQuoteDetails.push(quotedetail);
+                                        }
+                                    },
+                                    function(error) {
+                                        console.log(error.message);
+                                    }
+                                );
+                            
+                                async function copyQuotedetailsWithParentLinking(quotedetailArray, newParentQuoteId) {
+                                const idMapping = {}; // Map old quotedetail IDs to new quotedetail IDs
+
+                                // Step 1: Create all quotedetail records without parent linking
+                                for (const quotedetail of quotedetailArray) {
+                                    let newQuotedetail = {
+                                        "sequencenumber": quotedetail.sequencenumber,
+                                        "ispriceoverridden": quotedetail.ispriceoverridden,
+                                        "baseamount": quotedetail.baseamount,
+                                        "extreme_createasset": quotedetail.extreme_createasset,
+                                        "extreme_discount": quotedetail.extreme_discount,
+                                        "extendedamount": quotedetail.extendedamount,
+                                        "extreme_supplierpriceperunit": quotedetail.extreme_supplierpriceperunit,
+                                        "extreme_fullpricewithdiscount": quotedetail.extreme_fullpricewithdiscount,
+                                        "extreme_fullpd": quotedetail.extreme_fullpd,
+                                        "extreme_isparentitem": quotedetail.extreme_isparentitem,
+                                        "manualdiscountamount": quotedetail.manualdiscountamount,
+                                        "extreme_margin": quotedetail.extreme_margin,
+                                        "quotedetailname": quotedetail.quotedetailname,
+                                        "extreme_pricelistcurrency": quotedetail.extreme_pricelistcurrency,
+                                        "priceperunit": quotedetail.priceperunit,
+                                        "extreme_pricelistpriceperunit": quotedetail.extreme_pricelistpriceperunit,
+                                        "extreme_productdescription": quotedetail.extreme_productdescription,
+                                        "extreme_customproductid": quotedetail.extreme_customproductid,
+                                        "extreme_producttype": quotedetail.extreme_producttype,
+                                        "extreme_pd": quotedetail.extreme_pd,
+                                        "quantity": quotedetail.quantity,
+                                        "extreme_supplierbaseamount": quotedetail.extreme_supplierbaseamount,
+                                        "extreme_supplierdiscount": quotedetail.extreme_supplierdiscount,
+                                        "tax": quotedetail.tax,
+                                        "extreme_tax": quotedetail.extreme_tax,
+                                        "extreme_uomid": quotedetail.extreme_uomid
+                                    };
+
+                                    // Add lookup bindings
+                                    if (quotedetail.productid) {
+                                        newQuotedetail["productid@odata.bind"] = `/products(${quotedetail.productid})`;
+                                    }
+                                    if (quotedetail.extreme_pricelist) {
+                                        newQuotedetail["extreme_pricelist@odata.bind"] = `/pricelevels(${quotedetail.extreme_pricelist})`;
+                                    }
+                                    if (quotedetail.uomid) {
+                                        newQuotedetail["uomid@odata.bind"] = `/uoms(${quotedetail.uomid})`;
+                                    }
+                                    if (quotedetail.extreme_vatgroup) {
+                                        newQuotedetail["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${quotedetail.extreme_vatgroup})`;
+                                    }
+                                    if (quotedetail.extreme_vatsetting) {
+                                        newQuotedetail["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${quotedetail.extreme_vatsetting})`;
+                                    }
+                                    if (quotedetail.extreme_area) {
+                                        newQuotedetail["extreme_Area@odata.bind"] = `/extreme_areas(${quotedetail.extreme_area})`; // Lookup;
+                                    }
+                                    if (quotedetail.extreme_technology) {
+                                        newQuotedetail["extreme_Technology@odata.bind"] = `/extreme_technologies(${quotedetail.extreme_technology})`;
+                                    }
+                                    if (quotedetail.extreme_vendorsupplier) {
+                                        newQuotedetail["extreme_VendorSupplier@odata.bind"] = `/accounts(${quotedetail.extreme_vendorsupplier})`;
+                                    }
+                                    newQuotedetail["quoteid@odata.bind"] = `/quotes(${newId})`;
+
+                                    try {
+                                        const result = await Xrm.WebApi.createRecord("quotedetail", newQuotedetail);
+                                        console.log(`Quotedetail copied successfully with ID: ${result.id}`);
+                                        idMapping[quotedetail.quotedetailid] = result.id; // Map old ID to new ID
+                                    } catch (error) {
+                                        console.error(`Error creating quotedetail: ${error.message}`);
+                                    }
+                                }
+
+                                // Step 2: Update parentquotedetail links for child records
+                                for (const quotedetail of quotedetailArray) {
+                                    if (quotedetail.extreme_parentquoteline && idMapping[quotedetail.extreme_parentquoteline]) {
+                                        const updatedQuotedetail = {
+                                            "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${idMapping[quotedetail.extreme_parentquoteline]})`
+                                        };
+
+                                        try {
+                                            await Xrm.WebApi.updateRecord(
+                                                "quotedetail",
+                                                idMapping[quotedetail.quotedetailid],
+                                                updatedQuotedetail
+                                            );
+                                            console.log(
+                                                `Parentquotedetail link updated for quotedetail ID: ${idMapping[quotedetail.quotedetailid]}`
+                                            );
+                                        } catch (error) {
+                                            console.error(
+                                                `Error updating parentquotedetail for quotedetail ID: ${idMapping[quotedetail.quotedetailid]} - ${error.message}`
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                                copyQuotedetailsWithParentLinking(originalQuoteDetails, newId);
+                                
+                            }
+                            else{ // ako moramo da konvertujemo u drugu valutu
+                                await copyHeader();
+                                var kurs = exchangeRates[`${currency.getValue()[0].name}`]
+                                
+                                let originalQuoteDetailsXR = []
+                                await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=sequencenumber,ispriceoverridden,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,extreme_supplierpriceperunit,baseamount,extreme_createasset,extreme_discount,_productid_value,extendedamount,extreme_fullpricewithdiscount,extreme_fullpd,extreme_isparentitem,manualdiscountamount,extreme_margin,quotedetailname,_extreme_parentquoteline_value,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_productdescription,extreme_customproductid,extreme_producttype,extreme_pd,quantity,extreme_supplierbaseamount,extreme_supplierdiscount,tax,extreme_tax,_uomid_value,_extreme_vatgroup_value,_extreme_vatsetting_value,extreme_uomid&$filter=_quoteid_value eq ${entityId}&$orderby=extreme_isparentitem desc`).then(
+                                    function success(results) {
+                                        console.log(results);
+                                        for (var i = 0; i < results.entities.length; i++) {
+                                            var result = results.entities[i];
+                                            // Columns
+                                            let quotedetail = {
+                                                sequencenumber: result["sequencenumber"],
+                                                ispriceoverridden: result["ispriceoverridden"],
+                                                extreme_technology: result["_extreme_technology_value"], // Lookup
+                                                extreme_technology_formatted: result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_technology_lookuplogicalname: result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_area: result["_extreme_area_value"], // Lookup
+                                                extreme_area_formatted: result["_extreme_area_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_area_lookuplogicalname: result["_extreme_area_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_vendorsupplier: result["_extreme_vendorsupplier_value"], // Lookup
+                                                extreme_vendorsupplier_formatted: result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_vendorsupplier_lookuplogicalname: result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                quotedetailid: result["quotedetailid"], // Guid
+                                                baseamount: result["baseamount"], // Currency
+                                                extreme_createasset: result["extreme_createasset"], // Boolean
+                                                extreme_createasset_formatted: result["extreme_createasset@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_discount: result["extreme_discount"], // Decimal
+                                                extreme_discount_formatted: result["extreme_discount@OData.Community.Display.V1.FormattedValue"],
+                                                productid: result["_productid_value"], // Lookup
+                                                productid_formatted: result["_productid_value@OData.Community.Display.V1.FormattedValue"],
+                                                productid_lookuplogicalname: result["_productid_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extendedamount: result["extendedamount"], // Currency
+                                                extreme_supplierpriceperunit: result["extreme_supplierpriceperunit"],
+                                                extreme_fullpricewithdiscount: result["extreme_fullpricewithdiscount"], // Decimal
+                                                extreme_fullpricewithdiscount_formatted: result["extreme_fullpricewithdiscount@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_fullpd: result["extreme_fullpd"], // Decimal
+                                                extreme_fullpd_formatted: result["extreme_fullpd@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_isparentitem: result["extreme_isparentitem"], // Boolean
+                                                extreme_isparentitem_formatted: result["extreme_isparentitem@OData.Community.Display.V1.FormattedValue"],
+                                                manualdiscountamount: result["manualdiscountamount"], // Currency
+                                                extreme_margin: result["extreme_margin"], // Decimal
+                                                extreme_margin_formatted: result["extreme_margin@OData.Community.Display.V1.FormattedValue"],
+                                                quotedetailname: result["quotedetailname"], // Text
+                                                extreme_parentquoteline: result["_extreme_parentquoteline_value"], // Lookup
+                                                extreme_parentquoteline_formatted: result["_extreme_parentquoteline_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_parentquoteline_lookuplogicalname: result["_extreme_parentquoteline_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_pricelist: result["_extreme_pricelist_value"], // Lookup
+                                                extreme_pricelist_formatted: result["_extreme_pricelist_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_pricelist_lookuplogicalname: result["_extreme_pricelist_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_pricelistcurrency: result["extreme_pricelistcurrency"], // Text
+                                                priceperunit: result["priceperunit"], // Currency
+                                                extreme_pricelistpriceperunit: result["extreme_pricelistpriceperunit"], // Decimal
+                                                extreme_pricelistpriceperunit_formatted: result["extreme_pricelistpriceperunit@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_productdescription: result["extreme_productdescription"], // Multiline Text
+                                                extreme_customproductid: result["extreme_customproductid"], // Text
+                                                extreme_producttype: result["extreme_producttype"], // Choice
+                                                extreme_producttype_formatted: result["extreme_producttype@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_pd: result["extreme_pd"], // Decimal
+                                                extreme_pd_formatted: result["extreme_pd@OData.Community.Display.V1.FormattedValue"],
+                                                quantity: result["quantity"], // Decimal
+                                                quantity_formatted: result["quantity@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_supplierbaseamount: result["extreme_supplierbaseamount"], // Decimal
+                                                extreme_supplierbaseamount_formatted: result["extreme_supplierbaseamount@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_supplierdiscount: result["extreme_supplierdiscount"], // Decimal
+                                                extreme_supplierdiscount_formatted: result["extreme_supplierdiscount@OData.Community.Display.V1.FormattedValue"],
+                                                tax: result["tax"], // Currency
+                                                extreme_tax: result["extreme_tax"], // Decimal
+                                                extreme_tax_formatted: result["extreme_tax@OData.Community.Display.V1.FormattedValue"],
+                                                uomid: result["_uomid_value"], // Lookup
+                                                uomid_formatted: result["_uomid_value@OData.Community.Display.V1.FormattedValue"],
+                                                uomid_lookuplogicalname: result["_uomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_vatgroup: result["_extreme_vatgroup_value"], // Lookup
+                                                extreme_vatgroup_formatted: result["_extreme_vatgroup_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_vatgroup_lookuplogicalname: result["_extreme_vatgroup_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_vatsetting: result["_extreme_vatsetting_value"], // Lookup
+                                                extreme_vatsetting_formatted: result["_extreme_vatsetting_value@OData.Community.Display.V1.FormattedValue"],
+                                                extreme_vatsetting_lookuplogicalname: result["_extreme_vatsetting_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
+                                                extreme_uomid: result["extreme_uomid"], // Text
+                                            };
+
+                                            originalQuoteDetailsXR.push(quotedetail);
+                                        }
+                                    },
+                                    function(error) {
+                                        console.log(error.message);
+                                    }
+                                );
+                                
+                                async function copyQuotedetailsWithParentLinkingAndXRate(quotedetailArray, newParentQuoteId) {
+                                const idMapping = {}; // Map old quotedetail IDs to new quotedetail IDs
+
+                                // Step 1: Create all quotedetail records without parent linking
+                                for (const quotedetail of quotedetailArray) {
+
+
+                                    const newPPU = quotedetail.extreme_supplierpriceperunit * parseFloat(kurs);
+                                    const salesPPU = newPPU * quotedetail.extreme_margin;
+                                    const newBaseamount = salesPPU * quotedetail.quantity;
+                                    const newManualDiscountAmount = newBaseamount - (newBaseamount * (1 - quotedetail.extreme_discount / 100));
+                                    const newFullpricewithdiscount = newBaseamount - newManualDiscountAmount;
+                                    const newTax = newFullpricewithdiscount - (newFullpricewithdiscount * (1 - quotedetail.extreme_tax / 100));
+                                    const newExtendedAmount = newTax + newFullpricewithdiscount;
+
+                                    let newQuotedetail = {
+                                        "sequencenumber": quotedetail.sequencenumber,
+                                        "ispriceoverridden": quotedetail.ispriceoverridden,
+                                        "extreme_createasset": quotedetail.extreme_createasset,
+                                        "extreme_discount": quotedetail.extreme_discount,
+                                        "extreme_isparentitem": quotedetail.extreme_isparentitem,
+                                        "extreme_margin": quotedetail.extreme_margin,
+                                        "quotedetailname": quotedetail.quotedetailname,
+                                        "extreme_pricelistcurrency": quotedetail.extreme_pricelistcurrency,
+
+                                        "extreme_supplierpriceperunit": newPPU,
+                                        "extreme_supplierbaseamount": newPPU * quotedetail.quantity,
+                                        "priceperunit": salesPPU,
+                                        "baseamount": newBaseamount,
+                                        "manualdiscountamount": newManualDiscountAmount,
+                                        "extreme_fullpricewithdiscount": newFullpricewithdiscount,
+                                        "tax": newTax,
+                                        "extendedamount": newExtendedAmount,
+                                        
+                                        "extreme_pd": quotedetail.extreme_pd * parseFloat(kurs),
+                                        "extreme_fullpd": quotedetail.extreme_fullpd * parseFloat(kurs),
+
+                                        "extreme_pricelistpriceperunit": quotedetail.extreme_pricelistpriceperunit,
+                                        "extreme_productdescription": quotedetail.extreme_productdescription,
+                                        "extreme_customproductid": quotedetail.extreme_customproductid,
+                                        "extreme_producttype": quotedetail.extreme_producttype,
+                                        "quantity": quotedetail.quantity,
+                                        "extreme_supplierdiscount": quotedetail.extreme_supplierdiscount,
+                                        "extreme_tax": quotedetail.extreme_tax,
+                                        "extreme_uomid": quotedetail.extreme_uomid
+                                    };
+
+                                    // Add lookup bindings
+                                    if (quotedetail.productid) {
+                                        newQuotedetail["productid@odata.bind"] = `/products(${quotedetail.productid})`;
+                                    }
+                                    if (quotedetail.extreme_pricelist) {
+                                        newQuotedetail["extreme_pricelist@odata.bind"] = `/pricelevels(${quotedetail.extreme_pricelist})`;
+                                    }
+                                    if (quotedetail.uomid) {
+                                        newQuotedetail["uomid@odata.bind"] = `/uoms(${quotedetail.uomid})`;
+                                    }
+                                    if (quotedetail.extreme_vatgroup) {
+                                        newQuotedetail["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${quotedetail.extreme_vatgroup})`;
+                                    }
+                                    if (quotedetail.extreme_vatsetting) {
+                                        newQuotedetail["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${quotedetail.extreme_vatsetting})`;
+                                    }
+                                    if (quotedetail.extreme_area) {
+                                        newQuotedetail["extreme_Area@odata.bind"] = `/extreme_areas(${quotedetail.extreme_area})`; // Lookup;
+                                    }
+                                    if (quotedetail.extreme_technology) {
+                                        newQuotedetail["extreme_Technology@odata.bind"] = `/extreme_technologies(${quotedetail.extreme_technology})`;
+                                    }
+                                    if (quotedetail.extreme_vendorsupplier) {
+                                        newQuotedetail["extreme_VendorSupplier@odata.bind"] = `/accounts(${quotedetail.extreme_vendorsupplier})`;
+                                    }
+                                    newQuotedetail["quoteid@odata.bind"] = `/quotes(${newId})`;
+
+                                    try {
+                                        const result = await Xrm.WebApi.createRecord("quotedetail", newQuotedetail);
+                                        console.log(`Quotedetail copied successfully with ID: ${result.id}`);
+                                        idMapping[quotedetail.quotedetailid] = result.id; // Map old ID to new ID
+                                    } catch (error) {
+                                        console.error(`Error creating quotedetail: ${error.message}`);
+                                    }
+                                }
+
+                                // Step 2: Update parentquotedetail links for child records
+                                for (const quotedetail of quotedetailArray) {
+                                    if (quotedetail.extreme_parentquoteline && idMapping[quotedetail.extreme_parentquoteline]) {
+                                        const updatedQuotedetail = {
+                                            "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${idMapping[quotedetail.extreme_parentquoteline]})`
+                                        };
+
+                                        try {
+                                            await Xrm.WebApi.updateRecord(
+                                                "quotedetail",
+                                                idMapping[quotedetail.quotedetailid],
+                                                updatedQuotedetail
+                                            );
+                                            console.log(
+                                                `Parentquotedetail link updated for quotedetail ID: ${idMapping[quotedetail.quotedetailid]}`
+                                            );
+                                        } catch (error) {
+                                            console.error(
+                                                `Error updating parentquotedetail for quotedetail ID: ${idMapping[quotedetail.quotedetailid]} - ${error.message}`
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                                copyQuotedetailsWithParentLinkingAndXRate(originalQuoteDetailsXR, newId);
+
+                            }
+
+                            Xrm.Utility.closeProgressIndicator();
+                            //ask user to open new quote in a new window
+                            var confirmStrings = { text:"Quote successfully copied, do you want to open the new copy?", title:"Copy Quote Dialog" };
+                            var confirmOptions = { height: 300, width: 450 };
+                            Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+                            function (success) {    
+                                if (success.confirmed) {
+                                var entityFormOptions = {};
+                                entityFormOptions["openInNewWindow"] = true;
+                                entityFormOptions["entityName"] = "quote";
+                                entityFormOptions["entityId"] = newId;
+
+                                // Open the form.
+                                Xrm.Navigation.openForm(entityFormOptions).then(
+                                    function (success) {
+                                        console.log(success);
+                                    },
+                                    function (error) {
+                                        console.log(error);
+                                    });
+                                }
+                                else
+                                    console.log("Dialog closed using Cancel button or X.");
+                            });
+                        }
+                    });
+                });
+            } else {
+                console.error("Xrm nije definisan. Uverite se da se ovo izvrsava u Dynamics 365 okruzenju.");
+            }
+            async function readConfigurationValue(Xrm, key) {
+                // eslint-disable-next-line no-undef
+                var value = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", `?$select=extreme_value&$filter=extreme_key eq '${key}'&$top=1`).then(
+                    function success(results) {
+                        return results.entities[0]["extreme_value"];
+                    },
+                    function (error) {
+                        console.log(error.message);
+                    }
+                );
+                return value;
+            }
+        });
+    </script>
+</body>
+</html>

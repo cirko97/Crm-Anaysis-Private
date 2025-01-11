@@ -1,7 +1,12 @@
 var AccountRibbon = window.AccountRibbon || {};
 (function () {
 	this.SyncAccountButton = function (formContext) {
-		// DDBFFDDD-0328-4F96-8A3C-E9235550F347  -  SYNC Insert Workflow
+
+		//Sync Validation
+		const vat = formContext.getAttribute("extreme_vatnumber");
+		const tax = formContext.getAttribute("extreme_tax")
+		if(vat.getValue()!== null && tax.getValue()!== null){
+					// DDBFFDDD-0328-4F96-8A3C-E9235550F347  -  SYNC Insert Workflow
 		var workflowId = 'DDBFFDDD-0328-4F96-8A3C-E9235550F347';
 		var accountId = formContext.data.entity.getId().slice(1,-1);
 
@@ -10,6 +15,8 @@ var AccountRibbon = window.AccountRibbon || {};
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
 		function (success) {    
 			if (success.confirmed){
+				
+
 				var executeWorkflowRequest = {
 					entity: { entityType: "workflow", id: `${workflowId}` },
 					EntityId: { guid: `${accountId}` },
@@ -40,6 +47,18 @@ var AccountRibbon = window.AccountRibbon || {};
 				});
 			}
 		});
+		} else {
+			var alertStrings = { confirmButtonLabel: "OK", text: "Please make sure that you have entered a valid VAT No. and Tax % for this customer and try again!", title: "Synchronization Validation" };
+			var alertOptions = { height: 240, width: 260 };
+			Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+				function (success) {
+					console.log("Alert dialog closed");
+				},
+				function (error) {
+					console.log(error.message);
+				}
+			);
+		}
 	}
 
 	this.SyncAccountButtonEnableRule = function (formContext) {

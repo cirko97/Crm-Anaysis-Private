@@ -102,8 +102,8 @@ namespace AnalysisWF
             sb.Append("{");
             sb.Append("\"procname\": \"usp_DEVC_AA_CreateSubject\",");
             sb.Append("\"procparams\": {");
-            sb.AppendFormat("\"acSubject\": \"{0}\",", account.GetAttributeValue<string>("name"));
-            sb.AppendFormat("\"acName2\": \"{0}\",", account.GetAttributeValue<string>("extreme_name2"));
+            sb.AppendFormat("\"acSubject\": \"{0}\",", account.GetAttributeValue<string>("extreme_paname30characters"));
+            sb.AppendFormat("\"acName2\": \"{0}\",", account.GetAttributeValue<string>("name"));
             sb.AppendFormat("\"acAddress\": \"{0}\",", account.GetAttributeValue<string>("address1_line1"));
             sb.AppendFormat("\"acEmail\": \"{0}\",", account.GetAttributeValue<string>("emailaddress1"));
             sb.AppendFormat("\"acPhone\": \"{0}\",", account.GetAttributeValue<string>("telephone1"));

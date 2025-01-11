@@ -7,12 +7,29 @@ var ProductForm = window.ProductForm || {};
         formContext = executionContext.getFormContext();
 
         const formType = formContext.ui.getFormType();
+        const isParent = formContext.getAttribute("extreme_isparent");
+
         if (formType === FORM_NEW) {
 
             setDefaults(formContext);
 
+        } else {
+                // Get Nav. Item
+                var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+                // First set focus on Nav. Item to open related tab
+                navItem.setFocus();
+                // get Main tab (replace it with your tab name)
+                var mainTab =  formContext.ui.tabs.get("product_details");
+                // Then move to Main Tab
+                mainTab.setFocus();
         }
 
+        if (isParent.getValue() !== null && isParent.getValue() === true){
+            var tab = formContext.ui.tabs.get("product_details");
+            var section = tab.sections.get("setProducts");
+            section.setVisible(true);
+        }
+        
         formContext.getAttribute("extreme_synchronized").addOnChange(lockProductID);
         lockProductID();
         
@@ -21,6 +38,8 @@ var ProductForm = window.ProductForm || {};
                 formContext.getControl("productnumber").setDisabled(true);
             }
         }
+
+
     }
 
     
