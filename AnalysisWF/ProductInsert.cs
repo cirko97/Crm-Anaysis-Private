@@ -130,8 +130,8 @@ namespace AnalysisWF
             var acName = product.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("defaultuomid"), "name", service)?.Substring(0, 3);
             var acType = product.GetAttributeValue<OptionSetValue>("producttypecode")?.Value == 1 ? "P" : "U";
-            var acClassif = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
-            var acClassif2 = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
+            var acClassif = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
+            var acClassif2 = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
             var anVATCode = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service) ?? "";
             var anVat = GetLookupFieldValue<decimal>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
 

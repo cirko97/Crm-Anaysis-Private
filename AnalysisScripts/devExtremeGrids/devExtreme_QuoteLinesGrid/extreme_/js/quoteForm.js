@@ -9,9 +9,20 @@ async function form_onload(executionContext) {
     const maxRetries = 100;
     const retryDelay = 1000; // 1-second delay
 
+    formContext.getControl("customerid").setEntityTypes(["account"]);
+
     // Check form type for quote grid
     if (formType !== FORM_NEW) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
+
+        formContext.getControl("extreme_deliveryinfo").setDisabled(false);
+        formContext.getControl("extreme_printoutinfo").setDisabled(false);
+        formContext.getControl("extreme_newquotecurrency").setDisabled(false);
+
+        formContext.getControl("extreme_printinenglish").setDisabled(false);
+        formContext.getControl("extreme_printoutname").setDisabled(false);
+        formContext.getControl("extreme_bankaccountonprintout").setDisabled(false);
+
     }
 
     if (formType === FORM_NEW) {
@@ -25,10 +36,34 @@ async function form_onload(executionContext) {
         && formContext.getAttribute("extreme_paymentterms").getValue() === null){
             populateAccountDefaults();
         }
+        var publishingLocation = await readConfigurationValue("QuotePublishingLocation")
+        formContext.getAttribute("extreme_placeofpublishing").setValue(publishingLocation);   
+    } else {
+        // Get Nav. Item
+        var navItem = formContext.ui.navigation.items.get("navSPDocuments");
+        // First set focus on Nav. Item to open related tab
+        navItem.setFocus();
+        // get Main tab (replace it with your tab name)
+        var mainTab =  formContext.ui.tabs.get("general");
+        // Then move to Main Tab
+        mainTab.setFocus();
     }
 
+    if(formContext.getAttribute("effectivefrom").getValue() === null){
+        formContext.getAttribute("effectivefrom").setValue(new Date());
+        var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
+        var newEffectiveTo = addDays(new Date(), parseInt(defaultQuoteValidDays, 10));
+        formContext.getAttribute("effectiveto").setValue(newEffectiveTo);           
+    }
+
+
     formContext.getAttribute("customerid").addOnChange(populateAccountDefaults);
-   
+    formContext.getAttribute("statecode").addOnChange(async () => {
+        await Xrm.Page.getControl('WebResource_quoteLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+    })
+
+
+
     function addDays(date, days) {
         var result = new Date(date.valueOf());
         result.setDate(result.getDate() + days);
@@ -119,4 +154,5 @@ async function form_onload(executionContext) {
             console.error("Max retries reached. Unable to set client API context.");
         }
     }
+    
 }
