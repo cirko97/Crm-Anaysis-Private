@@ -47,20 +47,36 @@ namespace AnalysisWF
             {
                 // Preuzimanje Quote zapisa
                 var quoteRef = Quote.Get(context);
+               
+                var quote = service.Retrieve("quote", quoteRef.Id, new ColumnSet(true));
+                tracingService.Trace("Preuzet Quote zapis sa ID: {0}", quote.Id);
+
+                var customerTax = (decimal)Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("customerid"), "extreme_tax", service);
+                var isDomCustomer = customerTax != 0;
+                
+
                 // Retrieve Pantheon Document Type from extreme_configuration
                 var configQuery = new QueryExpression("extreme_configuration")
                 {
                     ColumnSet = new ColumnSet("extreme_value")
                 };
-                configQuery.Criteria.AddCondition("extreme_key", ConditionOperator.Equal, "PA_DOC_TYPE");
+
+                if (isDomCustomer)
+                {
+                    configQuery.Criteria.AddCondition("extreme_key", ConditionOperator.Equal, "PA_DOM_DOC_TYPE");
+                }
+                else
+                {
+                    configQuery.Criteria.AddCondition("extreme_key", ConditionOperator.Equal, "PA_INO_DOC_TYPE");
+                }
+
                 var configResult = service.RetrieveMultiple(configQuery);
                 if (configResult.Entities.Count == 0)
                 {
-                    throw new InvalidPluginExecutionException("Configuration with key 'PA_DOC_TYPE' not found.");
+                    throw new InvalidPluginExecutionException("Configuration with key 'PA_***_DOC_TYPE' not found.");
                 }
                 var pantheonDocType = configResult.Entities[0].GetAttributeValue<string>("extreme_value");
-                var quote = service.Retrieve("quote", quoteRef.Id, new ColumnSet(true));
-                tracingService.Trace("Preuzet Quote zapis sa ID: {0}", quote.Id);
+                
 
                 // Priprema podataka za slanje
                 var jsonData = PrepareQuoteData(quote, pantheonDocType, service);
@@ -112,6 +128,8 @@ namespace AnalysisWF
             {
                 acCrmNO = $"{acCrmNO}/{revisionNumber}";
             }
+            var anNoteClerk = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("ownerid"), "extreme_pantheonid", service);
+            var anClerk = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("ownerid"), "extreme_pantheonid", service);
             var adDate = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var adDeliveryDate = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var acReceiver = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("customerid"), "extreme_paname30characters", service);
@@ -130,11 +148,11 @@ namespace AnalysisWF
             var acNote = quote.GetAttributeValue<string>("extreme_detailedprintoutdescription") ?? "";
             var acPayMethod = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_code", service);
             var acDelivery = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_deliverymethod"), "extreme_code", service);
-
+            var acStatement = Helper.GetLookupFieldValue(quote.GetAttributeValue<EntityReference>("extreme_statement"), "extreme_id", service);
             // Retrieve child QuoteDetail records
             var query = new QueryExpression("quotedetail")
             {
-                ColumnSet = new ColumnSet("productid", "quantity", "priceperunit", "extreme_fullpricewithdiscount", "uomid", "extreme_discount", "extreme_productdescription", "extreme_vatgroup", "extreme_parentquoteline", "extreme_isparentitem"),
+                ColumnSet = new ColumnSet("productid", "quotedetailname", "quantity", "priceperunit", "extreme_fullpricewithdiscount", "uomid", "extreme_discount", "extreme_productdescription", "extreme_vatgroup", "extreme_parentquoteline", "extreme_isparentitem"),
                 Criteria = new FilterExpression()
             };
             query.Criteria.AddCondition("quoteid", ConditionOperator.Equal, quote.Id);
@@ -192,6 +210,7 @@ namespace AnalysisWF
 
                 var product = Helper.GetLookupFieldValue(parent.GetAttributeValue<EntityReference>("productid"), "extreme_productid16characters", service);
                 var name = parent.GetAttributeValue<string>("quotedetailname");
+                var quantity = parent.GetAttributeValue<decimal>("quantity");
                 var uom = parent.GetAttributeValue<EntityReference>("uomid")?.Name;
                 var note = parent.GetAttributeValue<string>("extreme_productdescription") ?? "";
                 var vatCode = Helper.GetLookupFieldValue(parent.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service);
@@ -204,7 +223,7 @@ namespace AnalysisWF
                 {
                     acIdent = product,
                     acName = name,
-                    anQty = 1,
+                    anQty = quantity,
                     acUM = uom,
                     anPrice = totalPPU,
                     anRebate1 = discountPerc,
@@ -236,7 +255,10 @@ namespace AnalysisWF
                             anDaysForDelivery,
                             acPayMethod,
                             acDelivery,
+                            acStatement,
                             acNote,
+                            //anNoteClerk,
+                            //anClerk,
                             acLinesJSON = lineItems
                         }
                     }

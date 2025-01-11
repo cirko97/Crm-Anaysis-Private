@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AccountInsert.cs" />
+    <Compile Include="CaseInsert.cs" />
     <Compile Include="ClassifAreaInsert.cs" />
     <Compile Include="AuthHelper.cs" />
     <Compile Include="CostDriveInsert.cs" />
