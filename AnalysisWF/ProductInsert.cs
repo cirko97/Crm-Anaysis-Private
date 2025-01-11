@@ -177,8 +177,9 @@ namespace AnalysisWF
 
             var acName = parentProduct.GetAttributeValue<string>("name");
             var acUM = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("defaultuomid"), "name", service)?.Substring(0, 3);
-            var acClassif = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
-            var acClassif2 = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
+            var acType = parentProduct.GetAttributeValue<OptionSetValue>("producttypecode")?.Value == 3 ? "U" : "P";
+            var acClassif = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_area"), "extreme_name", service) ?? "";
+            var acClassif2 = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
             var acVATCode = GetLookupFieldValue<string>(parentProduct.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service) ?? "";
             var anVat = GetLookupFieldValue<decimal>(parentProduct.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
 
