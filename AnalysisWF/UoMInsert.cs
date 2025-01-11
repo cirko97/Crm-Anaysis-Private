@@ -37,6 +37,7 @@ namespace AnalysisWF
             var tracingService = context.GetExtension<ITracingService>();
             var serviceFactory = context.GetExtension<IOrganizationServiceFactory>();
             var service = serviceFactory.CreateOrganizationService(null);
+            var execprocendpoint = Helper.GetConfigurationValue("PAWS_EXECPROCENDPOINT", service);
 
             try
             {
@@ -51,7 +52,7 @@ namespace AnalysisWF
 
                 // Poziv API-ja za slanje UoM zapisa
                 var token = AuthHelper.GetAuthToken(tracingService, service).GetAwaiter().GetResult();
-                var responseMessage = CallPantheonApi(token, jsonData).GetAwaiter().GetResult();
+                var responseMessage = CallPantheonApi(token, jsonData, execprocendpoint).GetAwaiter().GetResult();
 
                 tracingService.Trace("API Response: {0}", responseMessage);
 
@@ -117,7 +118,7 @@ namespace AnalysisWF
             return sb.ToString();
         }
 
-        private async Task<string> CallPantheonApi(string token, string jsonData)
+        private async Task<string> CallPantheonApi(string token, string jsonData, string execprocendpoint)
         {
             using (var client = new HttpClient())
             {
@@ -125,7 +126,9 @@ namespace AnalysisWF
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
 
                 var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
-                var response = await client.PostAsync("https://paws.telekom.si/api/DBObjects/execproc", content);
+
+
+                var response = await client.PostAsync(execprocendpoint, content);
 
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync();

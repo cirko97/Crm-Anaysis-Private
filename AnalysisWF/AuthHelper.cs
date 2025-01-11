@@ -15,10 +15,10 @@ namespace AnalysisWF
             using (var client = new HttpClient())
             {
                 // Preuzimanje konfiguracionih vrednosti
-                var url = GetConfigurationValue("PAWS_AUTHENDPOINT", service);
-                var username = GetConfigurationValue("PAWS_username", service);
-                var password = GetConfigurationValue("PAWS_password", service);
-                var companyDB = GetConfigurationValue("PAWS_companyDB", service);
+                var url = Helper.GetConfigurationValue("PAWS_AUTHENDPOINT", service);
+                var username = Helper.GetConfigurationValue("PAWS_username", service);
+                var password = Helper.GetConfigurationValue("PAWS_password", service);
+                var companyDB = Helper.GetConfigurationValue("PAWS_companyDB", service);
 
                 var body = new
                 {
@@ -48,24 +48,5 @@ namespace AnalysisWF
             }
         }
 
-        private static string GetConfigurationValue(string key, IOrganizationService service)
-        {
-            var query = new Microsoft.Xrm.Sdk.Query.QueryExpression("extreme_configuration")
-            {
-                ColumnSet = new Microsoft.Xrm.Sdk.Query.ColumnSet("extreme_value")
-            };
-            query.Criteria.AddCondition("extreme_key", Microsoft.Xrm.Sdk.Query.ConditionOperator.Equal, key);
-
-            var configRecord = service.RetrieveMultiple(query).Entities.FirstOrDefault();
-
-            if (configRecord != null)
-            {
-                return configRecord.GetAttributeValue<string>("extreme_value");
-            }
-            else
-            {
-                throw new InvalidPluginExecutionException($"Konfiguracioni ključ '{key}' nije pronađen.");
-            }
-        }
     }
 }
