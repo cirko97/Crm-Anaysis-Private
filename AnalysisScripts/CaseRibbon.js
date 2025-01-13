@@ -3,7 +3,7 @@ var CaseRibbon = window.CaseRibbon || {};
 	this.SendPrintoutButton = function (formContext, reportType) {
 
 		var isDetailed = reportType == "detailed" ? true : false;
-		var confirmStrings = { text: `This action will create a draft of an email with ${reportType} quote printout attached. \nAre you sure you want to continue?`, title: "Send Quote Printout" };
+		var confirmStrings = { text: `This action will create a draft of an email with ${reportType} case printout attached. \nAre you sure you want to continue?`, title: "Send Case Printout" };
 		var confirmOptions = { height: 300, width: 450 };
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
 			async function (success) {
@@ -12,8 +12,8 @@ var CaseRibbon = window.CaseRibbon || {};
 			});
 	}
 	this.SendPrintoutEnableRule = function (formContext) {
-		var statecode = formContext.getAttribute("statecode").getValue();
-		if (statecode == 1) { //only if Active Quote
+		var statuscode = formContext.getAttribute("statuscode").getValue();
+		if (statuscode == 934670001) { //only if Scheduled Case
 			return true;
 		}
 		return false;
@@ -21,9 +21,9 @@ var CaseRibbon = window.CaseRibbon || {};
 	this.CreatePrintoutEmail = async function (formContext, isDetailed) {
 		//getReport
 		Xrm.Utility.showProgressIndicator("Generating printout...");
-		var quoteId = formContext.data.entity.getId().slice(1, -1);
-		var reportName = isDetailed == true ? 'Analysis+Quote+Detail' : 'Analysis+Quote';
-		var queryReportName = isDetailed == true ? 'Analysis Quote Detail' : 'Analysis Quote';
+		var caseId = formContext.data.entity.getId().slice(1, -1);
+		var reportName = isDetailed == true ? 'Analysis+Service+Detail' : 'Analysis+Service';
+		var queryReportName = isDetailed == true ? 'Analysis Service Detail' : 'Analysis Service';
 		var report = await Xrm.WebApi.retrieveMultipleRecords("report", `?$select=reportid,filename,name&$filter=name eq '${queryReportName}'`).then(
 			function success(results) {
 				return results.entities[0];
@@ -35,17 +35,18 @@ var CaseRibbon = window.CaseRibbon || {};
 		var reportid = report["reportid"];
 		var filename = report["filename"];
 
-		var arrReportSession = executeReport(quoteId, reportid, reportName, formContext);
+		var arrReportSession = executeReport(caseId, reportid, reportName, formContext);
 		
 		var blobData = await convertResponseToPDF(arrReportSession); //3. Convert the response in base 64 string i.e. PDF.
 
 		Xrm.Utility.showProgressIndicator("Creating email...");
 
-		var emailId = await createEmail(quoteId);
+		var brojServisnogNaloga = formContext.getAttribute("extreme_casenumber").getValue();
+		var emailId = await createCaseEmail(caseId, brojServisnogNaloga, formContext);
 
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
-		await attachFileToDraftEmail(blobData, emailId, "test.pdf", "application/pdf"); //smisliti naming konvenciju za PDF
+		await attachFileToDraftEmail(blobData, emailId, `${brojServisnogNaloga}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
 		
 		Xrm.Utility.closeProgressIndicator();
 
@@ -70,8 +71,8 @@ var CaseRibbon = window.CaseRibbon || {};
 		);
 
 	}
-	this.CancelCaseEnableRule = function (formContext) {
-		return isSysAdminRole();
+	this.CancelCaseEnableRule = function () {
+		return isSysAdminRole() || isServiceManager();
 	}
 	this.CancelCaseButton = function (formContext) {
 		const caseId = formContext.data.entity.getId().slice(1,-1);
@@ -161,19 +162,23 @@ var CaseRibbon = window.CaseRibbon || {};
 		async function (success) {    
 			if (success.confirmed){
 				if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+					Xrm.Utility.showProgressIndicator("Resolving Case...");
 					var record = {};
 					record.statecode = 0; // State
 					record.statuscode = 934670004; // Status
 					
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					Xrm.Utility.closeProgressIndicator();
 					formContext.data.refresh(true);
 				}
 				else{//set as resolved & signed
+					Xrm.Utility.showProgressIndicator("Resolving Case...");
 					var record = {};
 					record.statecode = 1; // State
 					record.statuscode = 2; // Status
 					
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					Xrm.Utility.closeProgressIndicator();
 					formContext.data.refresh(true);
 				}
 			}	
@@ -186,18 +191,10 @@ var CaseRibbon = window.CaseRibbon || {};
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
 		async function (success) {    
 			if (success.confirmed){
-				if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+				if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as scheduled
 					var record = {};
 					record.statecode = 0; // State
-					record.statuscode = 934670004; // Status
-					
-					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
-					formContext.data.refresh(true);
-				}
-				else{//set as resolved & signed
-					var record = {};
-					record.statecode = 1; // State
-					record.statuscode = 2; // Status
+					record.statuscode = 934670001; // Status
 					
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 					formContext.data.refresh(true);
@@ -205,59 +202,11 @@ var CaseRibbon = window.CaseRibbon || {};
 			}	
 		});	
 	}
-	
-	// this.SyncQuoteButton = function (formContext) {
+	this.ReactivateCaseEnableRule = function () {
+		var statuscode = formContext.getAttribute("statuscode").getValue();
+		return (isSysAdminRole() || isServiceManager()) && (statuscode == 934670004 || statuscode == 2);
+	}
 
-	// 	var confirmStrings = { text: "This action will synchronize this Quote to Pantheon. \nAre you sure you want to continue?", title: "Pantheon Synchronization" };
-	// 	var confirmOptions = { height: 300, width: 450 };
-	// 	Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-	// 		async function (success) {
-	// 			if (success.confirmed)
-	// 				await CaseRibbon.CheckAndSyncQuote(formContext);
-	// 		});
-	// }
-	// this.CheckAndSyncQuote = async function (formContext) {
-	// 	var quoteId = formContext.data.entity.getId().slice(1, -1);
-	// 	// Checks
-	// 	Xrm.Utility.showProgressIndicator(
-	// 		'Synchronizing Data... Please Wait.');
-	// 	//isAccountSynced
-	// 	var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
-	// 	if (await isAccountSynced(accountId) == false) {
-	// 		Xrm.Utility.showProgressIndicator(
-	// 			'Account Sync In Progress... Please Wait.');
-	// 		await syncAccount(accountId);
-	// 		Xrm.Utility.showProgressIndicator(
-	// 			'Account Synchronized....... Please Wait.');
-	// 	}
-	// 	//isCostDriveNeededAndSynced
-	// 	if (isCostDriveNeeded) {
-	// 		if (formContext.getAttribute("opportunityid").getValue() !== null) {
-	// 			var oppId = formContext.getAttribute("opportunityid").getValue()[0].id
-	// 			Xrm.Utility.showProgressIndicator(
-	// 				'Cost/Profit Code Sync In Progress... Please Wait.');
-	// 			await syncCostDrive(oppId);
-	// 			Xrm.Utility.showProgressIndicator(
-	// 				'Cost/Profit Code Synchronized....... Please Wait.');
-	// 		}
-	// 	}
-	// 	//areAllProductsCreatedAndSynced
-	// 	await areAllProductsCreatedAndSynced(quoteId, formContext);
-	// 	//QuoteSync
-	// 	await syncQuote(quoteId, formContext);
-	// 	Xrm.Utility.showProgressIndicator(
-	// 		'Quote Synchronized!');
-	// 	setTimeout(() => {
-	// 		Xrm.Utility.closeProgressIndicator('Success!');
-	// 	}, "1500");
-	// }
-	// this.SyncQuoteButtonEnableRule = function (formContext) {
-	// 	var statecode = formContext.getAttribute("statecode").getValue();
-	// 	if (statecode == 1) { //only if Active Quote
-	// 		return true;
-	// 	}
-	// 	return false;
-	// }
 }).call(CaseRibbon);
 
 const convertResponseToPDF = async function (arrResponseSession) {
@@ -318,7 +267,7 @@ const convertResponseToPDF = async function (arrResponseSession) {
         }
     });
 };
-const executeReport = function (quoteId, reportGuid, reportName, formContext) {
+const executeReport = function (caseId, reportGuid, reportName, formContext) {
 
     var globalContext = Xrm.Utility.getGlobalContext();
     var pth = globalContext.getClientUrl() + "/CRMReports/rsviewer/reportviewer.aspx";
@@ -329,9 +278,9 @@ const executeReport = function (quoteId, reportGuid, reportName, formContext) {
 	var queryDecoded = `id={${reportGuid}}&uniquename=${globalContext.organizationSettings.uniqueName}` + 
 	            `&iscustomreport=true&reportnameonsrs=&signatureid=&reporttypecode=1&reportName=${reportName}`+
 				`&isScheduledReport=false&CRM_Filter=`+
-				`<ReportFilter><ReportEntity+paramname="CRM_quote"+displayname="Quotes"+donotconvert="1">`+
+				`<ReportFilter><ReportEntity+paramname="CRM_Filteredextreme_Case"+displayname="Cases"+donotconvert="1">`+
 				`<fetch+version="1.0"+output-format="xml-platform"+mapping="logical"+distinct="false">`+
-				`<entity+name="quote"><all-attributes/><filter+type="and"><condition+attribute="quoteid"+operator="eq"+uitype="quote"+value="${quoteId}"/>`+
+				`<entity+name="extreme_case"><all-attributes/><filter+type="and"><condition+attribute="extreme_caseid"+operator="eq"+uitype="extreme_case"+value="${caseId}"/>`+
 				`</filter></entity></fetch></ReportEntity></ReportFilter>`
 
     var retrieveEntityReq = new XMLHttpRequest();
@@ -389,468 +338,89 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
         }
     });
 };
-const acreateEmail = async function (quoteId) {
-	var record = {};
-	record["regardingobjectid_quote_email@odata.bind"] = `/quotes(${quoteId})`; // Lookup
-	record.subject = "PONUDA BATO"; // Text
-	record.sender = "vladimir.djordjevic@extreme.rs"; // Text
-	record.torecipients = "vladimir.djordjevic@extreme.rs"; // Text
-	record.description = "NEKI TEKST"; // Multiline Text
-	
-	var newId = await Xrm.WebApi.createRecord("email", record).then(
-		function success(result) {
-			return result.id;
-		},
-		function(error) {
-			console.log(error.message);
-		}
-	);
+const createCaseEmail = async function (caseId, caseNo, formContext) {
+    var emailActivityParties = [];
+	//
+    // Retrieve current user details for the sender
+    const userId = Xrm.Utility.getGlobalContext().userSettings.userId.slice(1, -1); // Remove curly braces
+    const currentUserName = Xrm.Utility.getGlobalContext().userSettings.userName;
 
-	return newId;
+    // Add the sender (current user) to the email_activity_parties array
+    emailActivityParties.push({
+        "partyid_systemuser@odata.bind": `/systemusers(${userId})`,
+        "participationtypemask": 1 // Sender
+    });
 
-}
+    // Retrieve primary contact or account for the To recipient
+    const contact = formContext.getAttribute("extreme_contact");
+    const account = formContext.getAttribute("extreme_account");
 
-//Sync functions
-const isAccountSynced = async function (accountId) {
-	var isAccountSynced = null;
-	isAccountSynced = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=extreme_synchronized").then(
-		async function success(result) {
-			console.log(result);
-			// Columns
-			var accountid = result["accountid"]; // Guid
-			var extreme_synchronized = result["extreme_synchronized"]; // Boolean
-			var extreme_synchronized_formatted = result["extreme_synchronized@OData.Community.Display.V1.FormattedValue"];
-			return extreme_synchronized;
-		},
-		function (error) {
-			console.log(error.message);
-		}
-	);
-	return isAccountSynced;
-}
-const syncAccount = async function (accountId) {
-	// DDBFFDDD-0328-4F96-8A3C-E9235550F347 - Account SYNC Insert Workflow
-	var workflowId = 'DDBFFDDD-0328-4F96-8A3C-E9235550F347';
-	var executeWorkflowRequest = {
-		entity: { entityType: "workflow", id: `${workflowId}` },
-		EntityId: { guid: `${accountId}` },
+    if (contact && contact.getValue() !== null) {
+        const contactId = contact.getValue()[0].id;
+        const contactName = contact.getValue()[0].name;
 
-		getMetadata: function () {
-			return {
-				boundParameter: "entity",
-				parameterTypes: {
-					entity: { typeName: "mscrm.workflow", structuralProperty: 5 },
-					EntityId: { typeName: "Edm.Guid", structuralProperty: 1 }
-				},
-				operationType: 0, operationName: "ExecuteWorkflow"
-			};
-		}
-	};
-	await Xrm.WebApi.execute(executeWorkflowRequest).then(
-		function success(response) {
-			if (response.ok) { /*return response.json(); */ }
-		}
-	).then(function (responseBody) {
-		var result = responseBody;
-		console.log(result);
-	}).catch(function (error) {
-		console.log(error.message);
-	});
-}
-const isCostDriveNeeded = async function (formContext) {
-	var isNeeded = false;
-	var totalAmount = formContext.getAttribute("totalamount").getValue();
-	var currency = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
-	switch (currency) {
-		case "EUR":
-			if (totalAmount >= 10000) {
-				isNeeded = true;
-				break;
-			}
-		case "USD":
-			if (totalAmount >= 10500) {
-				isNeeded = true;
-				break;
-			};
-		case "RSD":
-			if (totalAmount >= 1200000) {
-				isNeeded = true;
-				break;
-			};
-		case "GBP":
-			if (totalAmount >= 8300) {
-				isNeeded = true;
-				break;
-			};
-		case "CHF":
-			if (totalAmount >= 9300) {
-				isNeeded = true;
-				break;
-			};
-		case "MKD":
-			if (totalAmount >= 615000) {
-				isNeeded = true;
-				break;
-			};
-		default:
-			break;
-	}
-	return isNeeded;
-}
-const syncCostDrive = async function (oppId) {
-	// 1516f4be-01b0-ef11-b8e8-6045bd898d29 - CostDrive SYNC Insert Workflow
-	var workflowId = '1516f4be-01b0-ef11-b8e8-6045bd898d29';
-	var executeWorkflowRequest = {
-		entity: { entityType: "workflow", id: `${workflowId}` },
-		EntityId: { guid: `${oppId}` },
+        let contactEmail = null;
+        try {
+            contactEmail = await Xrm.WebApi.retrieveRecord("contact", contactId, "?$select=emailaddress1")
+                .then(result => result["emailaddress1"]);
+        } catch (error) {
+            console.error("Error fetching contact email: ", error.message);
+        }
 
-		getMetadata: function () {
-			return {
-				boundParameter: "entity",
-				parameterTypes: {
-					entity: { typeName: "mscrm.workflow", structuralProperty: 5 },
-					EntityId: { typeName: "Edm.Guid", structuralProperty: 1 }
-				},
-				operationType: 0, operationName: "ExecuteWorkflow"
-			};
-		}
-	};
-	await Xrm.WebApi.execute(executeWorkflowRequest).then(
-		function success(response) {
-			if (response.ok) { /*return response.json(); */ }
-		}
-	).then(function (responseBody) {
-		var result = responseBody;
-		console.log(result);
-	}).catch(function (error) {
-		console.log(error.message);
-	});
-}
-const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
-	Xrm.Utility.showProgressIndicator(
-		'Products Check In Progress... Please Wait.');
+        if (contactEmail) {
+            emailActivityParties.push({
+                "partyid_contact@odata.bind": `/contacts(${contactId.slice(1,-1)})`,
+                "participationtypemask": 2 // To recipient
+            });
+        }
+    } else if (account && account.getValue() !== null) {
+        const accountId = account.getValue()[0].id;
+        const accountName = account.getValue()[0].name;
 
-	var defaultuomscheduleid = await Xrm.WebApi.retrieveMultipleRecords("uomschedule", "?$filter=name eq 'Default Unit'").then(
-		function success(results) {
-			console.log(results);
-			return results.entities[0]["uomscheduleid"];
-		},
-		function(error) {
-			console.log(error.message);
-		}
-	);
-	var primaryUnit = await Xrm.WebApi.retrieveMultipleRecords("uom", "?$filter=name eq 'Primary Unit'").then(
-		function success(results) {
-			console.log(results);
-			return results.entities[0]["uomid"];
-		},
-		function(error) {
-			console.log(error.message);
-		}
-	);
-	// creates everything DESC isParent
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
-		async function success(results) {
-			console.log(results);
-			for (var i = 0; i < results.entities.length; i++) {
-				var result = results.entities[i];
-				// Columns
-				var extreme_supplierpriceperunit = result["extreme_supplierpriceperunit"];
-				var priceperunit = result["priceperunit"]; // Currency
-				var quantity = result["quantity"];
-				var quotedetailid = result["quotedetailid"]; // Guid
-				var extreme_area = result["_extreme_area_value"]; // Lookup
-				var extreme_area_formatted = result["_extreme_area_value@OData.Community.Display.V1.FormattedValue"];
-				var extreme_area_lookuplogicalname = result["_extreme_area_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-				var productid = result["_productid_value"]; // Lookup
-				var productid_formatted = result["_productid_value@OData.Community.Display.V1.FormattedValue"];
-				var productid_lookuplogicalname = result["_productid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-				var extreme_productdescription = result["extreme_productdescription"]; // Multiline Text
-				var extreme_customproductid = result["extreme_customproductid"]; // Text
-				var extreme_productid = result["extreme_productid"]; // Text
-				var quotedetailname = result["quotedetailname"]; // Text
-				var productname = result["productname"]; // Text
-				var productnumber = result["productnumber"]; // Text
-				var extreme_uomid = result["extreme_uomid"]; // Text
-				var extreme_technology = result["_extreme_technology_value"]; // Lookup
-				var extreme_technology_formatted = result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"];
-				var extreme_technology_lookuplogicalname = result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-				var uomid = result["_uomid_value"]; // Lookup
-				var uomid_formatted = result["_uomid_value@OData.Community.Display.V1.FormattedValue"];
-				var uomid_lookuplogicalname = result["_uomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-				var extreme_vendorsupplier = result["_extreme_vendorsupplier_value"]; // Lookup
-				var extreme_vendorsupplier_formatted = result["_extreme_vendorsupplier_value@OData.Community.Display.V1.FormattedValue"];
-				var extreme_vendorsupplier_lookuplogicalname = result["_extreme_vendorsupplier_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-				var productdescription = result["productdescription"]; // Text
-				var extreme_vatgroup = result["_extreme_vatgroup_value"]; // Lookup
-				var extreme_vatgroup_formatted = result["_extreme_vatgroup_value@OData.Community.Display.V1.FormattedValue"];
-				var extreme_vatgroup_lookuplogicalname = result["_extreme_vatgroup_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-				var extreme_parentquoteline = result["_extreme_parentquoteline_value"]; // Lookup
-				var extreme_parentquoteline_formatted = result["_extreme_parentquoteline_value@OData.Community.Display.V1.FormattedValue"];
-				var extreme_parentquoteline_lookuplogicalname = result["_extreme_parentquoteline_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-				var extreme_isparentitem = result["extreme_isparentitem"];
-				var extreme_producttype = result["extreme_producttype"];
-				if (productid == null) {
-					//Create And Sync Product
-					Xrm.Utility.showProgressIndicator(
-						'Products Creation In Progress... Please Wait.');
-					
-					var record = {};
-					//UOM Check
-					var newUomId = null;
-				    await Xrm.WebApi.retrieveMultipleRecords("uom", `?$filter=name eq '${extreme_uomid}'`).then(
-						function success(results) {
-							console.log(results);
-							if(results.entities.length > 0)
-								newUomId = results.entities[0]["uomid"];
-						},
-						function(error) {
-							console.log(error.message);
-						}
-					);
-					if (newUomId !== null){
-						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
-					}else {
-						var uomrecord = {};
-							uomrecord["baseuom@odata.bind"] = `/uoms(${primaryUnit})`; // Lookup
-							uomrecord["uomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
-							uomrecord.name = extreme_uomid; // Text
-							uomrecord.quantity = 1; // Decimal
+        let accountEmail = null;
+        try {
+            accountEmail = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=emailaddress1")
+                .then(result => result["emailaddress1"]);
+        } catch (error) {
+            console.error("Error fetching account email: ", error.message);
+        }
 
-						newUomId = await Xrm.WebApi.createRecord("uom", uomrecord).then(
-							function success(result) {
-								return result.id;
-								console.log(newId);
-							},
-							function(error) {
-								console.log(error.message);
-							}
-						);
-						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
-					}
-					
-					record.productnumber = extreme_customproductid; // Text
-					record.name = quotedetailname; // Text
-					record.description = extreme_productdescription; // Multiline Text
-					record.quantitydecimal = 2; // Whole Number
-					record["defaultuomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
-					// record["pricelevelid@odata.bind"] = `/pricelevels(${formContext.getAttribute("pricelevelid").getValue()[0].id.slice(1,-1)})`; // Lookup
-					if(extreme_area !== null)
-					record["extreme_Area@odata.bind"] = `/extreme_areas(${extreme_area})`; // Lookup
-					if(extreme_technology !== null)
-					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
-					if(extreme_vendorsupplier !== null)
-					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
-					if(extreme_producttype !== null)
-					record.producttypecode = extreme_producttype; // Choice   //1 products 3services
-					if(extreme_vatgroup !== null)
-					record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${extreme_vatgroup})`; 
+        if (accountEmail) {
+            emailActivityParties.push({
+                "partyid_account@odata.bind": `/accounts(${accountId.slice(1,-1)})`,
+                "participationtypemask": 2 // To recipient
+            });
+        }
+    }
 
-					var newProductId = await Xrm.WebApi.createRecord("product", record).then(
-						function success(result) {
-							return result.id;
-							console.log(newId);
-						},
-						function(error) {
-							console.log(error.message);
-						}
-					);
+    // Prepare the email record
+    var record = {
+        "regardingobjectid_extreme_case_email@odata.bind": `/extreme_cases(${caseId})`, // Regarding field
+        "subject": `Servisni izveštaj ${caseNo} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
+        "description": `
+            Poštovani,<br><br>
 
-					
-					if (formContext.getAttribute("transactioncurrencyid").getValue() !== null) {
-						var currencyName = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
-						var defaultPriceListId = null;
+            U prilogu je servisni izveštaj. Molim Vas za potpis.<br><br>
 
-						switch (currencyName) {
-							case "EUR":
-								defaultPriceListId = await readConfigurationValue("defaultEURPriceListId");
-								break;
-							case "USD":
-								defaultPriceListId = await readConfigurationValue("defaultUSDPriceListId");
-								break;
-							case "RSD":
-								defaultPriceListId = await readConfigurationValue("defaultRSDPriceListId");
-								break;
-							case "GBP":
-								defaultPriceListId = await readConfigurationValue("defaultGBPPriceListId");
-								break;
-							case "CHF":
-								defaultPriceListId = await readConfigurationValue("defaultCHFPriceListId");
-								break;
-							case "MKD":
-								defaultPriceListId = await readConfigurationValue("defaultMKDPriceListId");
-								break;
-							default:
-								break;
-						}
-					}  
-					
+            Srdačan pozdrav,<br>
+            <b>${currentUserName}</b><br>
+            Analysis d.o.o, Japanska 4, 11070 Beograd<br>
+            +381 11 318 64 46 / info@analysis.rs<br>
+            https://www.analysis.rs/
+        `,
+        "email_activity_parties": emailActivityParties
+    };
 
-					var PLIrecord = {};
-						PLIrecord.amount = extreme_supplierpriceperunit; // Currency
-						PLIrecord.pricingmethodcode = 1; // Choice
-						PLIrecord["pricelevelid@odata.bind"] = `/pricelevels(${defaultPriceListId})`; // Lookup
-						PLIrecord["productid@odata.bind"] = `/products(${newProductId})`; // Lookup
-						PLIrecord.quantitysellingcode = 2; // Choice
-						PLIrecord["uomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
-
-					await Xrm.WebApi.createRecord("productpricelevel", PLIrecord).then(
-							function success(result) {
-								var newId = result.id;
-								console.log(newId);
-							},
-							function(error) {
-								console.log(error.message);
-							}
-						);
-
-					await updateQuoteLine(newProductId, newUomId, defaultPriceListId, quotedetailid);
-					//Update QuoteLine
-				} else {
-					await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=productid,extreme_synchronized").then(
-						async function success(result) {
-							console.log(result);
-							// Columns
-							var productid = result["productid"]; // Guid
-							var extreme_synchronized = result["extreme_synchronized"]; // Boolean
-							var extreme_synchronized_formatted = result["extreme_synchronized@OData.Community.Display.V1.FormattedValue"];
-							
-							if(extreme_parentquoteline !== null){
-								var parentProductId = await Xrm.WebApi.retrieveRecord("quotedetail", extreme_parentquoteline, "?$select=_productid_value").then(
-									function success(result) {
-										console.log(result);
-										// Columns
-										return result["_productid_value"]; // Lookup
-									},
-									function(error) {
-										console.log(error.message);
-									}
-								);
-								var record = {};
-								record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
-
-								await Xrm.WebApi.updateRecord("product", productid, record).then(
-									function success(result) {
-										var updatedId = result.id;
-										console.log(updatedId);
-									},
-									function(error) {
-										console.log(error.message);
-									}
-								);
-							}
-						},
-						function (error) {
-							console.log(error.message);
-						}
-					);
-				}
-
-			}
-		},
-		function (error) {
-			console.log(error.message);
-		}
-	);
-	// syncs everything ASC isParent
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=productid&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem asc`).then(
-		async function success(results) {
-			console.log(results);
-			for (var i = 0; i < results.entities.length; i++) {
-				var result = results.entities[i];
-				// Columns
-				var productid = result["_productid_value"]; // Lookup
-	
-				if (productid !== null) {
-					Xrm.Utility.showProgressIndicator(
-						'Products Sync In Progress... Please Wait.'); 
-
-					await syncProduct(productid);
-				} 
-			}
-		},
-		function (error) {
-			console.log(error.message);
-		}
-	);
-}
-const syncProduct = async function (productId) {
-	// GUID - SYNC Product Workflow 
-	var workflowId = 'A1A4C887-F9B0-EF11-B8E8-6045BD898D29';
-	var executeWorkflowRequest = {
-		entity: { entityType: "workflow", id: `${workflowId}` },
-		EntityId: { guid: `${productId}` },
-
-		getMetadata: function () {
-			return {
-				boundParameter: "entity",
-				parameterTypes: {
-					entity: { typeName: "mscrm.workflow", structuralProperty: 5 },
-					EntityId: { typeName: "Edm.Guid", structuralProperty: 1 }
-				},
-				operationType: 0, operationName: "ExecuteWorkflow"
-			};
-		}
-	};
-	await Xrm.WebApi.execute(executeWorkflowRequest).then(
-		function success(response) {
-			if (response.ok) { /*return response.json(); */ }
-		}
-	).then(function (responseBody) {
-		var result = responseBody;
-		//console.log(result);
-	}).catch(function (error) {
-		console.log(error.message);
-	});
-}
-const updateQuoteLine = async function (productId, uomid, pricelevelid, quoteDetailId) {
-	var record = {};
-	record["productid@odata.bind"] = `/products(${productId})`; // Lookup
-	record["uomid@odata.bind"] = `/uoms(${uomid})`;
-	record["extreme_pricelist@odata.bind"] = `pricelevels(${pricelevelid})`;
-	await Xrm.WebApi.updateRecord("quotedetail", quoteDetailId, record).then(
-		function success(result) {
-			var updatedId = result.id;
-			console.log(updatedId);
-		},
-		function (error) {
-			console.log(error.message);
-		}
-	);
-}
-const syncQuote = async function (quoteId, formContext) {
-	Xrm.Utility.showProgressIndicator(
-		'Synchronizing Quote... Please Wait.');
-	// GUID - SYNC Quote Workflow
-	var workflowId = 'C96AADD9-BCB1-EF11-B8E9-000D3ABCCD41';
-	var executeWorkflowRequest = {
-		entity: { entityType: "workflow", id: `${workflowId}` },
-		EntityId: { guid: `${quoteId}` },
-
-		getMetadata: function () {
-			return {
-				boundParameter: "entity",
-				parameterTypes: {
-					entity: { typeName: "mscrm.workflow", structuralProperty: 5 },
-					EntityId: { typeName: "Edm.Guid", structuralProperty: 1 }
-				},
-				operationType: 0, operationName: "ExecuteWorkflow"
-			};
-		}
-	};
-	Xrm.WebApi.execute(executeWorkflowRequest).then(
-		function success(response) {
-			if (response.ok) { /*return response.json(); */ }
-		}
-	).then(function (responseBody) {
-		var result = responseBody;
-		formContext.data.refresh(true);
-		//console.log(result);
-	}).catch(function (error) {
-		console.log(error.message);
-	});
-}
-
+    // Create the email record
+    try {
+        const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
+        console.log("Email created successfully with ID:", newId);
+        return newId;
+    } catch (error) {
+        console.error("Error creating email record: ", error.message);
+        return null;
+    }
+};
 
 const readConfigurationValue = async function (key) {
 	// eslint-disable-next-line no-undef
@@ -871,6 +441,20 @@ const isSysAdminRole = function () {
 		for (var rolidcollection in userRoles.roles._collection) {
 			var currentUserRoles = Xrm.Utility.getGlobalContext().userSettings.roles._collection[rolidcollection].name;
 			if (currentUserRoles.toLowerCase() == "system administrator") {
+				flag = true;
+				break;
+			}
+		}
+	}
+	return flag;
+}
+const isServiceManager = function () {
+	var flag = false;
+	var userRoles = Xrm.Utility.getGlobalContext().userSettings;
+	if (Object.keys(userRoles.roles._collection).length > 0) {
+		for (var rolidcollection in userRoles.roles._collection) {
+			var currentUserRoles = Xrm.Utility.getGlobalContext().userSettings.roles._collection[rolidcollection].name;
+			if (currentUserRoles.toLowerCase() == "analysis - customer service manager") {
 				flag = true;
 				break;
 			}
