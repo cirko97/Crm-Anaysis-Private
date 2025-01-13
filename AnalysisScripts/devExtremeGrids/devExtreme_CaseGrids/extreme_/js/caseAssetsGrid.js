@@ -364,6 +364,33 @@ async function setClientApiContext(Xrm, formContext) {
                   }
 
                 },
+                onCellDblClick(e) {
+                  console.log('CELL DOUBLE CLICK');
+                  console.log(e);
+
+                  if (e.column.dataField === "extreme_productid" || e.column.dataField === "extreme_name") {
+                    // Create an anchor element
+                    const globalContext = Xrm.Utility.getGlobalContext();
+                    globalContext.getClientUrl();
+
+                    console.log('CLIENT URL');
+                    console.log(globalContext.getClientUrl());
+
+                    const link = document.createElement('a');
+                    link.href = `https://analysisdev.crm4.dynamics.com/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+                    link.target = "_blank";
+
+                    // Append the anchor to the body (required for Firefox)
+                    document.body.appendChild(link);
+
+                    // Trigger a click event on the anchor
+                    link.click();
+
+                    // Remove the anchor from the body
+                    document.body.removeChild(link);
+                  }
+
+                },
                 onEditorPreparing: async (e) => {
                   console.log('Editor Preparing');
                   console.log(e);
@@ -577,7 +604,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('VALIDATION PARAMS');
                   console.log(params);
 
-                  if(params.data.extreme_isparent === true) {
+                  if (params.data.extreme_isparent === true) {
                     return true;
                   }
                   else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
@@ -586,7 +613,7 @@ async function setClientApiContext(Xrm, formContext) {
                   else {
                     return params.value !== null ? true : false;
                   }
-                  
+
                 },
               }
             ]
@@ -604,13 +631,13 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('VALIDATION PARAMS');
                   console.log(params);
 
-                  if(params.data.extreme_isparent === true) {
+                  if (params.data.extreme_isparent === true) {
                     return true;
                   }
                   else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
                     return true;
                   }
-                  
+
                 },
               }
             ]
@@ -907,23 +934,23 @@ async function setClientApiContext(Xrm, formContext) {
                     dataGrid.collapseRow(elm.extreme_caseassetid);
                   });
 
-                  dataGrid.option('filterValue', [
-                    [
-                      ["extreme_serialnumber", "=", null],
-                      "or",
-                      ["extreme_inventoryno", "=", null],
-                      "or",
-                      ["extreme_location", "=", null],
-                      "or",
-                      ["extreme_warrantystartdate", "=", null],
-                      "or",
-                      ["extreme_warrantyend", "=", null],
-                      "or",
-                      ["extreme_warrantyenddatevendor", "=", null],
-                      "or",
-                      ["extreme_preventiveservicecycle", "=", null]
-                    ]
-                  ]);
+                  // dataGrid.option('filterValue', [
+                  //   [
+                  //     ["extreme_serialnumber", "=", null],
+                  //     "or",
+                  //     ["extreme_inventoryno", "=", null],
+                  //     "or",
+                  //     ["extreme_location", "=", null],
+                  //     "or",
+                  //     ["extreme_warrantystartdate", "=", null],
+                  //     "or",
+                  //     ["extreme_warrantyend", "=", null],
+                  //     "or",
+                  //     ["extreme_warrantyenddatevendor", "=", null],
+                  //     "or",
+                  //     ["extreme_preventiveservicecycle", "=", null]
+                  //   ]
+                  // ]);
 
                   $('#normalBtn').dxButton('instance').option('disabled', false);
                   e.component.option('disabled', true);
@@ -994,6 +1021,33 @@ async function setClientApiContext(Xrm, formContext) {
           }
           else {
             e.rowElement[0].style.backgroundColor = "#fff";
+          }
+
+        },
+        onCellDblClick(e) {
+          console.log('CELL DOUBLE CLICK');
+          console.log(e);
+
+          if (e.column.dataField === "extreme_productid" || e.column.dataField === "extreme_name") {
+            // Create an anchor element
+            const globalContext = Xrm.Utility.getGlobalContext();
+            globalContext.getClientUrl();
+
+            console.log('CLIENT URL');
+            console.log(globalContext.getClientUrl());
+
+            const link = document.createElement('a');
+            link.href = `https://analysisdev.crm4.dynamics.com/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+            link.target = "_blank";
+
+            // Append the anchor to the body (required for Firefox)
+            document.body.appendChild(link);
+
+            // Trigger a click event on the anchor
+            link.click();
+
+            // Remove the anchor from the body
+            document.body.removeChild(link);
           }
 
         },
@@ -1214,12 +1268,12 @@ async function setClientApiContext(Xrm, formContext) {
         }
 
         if (classifyNeededRows > 0) {
-          $('#classifyBtn')[0].style.backgroundColor = '#fce3c2';
+          // $('#classifyBtn')[0].style.backgroundColor = '#fff';
           $('#classifyBtn')[0].style.display = 'inline-flex';
         }
         else {
-          $('#classifyBtn')[0].style.backgroundColor = '#fff';
-          $('#classifyBtn')[0].style.display = 'none';
+          // $('#classifyBtn')[0].style.backgroundColor = '#fff';
+          $('#classifyBtn')[0].style.display = 'inline-flex';
         }
 
         console.log('CLASSIFY NEEDED ROWS');
