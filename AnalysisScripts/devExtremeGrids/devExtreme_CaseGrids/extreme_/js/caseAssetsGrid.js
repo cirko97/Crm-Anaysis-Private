@@ -577,7 +577,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('VALIDATION PARAMS');
                   console.log(params);
 
-                  if(params.data.extreme_isparent === true) {
+                  if (params.data.extreme_isparent === true) {
                     return true;
                   }
                   else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
@@ -586,7 +586,7 @@ async function setClientApiContext(Xrm, formContext) {
                   else {
                     return params.value !== null ? true : false;
                   }
-                  
+
                 },
               }
             ]
@@ -604,13 +604,13 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('VALIDATION PARAMS');
                   console.log(params);
 
-                  if(params.data.extreme_isparent === true) {
+                  if (params.data.extreme_isparent === true) {
                     return true;
                   }
                   else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
                     return true;
                   }
-                  
+
                 },
               }
             ]
@@ -994,6 +994,27 @@ async function setClientApiContext(Xrm, formContext) {
           }
           else {
             e.rowElement[0].style.backgroundColor = "#fff";
+          }
+
+        },
+        onCellDblClick(e) {
+          console.log('CELL DOUBLE CLICK');
+          console.log(e);
+
+          if (e.column.dataField === "extreme_productid" || e.column.dataField === "extreme_name") {
+            // Create an anchor element
+            const link = document.createElement('a');
+            link.href = `https://analysisdev.crm4.dynamics.com/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+            link.target = "_blank";
+
+            // Append the anchor to the body (required for Firefox)
+            document.body.appendChild(link);
+
+            // Trigger a click event on the anchor
+            link.click();
+
+            // Remove the anchor from the body
+            document.body.removeChild(link);
           }
 
         },
