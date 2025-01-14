@@ -13,10 +13,10 @@ var CaseRibbon = window.CaseRibbon || {};
 	}
 	this.SendPrintoutEnableRule = function (formContext) {
 		var statuscode = formContext.getAttribute("statuscode").getValue();
-		if (statuscode == 934670001) { //only if Scheduled Case
-			return true;
+		if (statuscode == 1 || statuscode == 934670002 || statuscode == 934670003) { //only if Scheduled, resolved and resolved & signed Case
+			return false;
 		}
-		return false;
+		return true;
 	}
 	this.CreatePrintoutEmail = async function (formContext, isDetailed) {
 		//getReport
@@ -191,18 +191,19 @@ var CaseRibbon = window.CaseRibbon || {};
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
 		async function (success) {    
 			if (success.confirmed){
-				if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as scheduled
+				//set as scheduled
+					Xrm.Utility.showProgressIndicator("Reactivating Case...");
 					var record = {};
 					record.statecode = 0; // State
 					record.statuscode = 934670001; // Status
 					
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					Xrm.Utility.closeProgressIndicator();
 					formContext.data.refresh(true);
-				}
 			}	
 		});	
 	}
-	this.ReactivateCaseEnableRule = function () {
+	this.ReactivateCaseEnableRule = function (formContext) {
 		var statuscode = formContext.getAttribute("statuscode").getValue();
 		return (isSysAdminRole() || isServiceManager()) && (statuscode == 934670004 || statuscode == 2);
 	}
