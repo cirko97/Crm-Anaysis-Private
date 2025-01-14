@@ -182,8 +182,8 @@ namespace AnalysisWF
                             acDelivery,
                             acStatement,
                             acNote,
-                            //anNoteClerk,
-                            //anClerk,
+                            anNoteClerk,
+                            anClerk,
                             acLinesJSON = lineItems
                         }
                     }
