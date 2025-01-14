@@ -377,7 +377,7 @@ async function setClientApiContext(Xrm, formContext) {
                     console.log(globalContext.getClientUrl());
 
                     const link = document.createElement('a');
-                    link.href = `https://analysisdev.crm4.dynamics.com/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+                    link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
                     link.target = "_blank";
 
                     // Append the anchor to the body (required for Firefox)
@@ -530,9 +530,9 @@ async function setClientApiContext(Xrm, formContext) {
                 onRowRemoving: async (e) => {
                   console.log('RowRemoving');
                   console.log(e);
-                  // // Delete case line on another web resource
+                  // Delete case line on another web resource
                   // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
-                  // // Refresh grid for case lines
+                  // Refresh grid for case lines
                   // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
                   await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
                     function success(result) {
@@ -604,15 +604,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('VALIDATION PARAMS');
                   console.log(params);
 
-                  if (params.data.extreme_isparent === true) {
-                    return true;
-                  }
-                  else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
-                    return params.value !== null ? true : false;
-                  }
-                  else {
-                    return params.value !== null ? true : false;
-                  }
+                  return params.data.extreme_isparent !== true && (params.value === null || params.value.trim() === '') ? false : true;
 
                 },
               }
@@ -623,24 +615,30 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Inventory No.',
             dataType: 'string',
             allowEditing: false,
-            validationRules: [
-              {
-                type: 'custom',
-                message: 'Required',
-                validationCallback(params) {
-                  console.log('VALIDATION PARAMS');
-                  console.log(params);
+            // validationRules: [
+            //   {
+            //     type: 'custom',
+            //     message: 'Required',
+            //     validationCallback(params) {
+            //       console.log('VALIDATION PARAMS');
+            //       console.log(params);
 
-                  if (params.data.extreme_isparent === true) {
-                    return true;
-                  }
-                  else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
-                    return true;
-                  }
+            //       if (params.data.extreme_isparent === true && (params.value === null || params.value.trim() === '')) {
+            //         return true;
+            //       }
+            //       else if (params.value === null || params.value.trim() === '') {
+            //         return false;
+            //       }
+            //       else {
+            //         return true;
+            //       }
+            //       // else if (params.data.extreme_isparent === false && params.extreme_parentcaseasset) {
+            //       //   return true;
+            //       // }
 
-                },
-              }
-            ]
+            //     },
+            //   }
+            // ]
           },
           {
             dataField: 'extreme_location',
@@ -917,7 +915,7 @@ async function setClientApiContext(Xrm, formContext) {
                       col.dataField == "extreme_preventiveservicecycle"
                     ) {
                       dataGrid.columnOption(col.dataField, 'visible', true);
-                      if (col.dataField !== "extreme_name") {
+                      if (col.dataField !== "extreme_name" && col.dataField !== "extreme_productid") {
                         dataGrid.columnOption(col.dataField, 'allowEditing', true);
                       }
                       else {
@@ -934,23 +932,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataGrid.collapseRow(elm.extreme_caseassetid);
                   });
 
-                  // dataGrid.option('filterValue', [
-                  //   [
-                  //     ["extreme_serialnumber", "=", null],
-                  //     "or",
-                  //     ["extreme_inventoryno", "=", null],
-                  //     "or",
-                  //     ["extreme_location", "=", null],
-                  //     "or",
-                  //     ["extreme_warrantystartdate", "=", null],
-                  //     "or",
-                  //     ["extreme_warrantyend", "=", null],
-                  //     "or",
-                  //     ["extreme_warrantyenddatevendor", "=", null],
-                  //     "or",
-                  //     ["extreme_preventiveservicecycle", "=", null]
-                  //   ]
-                  // ]);
+                  dataGrid.option('filterValue', null);
 
                   $('#normalBtn').dxButton('instance').option('disabled', false);
                   e.component.option('disabled', true);
@@ -967,9 +949,9 @@ async function setClientApiContext(Xrm, formContext) {
           console.log(e);
 
           if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
-            console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
-            console.log(dataGrid.hasEditData());
-            console.log(e.cells[1].cellElement[0]);
+            // console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
+            // console.log(dataGrid.hasEditData());
+            // console.log(e.cells[1].cellElement[0]);
             e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
             e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
             // e.cells[1].cellElement[0].style.display = "none";
@@ -1037,7 +1019,7 @@ async function setClientApiContext(Xrm, formContext) {
             console.log(globalContext.getClientUrl());
 
             const link = document.createElement('a');
-            link.href = `https://analysisdev.crm4.dynamics.com/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+            link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
             link.target = "_blank";
 
             // Append the anchor to the body (required for Firefox)
@@ -1148,12 +1130,12 @@ async function setClientApiContext(Xrm, formContext) {
 
           var record = {};
           var assetRecord = {};
-          if (e.newData.extreme_description) record.extreme_description = e.newData.extreme_description; // Multiline Text
-          if (e.newData.extreme_solution) record.extreme_solution = e.newData.extreme_solution; // Multiline Text
+          if (typeof(e.newData.extreme_description) === 'string') record.extreme_description = e.newData.extreme_description.trim() === '' ? null : e.newData.extreme_description; // Multiline Text
+          if (typeof(e.newData.extreme_solution) === 'string') record.extreme_solution = e.newData.extreme_solution.trim() === '' ? null : e.newData.extreme_solution; // Multiline Text
 
-          if (e.newData.extreme_serialnumber) assetRecord.extreme_serialnumber = `${e.newData.extreme_serialnumber}`; // Text
-          if (e.newData.extreme_inventoryno) assetRecord.extreme_inventoryno = `${e.newData.extreme_inventoryno}`; // Text
-          if (e.newData.extreme_location) assetRecord.extreme_location = `${e.newData.extreme_location}`; // Text
+          if (typeof(e.newData.extreme_serialnumber) === 'string') assetRecord.extreme_serialnumber = e.newData.extreme_serialnumber.trim() === '' ? null : e.newData.extreme_serialnumber.trim(); // Text
+          if (typeof(e.newData.extreme_inventoryno) === 'string') assetRecord.extreme_inventoryno = e.newData.extreme_inventoryno.trim() === '' ? null : e.newData.extreme_inventoryno.trim(); // Text
+          if (typeof(e.newData.extreme_location) === 'string') assetRecord.extreme_location = e.newData.extreme_location.trim() === '' ? null : e.newData.extreme_location.trim(); // Text
           if (e.newData.extreme_warrantystartdate) assetRecord.extreme_warrantystartdate = e.newData.extreme_warrantystartdate; // Date Time
           if (e.newData.extreme_warrantyend) assetRecord.extreme_warrantyend = e.newData.extreme_warrantyend; // Date Time
           if (e.newData.extreme_warrantyenddatevendor) assetRecord.extreme_warrantyenddatevendor = e.newData.extreme_warrantyenddatevendor; // Date Time

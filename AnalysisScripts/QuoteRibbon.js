@@ -12,11 +12,11 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			});
 	}
 	this.SendPrintoutEnableRule = function (formContext) {
-		var statecode = formContext.getAttribute("statecode").getValue();
-		if (statecode == 1) { //only if Active Quote
-			return true;
-		}
-		return false;
+		// var statecode = formContext.getAttribute("statecode").getValue();
+		// if (statecode == 1) { //only if Active Quote
+		// 	return true;
+		// }
+		return true;
 	}
 	this.CreatePrintoutEmail = async function (formContext, isDetailed) {
 		//getReport
@@ -54,7 +54,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
-		await attachFileToDraftEmail(blobData, emailId, `${puniBrojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
+		await attachFileToDraftEmail(blobData, emailId, `${brojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
 		
 		Xrm.Utility.closeProgressIndicator();
 

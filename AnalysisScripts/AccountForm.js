@@ -14,8 +14,9 @@ var AccountForm = window.AccountForm || {};
             await setDefaults(formContext);
         }
         else if(formType === FORM_EDIT){
-            formContext.getControl("extreme_paname30characters").setDisabled(true);
-
+            if(formContext.getAttribute("extreme_pantheonno").getValue() !== null){
+                formContext.getControl("extreme_paname30characters").setDisabled(true);
+            }
             // Get Nav. Item
             var navItem = formContext.ui.navigation.items.get("navSPDocuments");
             // First set focus on Nav. Item to open related tab
