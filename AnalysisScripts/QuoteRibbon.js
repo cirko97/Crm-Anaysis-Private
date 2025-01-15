@@ -50,11 +50,11 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			puniBrojPonude = brojPonude;
 		}
 
-		var emailId = await createEmail(quoteId, puniBrojPonude, formContext);
+		var emailId = await createEmail(quoteId, brojPonude, formContext);
 
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
-		await attachFileToDraftEmail(blobData, emailId, `${puniBrojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
+		await attachFileToDraftEmail(blobData, emailId, `${brojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
 		
 		Xrm.Utility.closeProgressIndicator();
 
@@ -358,11 +358,6 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
 
             Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
 
-            Srdačan pozdrav,<br>
-            <b>${currentUserName}</b><br>
-            Analysis d.o.o, Japanska 4, 11070 Beograd<br>
-            +381 11 318 64 46 / info@analysis.rs<br>
-            https://www.analysis.rs/
         `,
         "email_activity_parties": emailActivityParties
     };
