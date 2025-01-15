@@ -2148,6 +2148,9 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.dataField == 'extreme_pricelist' && (!e.row.data.productid || typeof (e.row.data.productid) === 'number') || e.row.isNewRow) {
                     e.editorOptions.disabled = true;
                   }
+                  if (e.dataField == 'baseamount') {
+                    e.editorOptions.disabled = true;
+                  }
 
                 },
                 onRowPrepared: async (e) => {
@@ -2882,7 +2885,7 @@ async function setClientApiContext(Xrm, formContext) {
               type: "fixedPoint",
               precision: 2
             },
-            allowEditing: false,
+            allowEditing: true,
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             }
@@ -3530,6 +3533,7 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
                   dataGrid.columnOption("extreme_margin", "allowEditing", true);
                   dataGrid.columnOption("priceperunit", "allowEditing", true);
+                  dataGrid.columnOption("baseamount", "allowEditing", true);
                   dataGrid.columnOption("extreme_discount", "allowEditing", true);
                   dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
                   dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
@@ -3572,6 +3576,7 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", false);
                   dataGrid.columnOption("extreme_margin", "allowEditing", false);
                   dataGrid.columnOption("priceperunit", "allowEditing", false);
+                  dataGrid.columnOption("baseamount", "allowEditing", false);
                   dataGrid.columnOption("extreme_discount", "allowEditing", false);
                   dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", false);
                   dataGrid.columnOption("extreme_pricelist", "allowEditing", false);
@@ -3996,8 +4001,13 @@ async function setClientApiContext(Xrm, formContext) {
             e.dataField !== "extreme_createasset" &&
             e.dataField !== "extreme_area" &&
             e.dataField !== "extreme_technology" &&
-            e.dataField !== "extreme_vendorsupplier"
+            e.dataField !== "extreme_vendorsupplier" &&
+            e.dataField !== "baseamount"
           ) {
+            e.editorOptions.disabled = true;
+          }
+
+          if (e.row.data.extreme_isparentitem !== true && e.dataField == "baseamount") {
             e.editorOptions.disabled = true;
           }
 
@@ -4466,6 +4476,7 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
           dataGrid.columnOption("extreme_margin", "allowEditing", true);
           dataGrid.columnOption("priceperunit", "allowEditing", true);
+          dataGrid.columnOption("baseamount", "allowEditing", true);
           dataGrid.columnOption("extreme_discount", "allowEditing", true);
           dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
           dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
@@ -4541,6 +4552,28 @@ async function setClientApiContext(Xrm, formContext) {
               }
             );
 
+          }
+
+          // new baseamount / Sales Amount for parent item - update all child items
+          if (e.newData.baseamount && e.oldData.extreme_isparentitem === true) {
+            console.log("ALL CHILD FOR UPDATE PROPORTION!");
+            console.log(quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid));
+
+            quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid).forEach(child => {
+              child.baseamount = parseFloat(((child.baseamount / e.oldData.baseamount) * e.newData.baseamount).toFixed(2));
+            });
+            
+            let totalBaseAmount = quoteLinesData._array
+              .filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid)
+              .reduce((acc, child) => acc + child.baseamount, 0);
+
+            let difference = e.newData.baseamount - totalBaseAmount;
+            console.log('DIFFERENCE');
+            console.log(difference);
+
+            // Adjust the last child element's baseamount to account for the difference
+            let childElements = quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid);
+            childElements[childElements.length - 1].baseamount += difference;
           }
 
           console.log('RECORD AFTER UPDATING RECORD IS CREATED');
@@ -4631,6 +4664,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
             dataGrid.columnOption("extreme_margin", "allowEditing", true);
             dataGrid.columnOption("priceperunit", "allowEditing", true);
+            dataGrid.columnOption("baseamount", "allowEditing", true);
             dataGrid.columnOption("extreme_discount", "allowEditing", true);
             dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
             dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
