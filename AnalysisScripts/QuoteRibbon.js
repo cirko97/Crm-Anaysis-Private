@@ -50,11 +50,11 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			puniBrojPonude = brojPonude;
 		}
 
-		var emailId = await createEmail(quoteId, puniBrojPonude, formContext);
+		var emailId = await createEmail(quoteId, brojPonude, formContext);
 
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
-		await attachFileToDraftEmail(blobData, emailId, `${puniBrojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
+		await attachFileToDraftEmail(blobData, emailId, `${brojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
 		
 		Xrm.Utility.closeProgressIndicator();
 
