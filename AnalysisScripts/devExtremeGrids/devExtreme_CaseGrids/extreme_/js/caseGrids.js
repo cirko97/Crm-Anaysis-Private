@@ -184,7 +184,7 @@ async function setClientApiContext(Xrm, formContext) {
               'extreme_caselineid': extreme_caselineid,
               'extreme_name': extreme_name,
               'extreme_asset': extreme_asset,
-              'extreme_assetType': assetsArray.find(item => item.id === extreme_asset).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === extreme_asset).extreme_parentasset ? 'Component': 'Regular',
+              'extreme_assetType': assetsArray.find(item => item.id === extreme_asset).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === extreme_asset).extreme_parentasset ? 'Component' : 'Regular',
               'extreme_case': extreme_case,
               'owner': ownerid,
               'extreme_product': extreme_product,
@@ -278,7 +278,8 @@ async function setClientApiContext(Xrm, formContext) {
 
             productsArray.push({
               "id": productid,
-              "name": productnumber ? productnumber + ' - ' + name : name
+              "name": productnumber ? productnumber + ' - ' + name : name,
+              "nameWoSn": name
             });
           }
           if (skipToken === '') {
@@ -424,6 +425,7 @@ async function setClientApiContext(Xrm, formContext) {
               console.log('currentRowData', currentRowData);
               newData.extreme_unit = unitsArray.find(item => item.id === defaultuomid).id;
               newData.extreme_producttypecode = productTypesArray.find(item => item.value === producttypecode).value
+              newData.extreme_name = productsArray.find(item => item.id === value).nameWoSn;
             },
             lookup: {
               dataSource: {
@@ -438,6 +440,13 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
+            validationRules: [{ type: 'required' }]
+          },
+          {
+            dataField: 'extreme_name',
+            caption: 'Name',
+            dataType: 'string',
+            allowEditing: true,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -562,7 +571,7 @@ async function setClientApiContext(Xrm, formContext) {
           console.log(e);
           newCreateId = '';
           var record = {};
-          record.extreme_name = undefined; // Text
+          record.extreme_name = e.data.extreme_name.trim(); // Text
           record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
           record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
           record["ownerid@odata.bind"] = `/systemusers(${e.data.owner})`; // Owner
@@ -619,6 +628,21 @@ async function setClientApiContext(Xrm, formContext) {
               parentRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
               parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
               parentRecord.extreme_isparent = true; // Boolean
+              const dateNow = new Date();
+              const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+              if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                const startDate = new Date(warranty.extreme_warrantystartdate);
+                const endDate = new Date(warranty.extreme_warrantyend);
+                if (dateNow >= startDate && dateNow <= endDate) {
+                  parentRecord.extreme_warranty = true;
+                }
+                else {
+                  parentRecord.extreme_warranty = false;
+                }
+              }
+              else {
+                parentRecord.extreme_warranty = false;
+              }
 
               await Xrm.WebApi.createRecord("extreme_caseasset", parentRecord).then(
                 async function success(result) {
@@ -638,6 +662,21 @@ async function setClientApiContext(Xrm, formContext) {
                 childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                 childRecord.extreme_isparent = false; // Boolean
                 childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+                const dateNow = new Date();
+                const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                  const startDate = new Date(warranty.extreme_warrantystartdate);
+                  const endDate = new Date(warranty.extreme_warrantyend);
+                  if (dateNow >= startDate && dateNow <= endDate) {
+                    childRecord.extreme_warranty = true;
+                  }
+                  else {
+                    childRecord.extreme_warranty = false;
+                  }
+                }
+                else {
+                  childRecord.extreme_warranty = false;
+                }
 
                 return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
                   async function success(result) {
@@ -657,6 +696,21 @@ async function setClientApiContext(Xrm, formContext) {
               record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
               record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
               record.extreme_isparent = assetsArray.find(item => item.id === e.data.extreme_asset).extreme_isparent; // Boolean
+              const dateNow = new Date();
+              const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+              if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                const startDate = new Date(warranty.extreme_warrantystartdate);
+                const endDate = new Date(warranty.extreme_warrantyend);
+                if (dateNow >= startDate && dateNow <= endDate) {
+                  record.extreme_warranty = true;
+                }
+                else {
+                  record.extreme_warranty = false;
+                }
+              }
+              else {
+                record.extreme_warranty = false;
+              }
 
               await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
                 async function success(result) {
@@ -676,6 +730,21 @@ async function setClientApiContext(Xrm, formContext) {
                 childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                 childRecord.extreme_isparent = false; // Boolean
                 childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+                const dateNow = new Date();
+                const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                  const startDate = new Date(warranty.extreme_warrantystartdate);
+                  const endDate = new Date(warranty.extreme_warrantyend);
+                  if (dateNow >= startDate && dateNow <= endDate) {
+                    childRecord.extreme_warranty = true;
+                  }
+                  else {
+                    childRecord.extreme_warranty = false;
+                  }
+                }
+                else {
+                  childRecord.extreme_warranty = false;
+                }
 
                 return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
                   async function success(result) {
@@ -733,7 +802,9 @@ async function setClientApiContext(Xrm, formContext) {
             );
 
             // Refresh grid for time entries
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            setTimeout(async () => {
+              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000)
           }
 
           await getCaseLines(caseIdForm);
@@ -777,6 +848,21 @@ async function setClientApiContext(Xrm, formContext) {
                 parentRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
                 parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
                 parentRecord.extreme_isparent = true; // Boolean
+                const dateNow = new Date();
+                const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                  const startDate = new Date(warranty.extreme_warrantystartdate);
+                  const endDate = new Date(warranty.extreme_warrantyend);
+                  if (dateNow >= startDate && dateNow <= endDate) {
+                    parentRecord.extreme_warranty = true;
+                  }
+                  else {
+                    parentRecord.extreme_warranty = false;
+                  }
+                }
+                else {
+                  parentRecord.extreme_warranty = false;
+                }
 
                 await Xrm.WebApi.createRecord("extreme_caseasset", parentRecord).then(
                   async function success(result) {
@@ -796,6 +882,21 @@ async function setClientApiContext(Xrm, formContext) {
                   childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                   childRecord.extreme_isparent = false; // Boolean
                   childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+                  const dateNow = new Date();
+                  const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                  if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                    const startDate = new Date(warranty.extreme_warrantystartdate);
+                    const endDate = new Date(warranty.extreme_warrantyend);
+                    if (dateNow >= startDate && dateNow <= endDate) {
+                      childRecord.extreme_warranty = true;
+                    }
+                    else {
+                      childRecord.extreme_warranty = false;
+                    }
+                  }
+                  else {
+                    childRecord.extreme_warranty = false;
+                  }
 
                   return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
                     async function success(result) {
@@ -815,6 +916,21 @@ async function setClientApiContext(Xrm, formContext) {
                 record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
                 record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
                 record.extreme_isparent = assetsArray.find(item => item.id === e.newData.extreme_asset).extreme_isparent; // Boolean
+                const dateNow = new Date();
+                const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                  const startDate = new Date(warranty.extreme_warrantystartdate);
+                  const endDate = new Date(warranty.extreme_warrantyend);
+                  if (dateNow >= startDate && dateNow <= endDate) {
+                    record.extreme_warranty = true;
+                  }
+                  else {
+                    record.extreme_warranty = false;
+                  }
+                }
+                else {
+                  record.extreme_warranty = false;
+                }
 
                 await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
                   async function success(result) {
@@ -834,6 +950,21 @@ async function setClientApiContext(Xrm, formContext) {
                   childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                   childRecord.extreme_isparent = false; // Boolean
                   childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+                  const dateNow = new Date();
+                  const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                  if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                    const startDate = new Date(warranty.extreme_warrantystartdate);
+                    const endDate = new Date(warranty.extreme_warrantyend);
+                    if (dateNow >= startDate && dateNow <= endDate) {
+                      childRecord.extreme_warranty = true;
+                    }
+                    else {
+                      childRecord.extreme_warranty = false;
+                    }
+                  }
+                  else {
+                    childRecord.extreme_warranty = false;
+                  }
 
                   return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
                     async function success(result) {
@@ -858,11 +989,59 @@ async function setClientApiContext(Xrm, formContext) {
             const assetId = e.newData.extreme_asset ? e.newData.extreme_asset : e.oldData.extreme_asset;
             // Create time entry on another web resource
             await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.updateTimeEntry(e.key, assetId, ownerId, quantity * 60);
+            setTimeout(async () => {
+              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000)
+          }
+          else if (e.newData.extreme_producttypecode == 3) {
+            let description = null;
+            let highestScheduledEnd = null;
+            await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
+              function success(results) {
+                console.log(results);
+
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  var activityid = result["activityid"]; // Guid
+                  var scheduledend = result["scheduledend"]; // Date Time
+                  var scheduledend_formatted = result["scheduledend@OData.Community.Display.V1.FormattedValue"];
+
+                  description = result["description"];
+                  highestScheduledEnd = scheduledend;
+                }
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
+            const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
+            const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
+            dateTo.addMinutes(e.oldData.extreme_quantity * 60);
+            const timeSpent = e.oldData.extreme_quantity * 60;
+            console.log(e.oldData.extreme_quantity);
+
+            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
+              e.oldData.extreme_asset, caseIdForm, e.key, e.oldData.owner, e.oldData.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
+            );
+
             // Refresh grid for time entries
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            setTimeout(async () => {
+              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000)
+
+          }
+          else if (typeof (e.newData.extreme_producttypecode) === 'number' && e.newData.extreme_producttypecode !== 3) {
+            // Create time entry on another web resource
+            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);
+            // Refresh grid for time entries
+            setTimeout(async () => {
+              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000)
           }
 
           var record = {};
+          if (e.newData.extreme_name) record.extreme_name = e.newData.extreme_name.trim();
           if (e.newData.extreme_asset) record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.newData.extreme_asset})`; // Lookup
           record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
           if (e.newData.owner) record["ownerid@odata.bind"] = `/systemusers(${e.newData.owner})`; // Owner
@@ -909,8 +1088,9 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.data.extreme_producttypecode == 3) {
             // Create time entry on another web resource
             await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);
-            // Refresh grid for time entries
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            setTimeout(async () => {
+              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000)
           }
           await Xrm.WebApi.deleteRecord("extreme_caseline", `${e.key}`).then(
             async function success(result) {
