@@ -4571,7 +4571,7 @@ async function setClientApiContext(Xrm, formContext) {
             console.log('DIFFERENCE');
             console.log(difference);
 
-            // Adjust the last child element's baseamount to account for the difference
+            // difference adjust
             let childElements = quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid);
             childElements[childElements.length - 1].baseamount += difference;
           }
