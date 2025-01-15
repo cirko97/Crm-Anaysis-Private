@@ -12,11 +12,11 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			});
 	}
 	this.SendPrintoutEnableRule = function (formContext) {
-		var statecode = formContext.getAttribute("statecode").getValue();
-		if (statecode == 1) { //only if Active Quote
-			return true;
-		}
-		return false;
+		// var statecode = formContext.getAttribute("statecode").getValue();
+		// if (statecode == 1) { //only if Active Quote
+		// 	return true;
+		// }
+		return true;
 	}
 	this.CreatePrintoutEmail = async function (formContext, isDetailed) {
 		//getReport
