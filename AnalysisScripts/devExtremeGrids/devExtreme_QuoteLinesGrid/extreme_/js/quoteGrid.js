@@ -3455,8 +3455,8 @@ async function setClientApiContext(Xrm, formContext) {
                         async onClick() {
                           console.log($('#productDescription').val().trim());
 
-                          var record = {};
-                          record.extreme_productdescription = "test"; // Multiline Text
+                          // var record = {};
+                          // record.extreme_productdescription = "test"; // Multiline Text
 
                           await Xrm.WebApi.updateRecord("quotedetail", `${e.row.data.quotedetailid}`, { extreme_productdescription: $('#productDescription').val().trim() });
                           quoteLinesData.update(e.row.data.quotedetailid, { extreme_productdescription: $('#productDescription').val().trim() });
@@ -4039,7 +4039,6 @@ async function setClientApiContext(Xrm, formContext) {
           var record = {};
           record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
           if (e.data.quotedetailname) record.quotedetailname = e.data.quotedetailname; // Text
-          if (e.data.extreme_productdescription) record.extreme_productdescription = e.data.extreme_productdescription; // Text
           if (e.data.extreme_pricelistpriceperunit || e.data.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = e.data.extreme_pricelistpriceperunit; // Decimal
           if (e.data.extreme_pricelistcurrency) record.extreme_pricelistcurrency = e.data.extreme_pricelistcurrency; // Text
           if (e.data.extreme_supplierpriceperunit || e.data.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(e.data.extreme_supplierpriceperunit).toFixed(4)); // Currency
@@ -4088,12 +4087,18 @@ async function setClientApiContext(Xrm, formContext) {
             else {
               record["productid@odata.bind"] = `/products(${e.data.productid})`;
 
-              const existingProductLookups = await Xrm.WebApi.retrieveRecord("product", `${e.data.productid}`, "?$select=_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+              const existingProductLookups = await Xrm.WebApi.retrieveRecord("product", `${e.data.productid}`, "?$select=description,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
               console.log('EXISTING PRODUCT LOOKUPS');
               console.log(existingProductLookups);
               if (existingProductLookups._extreme_area_value) record["extreme_Area@odata.bind"] = `/extreme_areas(${existingProductLookups._extreme_area_value})`; // Lookup
               if (existingProductLookups._extreme_technology_value) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${existingProductLookups._extreme_technology_value})`; // Lookup
               if (existingProductLookups._extreme_vendorsupplier_value) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${existingProductLookups._extreme_vendorsupplier_value})`; // Lookup
+              if (e.data.extreme_productdescription) {
+                record.extreme_productdescription = e.data.extreme_productdescription;
+              }
+              else {
+                record.extreme_productdescription = existingProductLookups.description;
+              }; // Text
 
               record["uomid@odata.bind"] = `/uoms(${e.data.uomid})`; // Lookup UNIT
             }
@@ -4112,6 +4117,7 @@ async function setClientApiContext(Xrm, formContext) {
                 console.log(quoteLinesData._array[quoteLinesData._array.length - 1]);
                 console.log(quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid);
                 quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid = newId;
+                quoteLinesData._array[quoteLinesData._array.length - 1].extreme_productdescription = record.extreme_productdescription;
 
                 if (quoteLinesData._array._dataByKeyMap) {
                   const keys = Object.keys(quoteLinesData._array._dataByKeyMap);
@@ -4155,7 +4161,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('quoteLinesData before parent created');
                   console.log(quoteLinesData);
 
-                  await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
+                  await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
                     async function success(results) {
                       console.log(results);
                       for (var i = 0; i < results.entities.length; i++) {
@@ -4177,6 +4183,7 @@ async function setClientApiContext(Xrm, formContext) {
                         var productnumber = result["productnumber"]; // Text
                         var producttypecode = result["producttypecode"]; // Choice
                         var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
+                        var description = result["description"]; // Multiline Text
 
                         let productType = null;
                         let defaultVatSetting = null;
@@ -4293,7 +4300,8 @@ async function setClientApiContext(Xrm, formContext) {
                           supplierBaseAmount,
                           quantity,
                           fullPriceWithDiscount,
-                          vatSetting)
+                          vatSetting,
+                          description)
 
 
                         var record = {};
@@ -4328,6 +4336,7 @@ async function setClientApiContext(Xrm, formContext) {
                         record.extreme_supplierdiscount = 0; // Decimal
                         if (defaultMargin) record.extreme_margin = defaultMargin; // Decimal
                         if (supplierPricePerUnit) record.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
+                        if (description) record.extreme_productdescription = description; // Multi-line Text
 
                         record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
                         record.extreme_isparentitem = false; // Boolean
@@ -4395,6 +4404,7 @@ async function setClientApiContext(Xrm, formContext) {
                         if (baseAmount) recordForStore.baseamount = baseAmount; // Currency
                         if (extendedAmount) recordForStore.extendedamount = extendedAmount; // Currency
                         if (supplierPricePerUnit) recordForStore.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
+                        if (description) recordForStore.extreme_productdescription = description; // Multi-line text
 
                         recordForStore.extreme_isparentitem = false; // Boolean
                         recordForStore.extreme_createasset = false; // Boolean
