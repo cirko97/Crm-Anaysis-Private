@@ -4510,7 +4510,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_supplierdiscount || e.newData.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = e.newData.extreme_supplierdiscount; // Decimal
           if (e.newData.extreme_margin || e.newData.extreme_margin === 0) record.extreme_margin = e.newData.extreme_margin; // Decimal
           if (e.newData.priceperunit || e.newData.priceperunit === 0) record.priceperunit = e.newData.priceperunit; // Decimal
-          if (e.newData.baseamount || e.newData.baseamount === 0) record.baseamount = e.newData.baseamount; // Decimal
+          // if (e.newData.baseamount || e.newData.baseamount === 0) record.baseamount = e.newData.baseamount; // Decimal
           if (e.newData.extreme_discount || e.newData.extreme_discount === 0) record.extreme_discount = e.newData.extreme_discount; // Decimal
           if (e.newData.manualdiscountamount || e.newData.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(e.newData.manualdiscountamount).toFixed(4)); // Currency
           if (e.newData.extreme_pricewithdiscount || e.newData.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = e.newData.extreme_pricewithdiscount; // Decimal
