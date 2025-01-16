@@ -841,7 +841,7 @@ const syncQuote = async function (quoteId, formContext) {
 			};
 		}
 	};
-	Xrm.WebApi.execute(executeWorkflowRequest).then(
+	await Xrm.WebApi.execute(executeWorkflowRequest).then(
 		function success(response) {
 			if (response.ok) { /*return response.json(); */ }
 		}
