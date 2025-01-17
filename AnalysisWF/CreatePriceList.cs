@@ -33,7 +33,7 @@ namespace AnalysisWF
             try
             {
                 // Retrieve input parameters
-                string name = PriceListName.Get(executionContext);
+                string name = PriceListName.Get(executionContext); 
                 EntityReference currency = Currency.Get(executionContext);
 
                 // Validate input parameters

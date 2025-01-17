@@ -373,7 +373,7 @@ async function setClientApiContext(Xrm, formContext) {
             "quotedetailname": quotedetailname,
             "extreme_pricelistpriceperunit": extreme_pricelistpriceperunit,
             "extreme_pricelistcurrency": extreme_pricelistcurrency,
-            "priceperunit": priceperunit,
+            "priceperunit": extreme_isparentitem === true ? '' : priceperunit,
             "extreme_supplierbaseamount": extreme_isparentitem === true ? extreme_supplierbaseamount_sum.toFixed(2) : extreme_supplierbaseamount,
             "extreme_supplierpriceperunit": extreme_supplierpriceperunit,
             "quantity": quantity,
@@ -1536,6 +1536,10 @@ async function setClientApiContext(Xrm, formContext) {
                       };
                     },
                     customizeText: function (cellInfo) {
+
+                      console.log('CELL INFO CHILD');
+                      console.log(cellInfo);
+
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
                     visible: dataGrid.columnOption("priceperunit", "visible")
@@ -2309,6 +2313,7 @@ async function setClientApiContext(Xrm, formContext) {
                     let manualdiscountamount_sum = 0;
                     let extreme_supplierbaseamount_sum = 0;
                     let tax_sum = 0;
+                    let avarageDiscountPercent = 0;
 
                     quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.oldData.extreme_parentquoteline).forEach((e) => {
                       baseamount_sum += e.baseamount;
@@ -2320,6 +2325,8 @@ async function setClientApiContext(Xrm, formContext) {
                       tax_sum += e.tax;
                     });
 
+                    avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
                     quoteLinesData.update(e.oldData.extreme_parentquoteline, {
                       baseamount: baseamount_sum.toFixed(2),
                       extendedamount: extendedamount_sum.toFixed(2),
@@ -2327,7 +2334,8 @@ async function setClientApiContext(Xrm, formContext) {
                       extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
                       manualdiscountamount: manualdiscountamount_sum.toFixed(2),
                       extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
-                      tax: tax_sum.toFixed(2)
+                      tax: tax_sum.toFixed(2),
+                      extreme_discount: avarageDiscountPercent.toFixed(2)
                     });
 
                     dataGrid.getController('data').updateItems({
@@ -2373,6 +2381,7 @@ async function setClientApiContext(Xrm, formContext) {
                     let manualdiscountamount_sum = 0;
                     let extreme_supplierbaseamount_sum = 0;
                     let tax_sum = 0;
+                    let avarageDiscountPercent = 0;
 
                     quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
                       baseamount_sum += e.baseamount;
@@ -2384,6 +2393,8 @@ async function setClientApiContext(Xrm, formContext) {
                       tax_sum += e.tax;
                     });
 
+                    avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
                     quoteLinesData.update(parentQuoteLineGUID, {
                       baseamount: baseamount_sum.toFixed(2),
                       extendedamount: extendedamount_sum.toFixed(2),
@@ -2391,7 +2402,8 @@ async function setClientApiContext(Xrm, formContext) {
                       extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
                       manualdiscountamount: manualdiscountamount_sum.toFixed(2),
                       extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
-                      tax: tax_sum.toFixed(2)
+                      tax: tax_sum.toFixed(2),
+                      extreme_discount: avarageDiscountPercent.toFixed(2)
                     });
 
                     dataGrid.getController('data').updateItems({
@@ -2940,6 +2952,10 @@ async function setClientApiContext(Xrm, formContext) {
               };
             },
             customizeText: function (cellInfo) {
+
+              console.log('CELL INFO CHILD');
+              console.log(cellInfo);
+
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             }
           },
@@ -4802,6 +4818,7 @@ async function setClientApiContext(Xrm, formContext) {
               let manualdiscountamount_sum = 0;
               let extreme_supplierbaseamount_sum = 0;
               let tax_sum = 0;
+              avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
 
               quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
                 baseamount_sum += e.baseamount;
@@ -4813,7 +4830,7 @@ async function setClientApiContext(Xrm, formContext) {
                 tax_sum += e.tax;
               });
 
-              const avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+              avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
 
               quoteLinesData.update(parentQuoteLineGUID, {
                 baseamount: baseamount_sum.toFixed(2),
@@ -5002,6 +5019,7 @@ async function setClientApiContext(Xrm, formContext) {
                 let manualdiscountamount_sum = 0;
                 let extreme_supplierbaseamount_sum = 0;
                 let tax_sum = 0;
+                let avarageDiscountPercent = 0;
 
                 quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
                   baseamount_sum += e.baseamount;
@@ -5013,6 +5031,8 @@ async function setClientApiContext(Xrm, formContext) {
                   tax_sum += e.tax;
                 });
 
+                avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
                 quoteLinesData.update(parentQuoteLineGUID, {
                   baseamount: baseamount_sum.toFixed(2),
                   extendedamount: extendedamount_sum.toFixed(2),
@@ -5020,7 +5040,8 @@ async function setClientApiContext(Xrm, formContext) {
                   extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
                   manualdiscountamount: manualdiscountamount_sum.toFixed(2),
                   extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
-                  tax: tax_sum.toFixed(2)
+                  tax: tax_sum.toFixed(2),
+                  extreme_discount: avarageDiscountPercent.toFixed(2)
                 });
 
                 dataGrid.getController('data').updateItems({
@@ -5096,6 +5117,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount += e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount += e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax += e.itemData.tax;
+          const newBaseAmountSum = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount;
+          const newFullPriceWithDiscount = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_discount = ((newBaseAmountSum - newFullPriceWithDiscount) / newBaseAmountSum) * 100;
 
           key = e.itemData.quotedetailid;
           values = { extreme_parentquoteline: e.toData };
@@ -5119,6 +5143,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount -= e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount -= e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax -= e.itemData.tax;
+          const newBaseAmountSum = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount;
+          const newFullPriceWithDiscount = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_discount = ((newBaseAmountSum - newFullPriceWithDiscount) / newBaseAmountSum) * 100;
 
           key = e.itemData.quotedetailid;
           values = { extreme_parentquoteline: null };
@@ -5142,6 +5169,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount -= e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount -= e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax -= e.itemData.tax;
+          const newBaseAmountSumFrom = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount;
+          const newFullPriceWithDiscountFrom = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_discount = ((newBaseAmountSumFrom - newFullPriceWithDiscountFrom) / newBaseAmountSumFrom) * 100;
 
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount += e.itemData.baseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount += e.itemData.extendedamount;
@@ -5150,6 +5180,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount += e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount += e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax += e.itemData.tax;
+          const newBaseAmountSumTo = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount;
+          const newFullPriceWithDiscountTo = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_discount = ((newBaseAmountSumTo - newFullPriceWithDiscountTo) / newBaseAmountSumTo) * 100;
 
           key = e.itemData.quotedetailid;
           values = { extreme_parentquoteline: e.toData };
