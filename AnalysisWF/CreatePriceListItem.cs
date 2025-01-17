@@ -171,6 +171,7 @@ namespace AnalysisWF
                     product["extreme_supplier"] = supplier;
                     product["extreme_technology"] = technology;
                     product["extreme_area"] = area;
+                    product["producttypecode"] = new OptionSetValue(1); // Product Type: Products
 
                     // Create the Product record
                     product.Id = service.Create(product);
