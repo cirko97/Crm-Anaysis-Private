@@ -4752,6 +4752,8 @@ async function setClientApiContext(Xrm, formContext) {
                   childRecord.extreme_fullpricewithdiscount = newFullPriceWDiscount;
                   child.manualdiscountamount = newManualDiscountAmount;
                   childRecord.manualdiscountamount = newManualDiscountAmount;
+                  child.extreme_discount = e.newData.extreme_discount !== undefined ? e.newData.extreme_discount : child.extreme_discount;
+                  childRecord.extreme_discount = e.newData.extreme_discount !== undefined ? e.newData.extreme_discount : child.extreme_discount;
                 }
 
                 if (child.extreme_tax !== null) {
