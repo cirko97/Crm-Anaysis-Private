@@ -45,10 +45,30 @@ function form_onload(executionContext) {
     const calendarGridContext = formContext.getControl("calendarSubgrid"); // get the grid context
     const viewSelector = calendarGridContext.getViewSelector();
 
+    var viewCHROMATOGRAPHY = {
+      entityType: 1039,
+      id: "d2644dd4-69d2-ef11-8ee9-6045bd898d29",
+      name: "Service Team - CHROMATOGRAPHY"
+    };
+    var viewELEMENTAL = {
+      entityType: 1039,
+      id: "6ba9105c-69d2-ef11-8ee9-6045bd89637c",
+      name: "Service Team - ELEMENTAL"
+    };
+    var viewGENERAL = {
+      entityType: 1039,
+      id: "79ed57fe-69d2-ef11-8ee9-6045bd898d29",
+      name: "Service Team - GENERAL"
+    };
+    var viewMOLECULAR = {
+      entityType: 1039,
+      id: "ca69ab7f-69d2-ef11-8ee9-6045bd90a8a9",
+      name: "Service Team - MOLECULAR"
+    };
     var viewAleksandarStevanov = {
       entityType: 1039,
       id: "aa865266-1fc6-ef11-b8e8-6045bd898d29",
-      name: "Service Team - Aleksandar Stevanov"
+      name: "Service Team - Aleksandar Števanov"
     };
     var viewBojanJovic = {
       entityType: 1039,
@@ -58,7 +78,7 @@ function form_onload(executionContext) {
     var viewBojanSajatovic = {
       entityType: 1039,
       id: "6773848f-1fc6-ef11-b8e9-0022487f5548",
-      name: "Service Team - Bojan Sajatović"
+      name: "Service Team - Bojan Šajatović"
     };
     var viewDimitrijeAndrejic = {
       entityType: 1039,
@@ -147,52 +167,52 @@ function form_onload(executionContext) {
           var ownerName = owner[0].name; // Dobijamo ime vlasnika
     
           switch (ownerName) {
-            case "Aleksandar Stevanov":
+            case "Aleksandar Števanov":
               selectedView = viewAleksandarStevanov;
               break;
-            case "Bojan Jovic":
+            case "Bojan Jović":
               selectedView = viewBojanJovic;
               break;
-            case "Bojan Sajatovic":
+            case "Bojan Šajatovic":
               selectedView = viewBojanSajatovic;
               break;
-            case "Dimitrije Andrejic":
+            case "Dimitrije Andrejić":
               selectedView = viewDimitrijeAndrejic;
               break;
-            case "Dusan Popovic":
+            case "Dušan Popović":
               selectedView = viewDusanPopovic;
               break;
-            case "Goran Poprzen":
+            case "Goran Popržen":
               selectedView = viewGoranPoprzen;
               break;
-            case "Jovan Mitrovic":
+            case "Jovan Mitrović":
               selectedView = viewJovanMitrovic;
               break;
-            case "Luka Mihajlovic":
+            case "Luka Mihajlović":
               selectedView = viewLukaMihajlovic;
               break;
-            case "Marko Mitic":
+            case "Marko Mitić":
               selectedView = viewMarkoMitic;
               break;
-            case "Milan Cosic":
+            case "Milan Ćosić":
               selectedView = viewMilanCosic;
               break;
-            case "Milan Misic":
+            case "Milan Mišić":
               selectedView = viewMilanMisic;
               break;
-            case "Milan Vidovic":
+            case "Milan Vidović":
               selectedView = viewMilanVidovic;
               break;
             case "Miroslav Havran":
               selectedView = viewMiroslavHavran;
               break;
-            case "Nikola Stevanovic":
+            case "Nikola Stevanović":
               selectedView = viewNikolaStevanovic;
               break;
-            case "Rodoljub Radulovic":
+            case "Rodoljub Radulović":
               selectedView = viewRodoljubRadulovic;
               break;
-            case "Sanja Djekic":
+            case "Sanja Đekić":
               selectedView = viewSanjaDjekic;
               break;
             case "Silvia Babarci":
@@ -259,6 +279,18 @@ function form_onload(executionContext) {
         break;
       case 934670017:
         selectedView = viewSilviaBabarci;
+        break;
+      case 934670018:
+        selectedView = viewCHROMATOGRAPHY;
+        break;
+      case 934670019:
+        selectedView = viewELEMENTAL;
+        break;
+      case 934670020:
+        selectedView = viewGENERAL;
+        break;
+      case 934670021:
+        selectedView = viewMOLECULAR;
         break;
       default:
         console.warn("Nepoznata vrednost za option set polje.");
