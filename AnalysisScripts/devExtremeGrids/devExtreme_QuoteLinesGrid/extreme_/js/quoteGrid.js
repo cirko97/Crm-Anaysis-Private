@@ -4824,43 +4824,45 @@ async function setClientApiContext(Xrm, formContext) {
             await Promise.all(promises);
             console.log('All updates completed successfully.');
 
-            const parentQuoteLineGUID = e.key;
+            if (e.oldData.extreme_isparentitem === true) {
+              const parentQuoteLineGUID = e.key;
 
-            let baseamount_sum = 0;
-            let extendedamount_sum = 0;
-            let extreme_fullpd_sum = 0;
-            let extreme_fullpricewithdiscount_sum = 0;
-            let manualdiscountamount_sum = 0;
-            let extreme_supplierbaseamount_sum = 0;
-            let tax_sum = 0;
+              let baseamount_sum = 0;
+              let extendedamount_sum = 0;
+              let extreme_fullpd_sum = 0;
+              let extreme_fullpricewithdiscount_sum = 0;
+              let manualdiscountamount_sum = 0;
+              let extreme_supplierbaseamount_sum = 0;
+              let tax_sum = 0;
 
-            quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
-              baseamount_sum += e.baseamount;
-              extendedamount_sum += e.extendedamount;
-              extreme_fullpd_sum += e.extreme_fullpd;
-              extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount;
-              manualdiscountamount_sum += e.manualdiscountamount;
-              extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
-              tax_sum += e.tax;
-            });
+              quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
+                baseamount_sum += e.baseamount;
+                extendedamount_sum += e.extendedamount;
+                extreme_fullpd_sum += e.extreme_fullpd;
+                extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount;
+                manualdiscountamount_sum += e.manualdiscountamount;
+                extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
+                tax_sum += e.tax;
+              });
 
-            const avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+              const avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
 
-            quoteLinesData.update(parentQuoteLineGUID, {
-              baseamount: baseamount_sum.toFixed(2),
-              extendedamount: extendedamount_sum.toFixed(2),
-              extreme_fullpd: extreme_fullpd_sum.toFixed(2),
-              extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
-              manualdiscountamount: manualdiscountamount_sum.toFixed(2),
-              extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
-              tax: tax_sum.toFixed(2),
-              extreme_discount: avarageDiscountPercent.toFixed(2)
-            });
+              quoteLinesData.update(parentQuoteLineGUID, {
+                baseamount: baseamount_sum.toFixed(2),
+                extendedamount: extendedamount_sum.toFixed(2),
+                extreme_fullpd: extreme_fullpd_sum.toFixed(2),
+                extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
+                manualdiscountamount: manualdiscountamount_sum.toFixed(2),
+                extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
+                tax: tax_sum.toFixed(2),
+                extreme_discount: avarageDiscountPercent.toFixed(2)
+              });
 
-            dataGrid.getController('data').updateItems({
-              changeType: 'update',
-              rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)]
-            });
+              dataGrid.getController('data').updateItems({
+                changeType: 'update',
+                rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)]
+              });
+            }
 
             Xrm.Utility.closeProgressIndicator();
 
