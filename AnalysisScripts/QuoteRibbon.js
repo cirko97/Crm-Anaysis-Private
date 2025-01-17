@@ -12,11 +12,11 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			});
 	}
 	this.SendPrintoutEnableRule = function (formContext) {
-		var statecode = formContext.getAttribute("statecode").getValue();
-		if (statecode == 1) { //only if Active Quote
-			return true;
-		}
-		return false;
+		// var statecode = formContext.getAttribute("statecode").getValue();
+		// if (statecode == 1) { //only if Active Quote
+		// 	return true;
+		// }
+		return true;
 	}
 	this.CreatePrintoutEmail = async function (formContext, isDetailed) {
 		//getReport
@@ -841,7 +841,7 @@ const syncQuote = async function (quoteId, formContext) {
 			};
 		}
 	};
-	Xrm.WebApi.execute(executeWorkflowRequest).then(
+	await Xrm.WebApi.execute(executeWorkflowRequest).then(
 		function success(response) {
 			if (response.ok) { /*return response.json(); */ }
 		}
