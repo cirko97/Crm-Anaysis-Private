@@ -4734,6 +4734,11 @@ async function setClientApiContext(Xrm, formContext) {
                 const pricePerUnitWithCustomDiscount = pricePerUnit - newManualDiscountAmount / child.quantity;
                 const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
 
+                // Calculate the updated margin
+                const margin = child.extreme_supplierpriceperunit !== 0
+                  ? pricePerUnit / child.extreme_supplierpriceperunit
+                  : 0;
+
                 let childRecord = {};
                 child.baseamount = newBaseAmount;
                 childRecord.baseamount = newBaseAmount;
@@ -4741,6 +4746,8 @@ async function setClientApiContext(Xrm, formContext) {
                 if (child.extreme_supplierpriceperunit !== null) {
                   child.priceperunit = pricePerUnit;
                   childRecord.priceperunit = pricePerUnit;
+                  child.extreme_margin = margin; // Update margin
+                  childRecord.extreme_margin = margin; // Update margin in record
                   child.extreme_pd = pdPerUnit;
                   childRecord.extreme_pd = pdPerUnit;
                   child.extreme_fullpd = pdPerUnit * child.quantity;
