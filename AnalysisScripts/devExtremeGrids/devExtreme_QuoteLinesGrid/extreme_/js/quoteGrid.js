@@ -4637,37 +4637,44 @@ async function setClientApiContext(Xrm, formContext) {
 
           }
 
+          // Optimized function to adjust amounts proportionally and ensure the total matches
+          function adjustProportionalAmounts(newTotal, amounts) {
+            const currentTotal = amounts.reduce((sum, a) => sum + a, 0);
+            const scaleFactor = newTotal / currentTotal;
+
+            // Step 1: Proportionally adjust and round amounts
+            let adjustedAmounts = amounts.map(amount => Math.round(amount * scaleFactor * 100) / 100);
+
+            // Step 2: Calculate the rounding difference
+            let adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+            let difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+            // Step 3: Distribute the rounding difference evenly
+            if (difference !== 0) {
+              const numChildren = amounts.length;
+              const fractionalAdjustment = Math.round((difference / numChildren) * 100) / 100;
+
+              adjustedAmounts = adjustedAmounts.map(amount => Math.round((amount + fractionalAdjustment) * 100) / 100);
+
+              // Step 4: Recalculate and handle any residual difference
+              adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+              difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+              if (Math.abs(difference) > 0) {
+                // Prioritize adjusting the element with the smallest value
+                const smallestIndex = adjustedAmounts.findIndex(amount => amount === Math.min(...adjustedAmounts));
+                adjustedAmounts[smallestIndex] = Math.round((adjustedAmounts[smallestIndex] + difference) * 100) / 100;
+              }
+            }
+
+            return adjustedAmounts;
+          }
+
           // new baseamount / Sales Amount for parent item - update all child items
           if (e.newData.baseamount && e.oldData.extreme_isparentitem === true) {
             Xrm.Utility.showProgressIndicator('Recalculating... Please wait...');
             console.log("ALL CHILD FOR UPDATE PROPORTION!");
             console.log(quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid));
-
-            // Function to adjust amounts proportionally and ensure the total matches
-            function adjustProportionalAmounts(newTotal, amounts) {
-              const currentTotal = amounts.reduce((sum, a) => sum + a, 0);
-              const scaleFactor = newTotal / currentTotal;
-
-              let adjustedAmounts = amounts.map(amount => Math.round(amount * scaleFactor * 100) / 100);
-              let adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
-              let difference = Math.round((newTotal - adjustedSum) * 100) / 100;
-
-              if (difference !== 0) {
-                for (let i = 0; i < adjustedAmounts.length; i++) {
-                  if (difference > 0) {
-                    adjustedAmounts[i] += 0.01;
-                    difference -= 0.01;
-                  } else if (difference < 0) {
-                    adjustedAmounts[i] -= 0.01;
-                    difference += 0.01;
-                  }
-
-                  if (Math.abs(difference) < 0.01) break;
-                }
-              }
-
-              return adjustedAmounts;
-            }
 
             quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid).forEach(async child => {
               const childBaseAmounts = quoteLinesData._array
@@ -4725,37 +4732,12 @@ async function setClientApiContext(Xrm, formContext) {
 
           }
 
+          // new discount percent for parent item - update all child items
           if ((e.newData.extreme_discount || e.newData.extreme_discount === 0) && e.oldData.extreme_isparentitem === true) {
             Xrm.Utility.showProgressIndicator('Recalculating... Please wait...');
 
             console.log("ALL CHILD FOR UPDATE DISCOUNT!");
             console.log(quoteLinesData._array.filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid));
-
-            // Function to adjust amounts proportionally and ensure the total matches
-            function adjustProportionalAmounts(newTotal, amounts) {
-              const currentTotal = amounts.reduce((sum, a) => sum + a, 0);
-              const scaleFactor = newTotal / currentTotal;
-
-              let adjustedAmounts = amounts.map(amount => Math.round(amount * scaleFactor * 100) / 100);
-              let adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
-              let difference = Math.round((newTotal - adjustedSum) * 100) / 100;
-
-              if (difference !== 0) {
-                for (let i = 0; i < adjustedAmounts.length; i++) {
-                  if (difference > 0) {
-                    adjustedAmounts[i] += 0.01;
-                    difference -= 0.01;
-                  } else if (difference < 0) {
-                    adjustedAmounts[i] -= 0.01;
-                    difference += 0.01;
-                  }
-
-                  if (Math.abs(difference) < 0.01) break;
-                }
-              }
-
-              return adjustedAmounts;
-            }
 
             // Calculate the new total discount amount for children
             const parentDiscountPercent = e.newData.extreme_discount;
