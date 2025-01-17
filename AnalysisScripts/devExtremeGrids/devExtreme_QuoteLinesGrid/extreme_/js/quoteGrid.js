@@ -1771,6 +1771,7 @@ async function setClientApiContext(Xrm, formContext) {
                       type: "fixedPoint",
                       precision: 2
                     },
+                    allowEditing: false,
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
@@ -1785,6 +1786,7 @@ async function setClientApiContext(Xrm, formContext) {
                       type: "fixedPoint",
                       precision: 2
                     },
+                    allowEditing: false,
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
@@ -3170,6 +3172,7 @@ async function setClientApiContext(Xrm, formContext) {
               type: "fixedPoint",
               precision: 2
             },
+            allowEditing: false,
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             },
@@ -3184,6 +3187,7 @@ async function setClientApiContext(Xrm, formContext) {
               type: "fixedPoint",
               precision: 2
             },
+            allowEditing: false,
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             },
