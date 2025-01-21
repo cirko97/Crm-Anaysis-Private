@@ -230,6 +230,7 @@ async function setClientApiContext(Xrm, formContext) {
           let manualdiscountamount_sum = 0;
           let extreme_supplierbaseamount_sum = 0;
           let tax_sum = 0;
+          let avarageDiscountPercent = 0;
 
           var extreme_isparentitem = result["extreme_isparentitem"]; // Boolean
           var quotedetailid = result["quotedetailid"]; // Guid
@@ -262,6 +263,8 @@ async function setClientApiContext(Xrm, formContext) {
                   tax_sum += tax;
 
                 }
+
+                avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
               },
               function (error) {
                 console.log(error.message);
@@ -370,24 +373,24 @@ async function setClientApiContext(Xrm, formContext) {
             "quotedetailname": quotedetailname,
             "extreme_pricelistpriceperunit": extreme_pricelistpriceperunit,
             "extreme_pricelistcurrency": extreme_pricelistcurrency,
-            "priceperunit": priceperunit,
-            "extreme_supplierbaseamount": extreme_isparentitem === true ? extreme_supplierbaseamount_sum : extreme_supplierbaseamount,
+            "priceperunit": extreme_isparentitem === true ? '' : priceperunit,
+            "extreme_supplierbaseamount": extreme_isparentitem === true ? extreme_supplierbaseamount_sum.toFixed(2) : extreme_supplierbaseamount,
             "extreme_supplierpriceperunit": extreme_supplierpriceperunit,
             "quantity": quantity,
-            "baseamount": extreme_isparentitem === true ? baseamount_sum : baseamount,
+            "baseamount": extreme_isparentitem === true ? baseamount_sum.toFixed(2) : baseamount,
             "extreme_supplierdiscount": extreme_supplierdiscount,
             "extreme_margin": extreme_margin,
             "extreme_fullpricerounded": extreme_fullpricerounded,
             "extreme_fullprice": extreme_fullprice,
-            "extreme_discount": extreme_discount,
-            "manualdiscountamount": extreme_isparentitem === true ? manualdiscountamount_sum : manualdiscountamount,
+            "extreme_discount": extreme_isparentitem === true ? avarageDiscountPercent.toFixed(2) : extreme_discount,
+            "manualdiscountamount": extreme_isparentitem === true ? manualdiscountamount_sum.toFixed(2) : manualdiscountamount,
             "extreme_pricewithdiscount": extreme_pricewithdiscount,
-            "extreme_fullpricewithdiscount": extreme_isparentitem === true ? extreme_fullpricewithdiscount_sum : extreme_fullpricewithdiscount,
+            "extreme_fullpricewithdiscount": extreme_isparentitem === true ? extreme_fullpricewithdiscount_sum.toFixed(2) : extreme_fullpricewithdiscount,
             "extreme_tax": extreme_tax,
-            "tax": extreme_isparentitem === true ? tax_sum : tax,
+            "tax": extreme_isparentitem === true ? tax_sum.toFixed(2) : tax,
             "extreme_pd": extreme_pd,
-            "extreme_fullpd": extreme_isparentitem === true ? extreme_fullpd_sum : extreme_fullpd,
-            "extendedamount": extreme_isparentitem === true ? extendedamount_sum : extendedamount,
+            "extreme_fullpd": extreme_isparentitem === true ? extreme_fullpd_sum.toFixed(2) : extreme_fullpd,
+            "extendedamount": extreme_isparentitem === true ? extendedamount_sum.toFixed(2) : extendedamount,
             "extreme_pricelist": extreme_pricelist,
             "sequencenumber": sequencenumber,
             "extreme_isparentitem": extreme_isparentitem,
@@ -1229,8 +1232,12 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.manualdiscountamount = (1 * (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit))) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
                         newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
                         newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                        newData.extreme_pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
-                        const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
+                        const supplierDiscountAmount = supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100);
+                        const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
+                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                        newData.extreme_pd = pdPerUnit;
                         newData.extreme_fullpd = pdPerUnit * 1;
                       }
                     },
@@ -1295,8 +1302,12 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.manualdiscountamount = (value * (Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
                         newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
                         newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                        newData.extreme_pd = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-                        const pdPerUnit = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                        newData.extreme_pd = pdPerUnit;
                         newData.extreme_fullpd = pdPerUnit * value;
                       }
                       else {
@@ -1397,11 +1408,15 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.extreme_fullpricewithdiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
                         const fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
                         newData.extendedamount = (fullPriceWithDiscount * (1 + currentRowData.extreme_tax / 100) - fullPriceWithDiscount) + fullPriceWithDiscount;
-                        newData.extreme_pd = pricePerUnit - (value - (value * (currentRowData.extreme_supplierdiscount / 100)));
-                        const pdPerUnit = pricePerUnit - (value - (value * (currentRowData.extreme_supplierdiscount / 100)));
+                        const supplierDiscountAmount = value * (currentRowData.extreme_supplierdiscount / 100);
+                        const pricePerUnitWithSupplierDiscount = value - supplierDiscountAmount;
+                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                        newData.extreme_pd = pdPerUnit;
                         newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
                       };
-                      if(typeof (currentRowData.productid) === 'number') {
+                      if (typeof (currentRowData.productid) === 'number') {
                         newData.extreme_pricelistpriceperunit = value;
                       }
                     },
@@ -1440,8 +1455,12 @@ async function setClientApiContext(Xrm, formContext) {
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_supplierdiscount = value;
                       if (currentRowData.priceperunit !== null && currentRowData.extreme_supplierpriceperunit !== null && currentRowData.quantity !== null) {
-                        newData.extreme_pd = currentRowData.priceperunit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (value / 100)));
-                        const pdPerUnit = currentRowData.priceperunit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (value / 100)));
+                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (value / 100);
+                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                        const customDiscountAmount = currentRowData.priceperunit * (currentRowData.extreme_discount / 100);
+                        const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
+                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                        newData.extreme_pd = pdPerUnit;
                         newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
                       }
                     },
@@ -1454,7 +1473,7 @@ async function setClientApiContext(Xrm, formContext) {
                     width: 64,
                     format: {
                       type: "fixedPoint",
-                      precision: 1
+                      precision: 2
                     },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_margin = value;
@@ -1462,8 +1481,12 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.priceperunit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
                         const pricePerUnit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
                         newData.baseamount = Math.ceil(value * currentRowData.extreme_supplierpriceperunit) * currentRowData.quantity;
-                        newData.extreme_pd = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-                        const pdPerUnit = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                        newData.extreme_pd = pdPerUnit;
                         newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
                       };
                       if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
@@ -1481,13 +1504,42 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'priceperunit',
                     caption: 'Sales PPU',
                     dataType: 'number',
+                    cssClass: "cell-highlighted",
                     //width: 100,
                     format: {
                       type: "fixedPoint",
                       precision: 2
                     },
-                    allowEditing: false,
+                    allowEditing: true,
+                    setCellValue: async function (newData, value, currentRowData) {
+                      const pricePerUnit = value;
+                      newData.priceperunit = pricePerUnit;
+                      const margin = value / currentRowData.extreme_supplierpriceperunit;
+                      if (currentRowData.extreme_supplierpriceperunit !== null) {
+                        newData.extreme_margin = value / currentRowData.extreme_supplierpriceperunit;
+                        newData.baseamount = pricePerUnit * currentRowData.quantity;
+                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                        newData.extreme_pd = pdPerUnit;
+                        newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                      };
+                      if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
+                        newData.extreme_fullpricewithdiscount = ((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity;
+                        newData.manualdiscountamount = (currentRowData.quantity * (pricePerUnit)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                      };
+                      if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
+                        newData.tax = ((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                        newData.extendedamount = (((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                      };
+                    },
                     customizeText: function (cellInfo) {
+
+                      console.log('CELL INFO CHILD');
+                      console.log(cellInfo);
+
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
                     visible: dataGrid.columnOption("priceperunit", "visible")
@@ -1522,6 +1574,16 @@ async function setClientApiContext(Xrm, formContext) {
                         // newData.extreme_pricewithdiscount = currentRowData.priceperunit * (1 - value / 100);
                         newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity;
                         newData.manualdiscountamount = currentRowData.baseamount - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
+
+                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                        const customDiscountAmount = currentRowData.priceperunit * (value / 100);
+                        const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
+                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+
+                        newData.extreme_pd = pdPerUnit;
+                        newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+
                       };
                       if (currentRowData.extreme_tax !== null) {
                         newData.tax = (((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
@@ -1713,6 +1775,7 @@ async function setClientApiContext(Xrm, formContext) {
                       type: "fixedPoint",
                       precision: 2
                     },
+                    allowEditing: false,
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
@@ -1727,6 +1790,7 @@ async function setClientApiContext(Xrm, formContext) {
                       type: "fixedPoint",
                       precision: 2
                     },
+                    allowEditing: false,
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
@@ -1836,8 +1900,12 @@ async function setClientApiContext(Xrm, formContext) {
                       newData.extreme_fullpricewithdiscount = fullPriceWithDiscount;
                       newData.tax = tax;
                       newData.extendedamount = extendedAmount;
-                      newData.extreme_pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
-                      const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
+                      const supplierDiscountAmount = supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100);
+                      const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
+                      const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                      const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                      const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                      newData.extreme_pd = pdPerUnit;
                       newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
 
                     },
@@ -2127,6 +2195,9 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.dataField == 'extreme_pricelist' && (!e.row.data.productid || typeof (e.row.data.productid) === 'number') || e.row.isNewRow) {
                     e.editorOptions.disabled = true;
                   }
+                  if (e.dataField == 'baseamount') {
+                    e.editorOptions.disabled = true;
+                  }
 
                 },
                 onRowPrepared: async (e) => {
@@ -2242,6 +2313,7 @@ async function setClientApiContext(Xrm, formContext) {
                     let manualdiscountamount_sum = 0;
                     let extreme_supplierbaseamount_sum = 0;
                     let tax_sum = 0;
+                    let avarageDiscountPercent = 0;
 
                     quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.oldData.extreme_parentquoteline).forEach((e) => {
                       baseamount_sum += e.baseamount;
@@ -2253,14 +2325,17 @@ async function setClientApiContext(Xrm, formContext) {
                       tax_sum += e.tax;
                     });
 
+                    avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
                     quoteLinesData.update(e.oldData.extreme_parentquoteline, {
-                      baseamount: baseamount_sum,
-                      extendedamount: extendedamount_sum,
-                      extreme_fullpd: extreme_fullpd_sum,
-                      extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum,
-                      manualdiscountamount: manualdiscountamount_sum,
-                      extreme_supplierbaseamount: extreme_supplierbaseamount_sum,
-                      tax: tax_sum
+                      baseamount: baseamount_sum.toFixed(2),
+                      extendedamount: extendedamount_sum.toFixed(2),
+                      extreme_fullpd: extreme_fullpd_sum.toFixed(2),
+                      extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
+                      manualdiscountamount: manualdiscountamount_sum.toFixed(2),
+                      extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
+                      tax: tax_sum.toFixed(2),
+                      extreme_discount: avarageDiscountPercent.toFixed(2)
                     });
 
                     dataGrid.getController('data').updateItems({
@@ -2306,6 +2381,7 @@ async function setClientApiContext(Xrm, formContext) {
                     let manualdiscountamount_sum = 0;
                     let extreme_supplierbaseamount_sum = 0;
                     let tax_sum = 0;
+                    let avarageDiscountPercent = 0;
 
                     quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
                       baseamount_sum += e.baseamount;
@@ -2317,14 +2393,17 @@ async function setClientApiContext(Xrm, formContext) {
                       tax_sum += e.tax;
                     });
 
+                    avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
                     quoteLinesData.update(parentQuoteLineGUID, {
-                      baseamount: baseamount_sum,
-                      extendedamount: extendedamount_sum,
-                      extreme_fullpd: extreme_fullpd_sum,
-                      extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum,
-                      manualdiscountamount: manualdiscountamount_sum,
-                      extreme_supplierbaseamount: extreme_supplierbaseamount_sum,
-                      tax: tax_sum
+                      baseamount: baseamount_sum.toFixed(2),
+                      extendedamount: extendedamount_sum.toFixed(2),
+                      extreme_fullpd: extreme_fullpd_sum.toFixed(2),
+                      extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
+                      manualdiscountamount: manualdiscountamount_sum.toFixed(2),
+                      extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
+                      tax: tax_sum.toFixed(2),
+                      extreme_discount: avarageDiscountPercent.toFixed(2)
                     });
 
                     dataGrid.getController('data').updateItems({
@@ -2564,8 +2643,12 @@ async function setClientApiContext(Xrm, formContext) {
                 newData.manualdiscountamount = (1 * (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit))) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
                 newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
                 newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                newData.extreme_pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
-                const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
+                const supplierDiscountAmount = supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100);
+                const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
+                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                newData.extreme_pd = pdPerUnit;
                 newData.extreme_fullpd = pdPerUnit * 1;
               }
             },
@@ -2584,8 +2667,8 @@ async function setClientApiContext(Xrm, formContext) {
                 type: 'custom',
                 message: 'Must be at least 3 characters',
                 validationCallback(params) {
-                  if(productsArray.find(item => item.id === params.value)) {
-                    if(productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number') {
+                  if (productsArray.find(item => item.id === params.value)) {
+                    if (productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number') {
                       return false;
                     }
                     else {
@@ -2639,8 +2722,12 @@ async function setClientApiContext(Xrm, formContext) {
                   newData.manualdiscountamount = (value * (Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
                   newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
                   newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                  newData.extreme_pd = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-                  const pdPerUnit = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+                  const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                  const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                  const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                  const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                  const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                  newData.extreme_pd = pdPerUnit;
                   newData.extreme_fullpd = pdPerUnit * value;
                 }
                 else {
@@ -2740,11 +2827,15 @@ async function setClientApiContext(Xrm, formContext) {
                 newData.extreme_fullpricewithdiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
                 const fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
                 newData.extendedamount = (fullPriceWithDiscount * (1 + currentRowData.extreme_tax / 100) - fullPriceWithDiscount) + fullPriceWithDiscount;
-                newData.extreme_pd = pricePerUnit - (value - (value * (currentRowData.extreme_supplierdiscount / 100)));
-                const pdPerUnit = pricePerUnit - (value - (value * (currentRowData.extreme_supplierdiscount / 100)));
+                const supplierDiscountAmount = value * (currentRowData.extreme_supplierdiscount / 100);
+                const pricePerUnitWithSupplierDiscount = value - supplierDiscountAmount;
+                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                newData.extreme_pd = pdPerUnit;
                 newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
               };
-              if(typeof (currentRowData.productid) === 'number') {
+              if (typeof (currentRowData.productid) === 'number') {
                 newData.extreme_pricelistpriceperunit = value;
               }
             },
@@ -2781,8 +2872,12 @@ async function setClientApiContext(Xrm, formContext) {
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_supplierdiscount = value;
               if (currentRowData.priceperunit !== null && currentRowData.extreme_supplierpriceperunit !== null && currentRowData.quantity !== null) {
-                newData.extreme_pd = currentRowData.priceperunit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (value / 100)));
-                const pdPerUnit = currentRowData.priceperunit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (value / 100)));
+                const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (value / 100);
+                const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                const customDiscountAmount = currentRowData.priceperunit * (currentRowData.extreme_discount / 100);
+                const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
+                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                newData.extreme_pd = pdPerUnit;
                 newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
               }
             },
@@ -2795,7 +2890,7 @@ async function setClientApiContext(Xrm, formContext) {
             width: 64,
             format: {
               type: "fixedPoint",
-              precision: 1
+              precision: 2
             },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_margin = value;
@@ -2803,8 +2898,12 @@ async function setClientApiContext(Xrm, formContext) {
                 newData.priceperunit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
                 const pricePerUnit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
                 newData.baseamount = Math.ceil(value * currentRowData.extreme_supplierpriceperunit) * currentRowData.quantity;
-                newData.extreme_pd = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
-                const pdPerUnit = pricePerUnit - (currentRowData.extreme_supplierpriceperunit - (currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100)));
+                const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                newData.extreme_pd = pdPerUnit;
                 newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
               };
               if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
@@ -2827,8 +2926,36 @@ async function setClientApiContext(Xrm, formContext) {
               type: "fixedPoint",
               precision: 2
             },
-            allowEditing: false,
+            allowEditing: true,
+            setCellValue: async function (newData, value, currentRowData) {
+              const pricePerUnit = value;
+              newData.priceperunit = pricePerUnit;
+              const margin = value / currentRowData.extreme_supplierpriceperunit;
+              if (currentRowData.extreme_supplierpriceperunit !== null) {
+                newData.extreme_margin = value / currentRowData.extreme_supplierpriceperunit;
+                newData.baseamount = pricePerUnit * currentRowData.quantity;
+                const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                newData.extreme_pd = pdPerUnit;
+                newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+              };
+              if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
+                newData.extreme_fullpricewithdiscount = ((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity;
+                newData.manualdiscountamount = (currentRowData.quantity * (pricePerUnit)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+              };
+              if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
+                newData.tax = ((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                newData.extendedamount = (((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+              };
+            },
             customizeText: function (cellInfo) {
+
+              console.log('CELL INFO CHILD');
+              console.log(cellInfo);
+
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             }
           },
@@ -2841,7 +2968,7 @@ async function setClientApiContext(Xrm, formContext) {
               type: "fixedPoint",
               precision: 2
             },
-            allowEditing: false,
+            allowEditing: true,
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             }
@@ -2856,17 +2983,29 @@ async function setClientApiContext(Xrm, formContext) {
               precision: 2
             },
             setCellValue: async function (newData, value, currentRowData) {
+              // Do so only if it is not parent item (SET)
               newData.extreme_discount = value;
-              if (currentRowData.priceperunit !== null && currentRowData.quantity !== null) {
-                // newData.extreme_pricewithdiscount = currentRowData.priceperunit * (1 - value / 100);
-                newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity;
-                newData.manualdiscountamount = currentRowData.baseamount - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
-              };
-              if (currentRowData.extreme_tax !== null) {
-                newData.tax = (((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
-                newData.extendedamount = ((((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity)) + ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
-              };
+              if (currentRowData.extreme_isparentitem !== true) {
+                if (currentRowData.priceperunit !== null && currentRowData.quantity !== null) {
+                  // newData.extreme_pricewithdiscount = currentRowData.priceperunit * (1 - value / 100);
+                  newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity;
+                  newData.manualdiscountamount = currentRowData.baseamount - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
 
+                  const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+                  const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+                  const customDiscountAmount = currentRowData.priceperunit * (value / 100);
+                  const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
+                  const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+
+                  newData.extreme_pd = pdPerUnit;
+                  newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+
+                };
+                if (currentRowData.extreme_tax !== null) {
+                  newData.tax = (((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
+                  newData.extendedamount = ((((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity)) + ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
+                };
+              }
             },
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
@@ -3049,6 +3188,7 @@ async function setClientApiContext(Xrm, formContext) {
               type: "fixedPoint",
               precision: 2
             },
+            allowEditing: false,
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             },
@@ -3063,6 +3203,7 @@ async function setClientApiContext(Xrm, formContext) {
               type: "fixedPoint",
               precision: 2
             },
+            allowEditing: false,
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             },
@@ -3171,8 +3312,12 @@ async function setClientApiContext(Xrm, formContext) {
               newData.extreme_fullpricewithdiscount = fullPriceWithDiscount;
               newData.tax = tax;
               newData.extendedamount = extendedAmount;
-              newData.extreme_pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
-              const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100)));
+              const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
+              const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
+              const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
+              const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+              const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+              newData.extreme_pd = pdPerUnit;
               newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
 
             }
@@ -3414,8 +3559,8 @@ async function setClientApiContext(Xrm, formContext) {
                         async onClick() {
                           console.log($('#productDescription').val().trim());
 
-                          var record = {};
-                          record.extreme_productdescription = "test"; // Multiline Text
+                          // var record = {};
+                          // record.extreme_productdescription = "test"; // Multiline Text
 
                           await Xrm.WebApi.updateRecord("quotedetail", `${e.row.data.quotedetailid}`, { extreme_productdescription: $('#productDescription').val().trim() });
                           quoteLinesData.update(e.row.data.quotedetailid, { extreme_productdescription: $('#productDescription').val().trim() });
@@ -3488,6 +3633,8 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.columnOption("uomid", "validationRules", [{ type: 'required' }]);
                   dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
                   dataGrid.columnOption("extreme_margin", "allowEditing", true);
+                  dataGrid.columnOption("priceperunit", "allowEditing", true);
+                  dataGrid.columnOption("baseamount", "allowEditing", true);
                   dataGrid.columnOption("extreme_discount", "allowEditing", true);
                   dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
                   dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
@@ -3529,6 +3676,8 @@ async function setClientApiContext(Xrm, formContext) {
                   // dataGrid.columnOption("uomid", "validationRules", null);
                   dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", false);
                   dataGrid.columnOption("extreme_margin", "allowEditing", false);
+                  dataGrid.columnOption("priceperunit", "allowEditing", false);
+                  dataGrid.columnOption("baseamount", "allowEditing", false);
                   dataGrid.columnOption("extreme_discount", "allowEditing", false);
                   dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", false);
                   dataGrid.columnOption("extreme_pricelist", "allowEditing", false);
@@ -3953,8 +4102,14 @@ async function setClientApiContext(Xrm, formContext) {
             e.dataField !== "extreme_createasset" &&
             e.dataField !== "extreme_area" &&
             e.dataField !== "extreme_technology" &&
-            e.dataField !== "extreme_vendorsupplier"
+            e.dataField !== "extreme_vendorsupplier" &&
+            e.dataField !== "baseamount" &&
+            e.dataField !== "extreme_discount"
           ) {
+            e.editorOptions.disabled = true;
+          }
+
+          if (e.row.data.extreme_isparentitem !== true && e.dataField == "baseamount") {
             e.editorOptions.disabled = true;
           }
 
@@ -3996,7 +4151,6 @@ async function setClientApiContext(Xrm, formContext) {
           var record = {};
           record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
           if (e.data.quotedetailname) record.quotedetailname = e.data.quotedetailname; // Text
-          if (e.data.extreme_productdescription) record.extreme_productdescription = e.data.extreme_productdescription; // Text
           if (e.data.extreme_pricelistpriceperunit || e.data.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = e.data.extreme_pricelistpriceperunit; // Decimal
           if (e.data.extreme_pricelistcurrency) record.extreme_pricelistcurrency = e.data.extreme_pricelistcurrency; // Text
           if (e.data.extreme_supplierpriceperunit || e.data.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(e.data.extreme_supplierpriceperunit).toFixed(4)); // Currency
@@ -4045,12 +4199,18 @@ async function setClientApiContext(Xrm, formContext) {
             else {
               record["productid@odata.bind"] = `/products(${e.data.productid})`;
 
-              const existingProductLookups = await Xrm.WebApi.retrieveRecord("product", `${e.data.productid}`, "?$select=_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+              const existingProductLookups = await Xrm.WebApi.retrieveRecord("product", `${e.data.productid}`, "?$select=description,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
               console.log('EXISTING PRODUCT LOOKUPS');
               console.log(existingProductLookups);
               if (existingProductLookups._extreme_area_value) record["extreme_Area@odata.bind"] = `/extreme_areas(${existingProductLookups._extreme_area_value})`; // Lookup
               if (existingProductLookups._extreme_technology_value) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${existingProductLookups._extreme_technology_value})`; // Lookup
               if (existingProductLookups._extreme_vendorsupplier_value) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${existingProductLookups._extreme_vendorsupplier_value})`; // Lookup
+              if (e.data.extreme_productdescription) {
+                record.extreme_productdescription = e.data.extreme_productdescription;
+              }
+              else {
+                record.extreme_productdescription = existingProductLookups.description;
+              }; // Text
 
               record["uomid@odata.bind"] = `/uoms(${e.data.uomid})`; // Lookup UNIT
             }
@@ -4069,6 +4229,7 @@ async function setClientApiContext(Xrm, formContext) {
                 console.log(quoteLinesData._array[quoteLinesData._array.length - 1]);
                 console.log(quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid);
                 quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid = newId;
+                quoteLinesData._array[quoteLinesData._array.length - 1].extreme_productdescription = record.extreme_productdescription;
 
                 if (quoteLinesData._array._dataByKeyMap) {
                   const keys = Object.keys(quoteLinesData._array._dataByKeyMap);
@@ -4112,7 +4273,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('quoteLinesData before parent created');
                   console.log(quoteLinesData);
 
-                  await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
+                  await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
                     async function success(results) {
                       console.log(results);
                       for (var i = 0; i < results.entities.length; i++) {
@@ -4134,6 +4295,7 @@ async function setClientApiContext(Xrm, formContext) {
                         var productnumber = result["productnumber"]; // Text
                         var producttypecode = result["producttypecode"]; // Choice
                         var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
+                        var description = result["description"]; // Multiline Text
 
                         let productType = null;
                         let defaultVatSetting = null;
@@ -4227,8 +4389,12 @@ async function setClientApiContext(Xrm, formContext) {
                           discountAmount = (1 * (Math.ceil(defaultMargin * supplierPricePerUnit))) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
                           taxAmount = ((((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
                           extendedAmount = (((((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1)) + (((Math.ceil(defaultMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
-                          pd = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (supplierDiscount / 100)));
-                          const pdPerUnit = pricePerUnit - (supplierPricePerUnit - (supplierPricePerUnit * (supplierDiscount / 100)));
+                          const supplierDiscountAmount = supplierPricePerUnit * (supplierDiscount / 100);
+                          const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
+                          const customDiscountAmount = pricePerUnit * (discount / 100);
+                          const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+                          const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                          pd = pdPerUnit;
                           fullPD = pdPerUnit * 1;
                         }
 
@@ -4250,7 +4416,8 @@ async function setClientApiContext(Xrm, formContext) {
                           supplierBaseAmount,
                           quantity,
                           fullPriceWithDiscount,
-                          vatSetting)
+                          vatSetting,
+                          description)
 
 
                         var record = {};
@@ -4285,6 +4452,7 @@ async function setClientApiContext(Xrm, formContext) {
                         record.extreme_supplierdiscount = 0; // Decimal
                         if (defaultMargin) record.extreme_margin = defaultMargin; // Decimal
                         if (supplierPricePerUnit) record.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
+                        if (description) record.extreme_productdescription = description; // Multi-line Text
 
                         record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
                         record.extreme_isparentitem = false; // Boolean
@@ -4352,6 +4520,7 @@ async function setClientApiContext(Xrm, formContext) {
                         if (baseAmount) recordForStore.baseamount = baseAmount; // Currency
                         if (extendedAmount) recordForStore.extendedamount = extendedAmount; // Currency
                         if (supplierPricePerUnit) recordForStore.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
+                        if (description) recordForStore.extreme_productdescription = description; // Multi-line text
 
                         recordForStore.extreme_isparentitem = false; // Boolean
                         recordForStore.extreme_createasset = false; // Boolean
@@ -4412,6 +4581,8 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.columnOption("uomid", "validationRules", [{ type: 'required' }]);
           dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
           dataGrid.columnOption("extreme_margin", "allowEditing", true);
+          dataGrid.columnOption("priceperunit", "allowEditing", true);
+          dataGrid.columnOption("baseamount", "allowEditing", true);
           dataGrid.columnOption("extreme_discount", "allowEditing", true);
           dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
           dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
@@ -4445,8 +4616,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_supplierdiscount || e.newData.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = e.newData.extreme_supplierdiscount; // Decimal
           if (e.newData.extreme_margin || e.newData.extreme_margin === 0) record.extreme_margin = e.newData.extreme_margin; // Decimal
           if (e.newData.priceperunit || e.newData.priceperunit === 0) record.priceperunit = e.newData.priceperunit; // Decimal
-          if (e.newData.baseamount || e.newData.baseamount === 0) record.baseamount = e.newData.baseamount; // Decimal
-          if (e.newData.extreme_discount || e.newData.extreme_discount === 0) record.extreme_discount = e.newData.extreme_discount; // Decimal
+          if ((e.newData.baseamount || e.newData.baseamount === 0) && e.oldData.extreme_isparentitem !== true) record.baseamount = e.newData.baseamount; // Decimal
           if (e.newData.manualdiscountamount || e.newData.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(e.newData.manualdiscountamount).toFixed(4)); // Currency
           if (e.newData.extreme_pricewithdiscount || e.newData.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = e.newData.extreme_pricewithdiscount; // Decimal
           if (e.newData.extreme_fullpricewithdiscount || e.newData.extreme_fullpricewithdiscount === 0) record.extreme_fullpricewithdiscount = e.newData.extreme_fullpricewithdiscount; // Decimal
@@ -4470,6 +4640,8 @@ async function setClientApiContext(Xrm, formContext) {
             if (e.newData.uomid) record["uomid@odata.bind"] = `/uoms(${e.newData.uomid})`; // Lookup
           }
 
+          let promises = [];
+
           if (typeof (e.oldData.productid) !== 'number' && (e.newData.extreme_area || e.newData.extreme_technology || e.newData.extreme_vendorsupplier)) {
 
             var recordForLookups = {};
@@ -4477,34 +4649,215 @@ async function setClientApiContext(Xrm, formContext) {
             if (e.newData.extreme_technology) recordForLookups["extreme_Technology@odata.bind"] = `/extreme_technologies(${e.newData.extreme_technology})`; // Lookup
             if (e.newData.extreme_vendorsupplier) recordForLookups["extreme_Supplier@odata.bind"] = `/accounts(${e.newData.extreme_vendorsupplier})`; // Lookup
 
-            await Xrm.WebApi.updateRecord("product", `${e.oldData.productid}`, recordForLookups).then(
-              function success(result) {
-                var updatedId = result.id;
-                console.log(updatedId);
-              },
-              function (error) {
-                console.log(error.message);
-              }
+            promises.push(Xrm.WebApi.updateRecord("product", `${e.oldData.productid}`, recordForLookups));
+
+          }
+
+          // Unified logic for updating parent item changes
+          if ((e.newData.baseamount || e.newData.extreme_discount || e.newData.extreme_discount === 0) && e.oldData.extreme_isparentitem === true) {
+            Xrm.Utility.showProgressIndicator("Recalculating... Please wait...");
+            console.log("ALL CHILD FOR UPDATE PROPORTION!");
+            console.log(
+              quoteLinesData._array.filter(
+                item => item.extreme_parentquoteline === e.oldData.quotedetailid
+              )
             );
 
+            // Function to adjust amounts proportionally and ensure the total matches
+            function adjustProportionalAmounts(newTotal, amounts) {
+              const currentTotal = amounts.reduce((sum, a) => sum + a, 0);
+              const scaleFactor = newTotal / currentTotal;
+
+              // Handle case where all amounts are 0
+              if (currentTotal === 0) {
+                return amounts.map(() => 0);
+              }
+
+              let adjustedAmounts = amounts.map(amount => Math.round(amount * scaleFactor * 100) / 100);
+              let adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+              let difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+              if (difference !== 0) {
+                const numChildren = amounts.length;
+                const fractionalAdjustment = Math.round((difference / numChildren) * 100) / 100;
+
+                adjustedAmounts = adjustedAmounts.map(amount => Math.round((amount + fractionalAdjustment) * 100) / 100);
+
+                adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+                difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+                if (Math.abs(difference) > 0) {
+                  const smallestIndex = adjustedAmounts.findIndex(amount => amount === Math.min(...adjustedAmounts));
+                  adjustedAmounts[smallestIndex] = Math.round((adjustedAmounts[smallestIndex] + difference) * 100) / 100;
+                }
+              }
+
+              return adjustedAmounts;
+            }
+
+            // Use the parent's current or updated discount value
+            const parentDiscountPercent = e.newData.extreme_discount !== undefined ? e.newData.extreme_discount : e.oldData.extreme_discount;
+            const parentBaseAmount = e.newData.baseamount || e.oldData.baseamount;
+            const parentFullPriceWDiscount = parentBaseAmount * (1 - parentDiscountPercent / 100);
+            const parentManualDiscountAmount = parentBaseAmount * (parentDiscountPercent / 100);
+
+            const parentTax = quoteLinesData._array
+              .filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid)
+              .reduce((sum, child) => {
+                const discountedPrice = child.priceperunit * (1 - parentDiscountPercent / 100) * child.quantity;
+                return sum + (discountedPrice * (child.extreme_tax / 100));
+              }, 0);
+
+            // Collect child values
+            const childBaseAmounts = quoteLinesData._array
+              .filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid)
+              .map(child => child.baseamount);
+
+            const childFullPrices = quoteLinesData._array
+              .filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid)
+              .map(child => (child.priceperunit * (1 - parentDiscountPercent / 100)) * child.quantity);
+
+            const childManualDiscountAmounts = quoteLinesData._array
+              .filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid)
+              .map(child => child.manualdiscountamount || (child.baseamount * (parentDiscountPercent / 100)));
+
+            const childTaxAmounts = quoteLinesData._array
+              .filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid)
+              .map(child => {
+                const discountedPrice = child.priceperunit * (1 - parentDiscountPercent / 100) * child.quantity;
+                return discountedPrice * (child.extreme_tax / 100);
+              });
+
+            // Adjust child values proportionally
+            const adjustedBaseAmounts = adjustProportionalAmounts(parentBaseAmount, childBaseAmounts);
+            const adjustedChildFullPrices = adjustProportionalAmounts(parentFullPriceWDiscount, childFullPrices);
+            const adjustedChildManualDiscountAmounts = adjustProportionalAmounts(parentManualDiscountAmount, childManualDiscountAmounts);
+            const adjustedChildTaxAmounts = adjustProportionalAmounts(parentTax, childTaxAmounts);
+
+            // Apply recalculations to each child
+            quoteLinesData._array
+              .filter(item => item.extreme_parentquoteline === e.oldData.quotedetailid)
+              .forEach((child, index) => {
+                const newBaseAmount = adjustedBaseAmounts[index];
+                const newFullPriceWDiscount = adjustedChildFullPrices[index];
+                const newManualDiscountAmount = adjustedChildManualDiscountAmounts[index];
+                const newTaxAmount = adjustedChildTaxAmounts[index];
+                const newTotalAmount = newFullPriceWDiscount + newTaxAmount;
+
+                const supplierDiscountAmount = child.extreme_supplierpriceperunit * (child.extreme_supplierdiscount / 100);
+                const pricePerUnitWithSupplierDiscount = child.extreme_supplierpriceperunit - supplierDiscountAmount;
+                const pricePerUnit = newBaseAmount / child.quantity;
+                const pricePerUnitWithCustomDiscount = pricePerUnit - newManualDiscountAmount / child.quantity;
+                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+
+                // Calculate the updated margin
+                const margin = child.extreme_supplierpriceperunit !== 0
+                  ? pricePerUnit / child.extreme_supplierpriceperunit
+                  : 0;
+
+                let childRecord = {};
+                child.baseamount = newBaseAmount;
+                childRecord.baseamount = newBaseAmount;
+
+                if (child.extreme_supplierpriceperunit !== null) {
+                  child.priceperunit = pricePerUnit;
+                  childRecord.priceperunit = pricePerUnit;
+                  child.extreme_margin = margin; // Update margin
+                  childRecord.extreme_margin = margin; // Update margin in record
+                  child.extreme_pd = pdPerUnit;
+                  childRecord.extreme_pd = pdPerUnit;
+                  child.extreme_fullpd = pdPerUnit * child.quantity;
+                  childRecord.extreme_fullpd = pdPerUnit * child.quantity;
+                }
+
+                if (child.priceperunit !== null && child.quantity !== null) {
+                  child.extreme_fullpricewithdiscount = newFullPriceWDiscount;
+                  childRecord.extreme_fullpricewithdiscount = newFullPriceWDiscount;
+                  child.manualdiscountamount = newManualDiscountAmount;
+                  childRecord.manualdiscountamount = newManualDiscountAmount;
+                  child.extreme_discount = e.newData.extreme_discount !== undefined ? e.newData.extreme_discount : child.extreme_discount;
+                  childRecord.extreme_discount = e.newData.extreme_discount !== undefined ? e.newData.extreme_discount : child.extreme_discount;
+                }
+
+                if (child.extreme_tax !== null) {
+                  child.tax = newTaxAmount;
+                  childRecord.tax = newTaxAmount;
+                  child.extendedamount = newTotalAmount;
+                  childRecord.extendedamount = newTotalAmount;
+                }
+
+                promises.push(
+                  Xrm.WebApi.updateRecord("quotedetail", `${child.quotedetailid}`, childRecord)
+                );
+              });
+          }
+
+
+
+          else {
+            console.log("ONLY ONE FOR UPDATE DISCOUNT!");
+            if (e.newData.extreme_discount || e.newData.extreme_discount === 0) record.extreme_discount = e.newData.extreme_discount; // Decimal
           }
 
           console.log('RECORD AFTER UPDATING RECORD IS CREATED');
           console.log(record);
 
-          await Xrm.WebApi.updateRecord("quotedetail", `${e.key}`, record).then(
-            async function success(result) {
-              var updatedId = result.id;
-              console.log(updatedId);
-              // await getQuoteProducts(quoteIdForm);
-              // dataGrid.refresh();
-            },
-            function (error) {
-              console.log(error.message);
-            }
-          );
+          promises.push(Xrm.WebApi.updateRecord("quotedetail", `${e.key}`, record));
 
-          formContext.data.refresh(true);
+          try {
+            await Promise.all(promises);
+            console.log('All updates completed successfully.');
+
+            if (e.oldData.extreme_isparentitem === true) {
+              const parentQuoteLineGUID = e.key;
+
+              let baseamount_sum = 0;
+              let extendedamount_sum = 0;
+              let extreme_fullpd_sum = 0;
+              let extreme_fullpricewithdiscount_sum = 0;
+              let manualdiscountamount_sum = 0;
+              let extreme_supplierbaseamount_sum = 0;
+              let tax_sum = 0;
+              avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
+              quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
+                baseamount_sum += e.baseamount;
+                extendedamount_sum += e.extendedamount;
+                extreme_fullpd_sum += e.extreme_fullpd;
+                extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount;
+                manualdiscountamount_sum += e.manualdiscountamount;
+                extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
+                tax_sum += e.tax;
+              });
+
+              avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
+              quoteLinesData.update(parentQuoteLineGUID, {
+                baseamount: baseamount_sum.toFixed(2),
+                extendedamount: extendedamount_sum.toFixed(2),
+                extreme_fullpd: extreme_fullpd_sum.toFixed(2),
+                extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
+                manualdiscountamount: manualdiscountamount_sum.toFixed(2),
+                extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
+                tax: tax_sum.toFixed(2),
+                extreme_discount: avarageDiscountPercent.toFixed(2)
+              });
+
+              dataGrid.getController('data').updateItems({
+                changeType: 'update',
+                rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)]
+              });
+            }
+
+            // await getQuoteProducts(quoteIdForm);
+            // dataGrid.refresh();
+
+            Xrm.Utility.closeProgressIndicator();
+
+            formContext.data.refresh(true);
+          } catch (error) {
+            console.log('Error during updates:', error.message);
+          }
 
         },
         onRowUpdated(e) {
@@ -4576,6 +4929,8 @@ async function setClientApiContext(Xrm, formContext) {
             dataGrid.columnOption("uomid", "validationRules", [{ type: 'required' }]);
             dataGrid.columnOption("extreme_supplierdiscount", "allowEditing", true);
             dataGrid.columnOption("extreme_margin", "allowEditing", true);
+            dataGrid.columnOption("priceperunit", "allowEditing", true);
+            dataGrid.columnOption("baseamount", "allowEditing", true);
             dataGrid.columnOption("extreme_discount", "allowEditing", true);
             dataGrid.columnOption("extreme_fullpricewithdiscount", "allowEditing", true);
             dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
@@ -4609,6 +4964,7 @@ async function setClientApiContext(Xrm, formContext) {
               var extreme_pricelistpriceperunit = result["extreme_pricelistpriceperunit"]; // Decimal
               var extreme_margin = result["extreme_margin"]; // Decimal
               var extreme_discount = result["extreme_discount"]; // Decimal
+              var extreme_supplierdiscount = result["extreme_supplierdiscount"]; // Decimal
               var extreme_tax = result["extreme_tax"]; // Decimal
 
               var pricePerUnit = (extreme_pricelistpriceperunit * parseFloat(newValue)) * extreme_margin;
@@ -4618,7 +4974,12 @@ async function setClientApiContext(Xrm, formContext) {
               var tax = ((pricePerUnit * (1 - extreme_discount / 100)) * quantity * (1 + extreme_tax / 100)) - (pricePerUnit * (1 - extreme_discount / 100) * quantity);
               var extendedAmount = tax + (pricePerUnit * (1 - extreme_discount / 100) * quantity);
 
-              var newPd = pricePerUnit - (extreme_pricelistpriceperunit * parseFloat(newValue) - ((extreme_pricelistpriceperunit * parseFloat(newValue)) * (result.extreme_supplierdiscount / 100)));
+              const supplierDiscountAmount = extreme_pricelistpriceperunit * parseFloat(newValue) * (extreme_supplierdiscount / 100);
+              const pricePerUnitWithSupplierDiscount = extreme_pricelistpriceperunit * parseFloat(newValue) - supplierDiscountAmount;
+              const customDiscountAmount = pricePerUnit * (extreme_discount / 100);
+              const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+              const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+              var newPd = pdPerUnit;
               var newFullPd = newPd * quantity;
 
               await Xrm.WebApi.updateRecord("quotedetail", `${quotedetailid}`, {
@@ -4658,6 +5019,7 @@ async function setClientApiContext(Xrm, formContext) {
                 let manualdiscountamount_sum = 0;
                 let extreme_supplierbaseamount_sum = 0;
                 let tax_sum = 0;
+                let avarageDiscountPercent = 0;
 
                 quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
                   baseamount_sum += e.baseamount;
@@ -4669,14 +5031,17 @@ async function setClientApiContext(Xrm, formContext) {
                   tax_sum += e.tax;
                 });
 
+                avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
                 quoteLinesData.update(parentQuoteLineGUID, {
-                  baseamount: baseamount_sum,
-                  extendedamount: extendedamount_sum,
-                  extreme_fullpd: extreme_fullpd_sum,
-                  extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum,
-                  manualdiscountamount: manualdiscountamount_sum,
-                  extreme_supplierbaseamount: extreme_supplierbaseamount_sum,
-                  tax: tax_sum
+                  baseamount: baseamount_sum.toFixed(2),
+                  extendedamount: extendedamount_sum.toFixed(2),
+                  extreme_fullpd: extreme_fullpd_sum.toFixed(2),
+                  extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
+                  manualdiscountamount: manualdiscountamount_sum.toFixed(2),
+                  extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
+                  tax: tax_sum.toFixed(2),
+                  extreme_discount: avarageDiscountPercent.toFixed(2)
                 });
 
                 dataGrid.getController('data').updateItems({
@@ -4752,6 +5117,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount += e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount += e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax += e.itemData.tax;
+          const newBaseAmountSum = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount;
+          const newFullPriceWithDiscount = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_discount = ((newBaseAmountSum - newFullPriceWithDiscount) / newBaseAmountSum) * 100;
 
           key = e.itemData.quotedetailid;
           values = { extreme_parentquoteline: e.toData };
@@ -4775,6 +5143,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount -= e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount -= e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax -= e.itemData.tax;
+          const newBaseAmountSum = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount;
+          const newFullPriceWithDiscount = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_discount = ((newBaseAmountSum - newFullPriceWithDiscount) / newBaseAmountSum) * 100;
 
           key = e.itemData.quotedetailid;
           values = { extreme_parentquoteline: null };
@@ -4798,6 +5169,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount -= e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount -= e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax -= e.itemData.tax;
+          const newBaseAmountSumFrom = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount;
+          const newFullPriceWithDiscountFrom = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_discount = ((newBaseAmountSumFrom - newFullPriceWithDiscountFrom) / newBaseAmountSumFrom) * 100;
 
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount += e.itemData.baseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount += e.itemData.extendedamount;
@@ -4806,6 +5180,9 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount += e.itemData.manualdiscountamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount += e.itemData.extreme_supplierbaseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax += e.itemData.tax;
+          const newBaseAmountSumTo = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount;
+          const newFullPriceWithDiscountTo = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_discount = ((newBaseAmountSumTo - newFullPriceWithDiscountTo) / newBaseAmountSumTo) * 100;
 
           key = e.itemData.quotedetailid;
           values = { extreme_parentquoteline: e.toData };

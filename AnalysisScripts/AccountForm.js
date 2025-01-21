@@ -35,14 +35,20 @@ var AccountForm = window.AccountForm || {};
 
         formContext.getAttribute("extreme_vatnumber").addOnChange(validateVAT);
         formContext.getAttribute("extreme_vatcountry").addOnChange(resetVat);
+        formContext.getAttribute("extreme_pantheonno").addOnChange(lockShortName);
         formContext.getAttribute("telephone1").addOnChange(() => formatPhoneNumber("telephone1"));
         formContext.getAttribute("telephone2").addOnChange(() => formatPhoneNumber("telephone2"));
         
+        function lockShortName() {
+            if(formContext.getAttribute("extreme_pantheonno").getValue() !== null){
+                formContext.getControl("extreme_paname30characters").setDisabled(true);
+            }
+        }
         async function resetVat() {
             const currentVatCountryValue = formContext.getAttribute("extreme_vatcountry").getValue();
 
             // Proveri da li je promenjena vrednost
-            if (currentVatCountryValue !== previousVatCountryValue) {
+            if (currentVatCountryValue !== previousVatCountryValue && formContext.getAttribute("extreme_vatnumber").getValue() !== null) {
                 var confirmStrings = { 
                     text: "Changing VAT country will reset the existing VAT No. field. Are you sure?", 
                     title: "VAT No. Reset!" 
