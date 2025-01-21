@@ -84,6 +84,7 @@ var CaseRibbon = window.CaseRibbon || {};
 				var record = {};
 				record.statecode = 1; // State
 				record.statuscode = 934670003; // Status
+				record.extreme_casecanceled = true;
 				
 				await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 				formContext.data.refresh(true);
@@ -117,6 +118,7 @@ var CaseRibbon = window.CaseRibbon || {};
 				var record = {};
 				record.statecode = 0; // State
 				record.statuscode = 934670002; // Status
+				record.extreme_casewasonhold = true;
 				
 				await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 				formContext.data.refresh(true);
@@ -196,7 +198,8 @@ var CaseRibbon = window.CaseRibbon || {};
 					var record = {};
 					record.statecode = 0; // State
 					record.statuscode = 934670001; // Status
-					
+					record.extreme_casereactivated = true;
+
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 					Xrm.Utility.closeProgressIndicator();
 					formContext.data.refresh(true);
