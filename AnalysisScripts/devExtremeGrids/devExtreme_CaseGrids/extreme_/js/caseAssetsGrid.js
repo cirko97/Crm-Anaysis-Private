@@ -79,7 +79,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     caseAssetsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_productid,extreme_inventoryno,extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_warranty,extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_productid,extreme_inventoryno,extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
       function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -99,6 +99,7 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_Asset_extreme_warrantyend_formatted = result["extreme_Asset"]["extreme_warrantyend@OData.Community.Display.V1.FormattedValue"];
             var extreme_Asset_extreme_warrantyenddatevendor = result["extreme_Asset"]["extreme_warrantyenddatevendor"]; // Date Time
             var extreme_Asset_extreme_warrantyenddatevendor_formatted = result["extreme_Asset"]["extreme_warrantyenddatevendor@OData.Community.Display.V1.FormattedValue"];
+            var extreme_warranty = result["extreme_warranty"]; // Boolean
             var extreme_description = result["extreme_description"]; // Multiline Text
             var extreme_solution = result["extreme_solution"]; // Multiline Text
             var extreme_isparent = result["extreme_isparent"]; // Boolean
@@ -121,6 +122,7 @@ async function setClientApiContext(Xrm, formContext) {
               "extreme_warrantystartdate": extreme_Asset_extreme_warrantystartdate,
               "extreme_warrantyend": extreme_Asset_extreme_warrantyend,
               "extreme_warrantyenddatevendor": extreme_Asset_extreme_warrantyenddatevendor,
+              "extreme_warranty": extreme_warranty,
               "extreme_description": extreme_description,
               "extreme_solution": extreme_solution,
               "extreme_isparent": extreme_isparent,
@@ -487,6 +489,7 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log(e);
 
                   var record = {};
+                  if (typeof (e.newData.extreme_warranty) === 'boolean') record.extreme_warranty = e.newData.extreme_warranty;
                   if (e.newData.extreme_description) record.extreme_description = e.newData.extreme_description; // Multiline Text
                   if (e.newData.extreme_solution) record.extreme_solution = e.newData.extreme_solution; // Multiline Text
 
@@ -768,6 +771,12 @@ async function setClientApiContext(Xrm, formContext) {
             visible: false
           },
           {
+            dataField: 'extreme_warranty',
+            caption: 'Warranty?',
+            width: 100,
+            dataType: 'boolean'
+          },
+          {
             dataField: 'extreme_description',
             caption: 'Description',
             dataType: 'string',
@@ -840,11 +849,12 @@ async function setClientApiContext(Xrm, formContext) {
                       col.dataField == "extreme_inventoryno" ||
                       col.dataField == "extreme_warrantyend" ||
                       col.dataField == "extreme_warrantyenddatevendor" ||
+                      col.dataField == "extreme_warranty" ||
                       col.dataField == "extreme_description" ||
                       col.dataField == "extreme_solution"
                     ) {
                       dataGrid.columnOption(col.dataField, 'visible', true);
-                      if (col.dataField == "extreme_description" || col.dataField == "extreme_solution") {
+                      if (col.dataField == "extreme_description" || col.dataField == "extreme_solution" || col.dataField == "extreme_warranty") {
                         dataGrid.columnOption(col.dataField, 'allowEditing', true);
                       }
                       else {
@@ -1130,12 +1140,13 @@ async function setClientApiContext(Xrm, formContext) {
 
           var record = {};
           var assetRecord = {};
-          if (typeof(e.newData.extreme_description) === 'string') record.extreme_description = e.newData.extreme_description.trim() === '' ? null : e.newData.extreme_description; // Multiline Text
-          if (typeof(e.newData.extreme_solution) === 'string') record.extreme_solution = e.newData.extreme_solution.trim() === '' ? null : e.newData.extreme_solution; // Multiline Text
+          if (typeof (e.newData.extreme_warranty) === 'boolean') record.extreme_warranty = e.newData.extreme_warranty;
+          if (typeof (e.newData.extreme_description) === 'string') record.extreme_description = e.newData.extreme_description.trim() === '' ? null : e.newData.extreme_description; // Multiline Text
+          if (typeof (e.newData.extreme_solution) === 'string') record.extreme_solution = e.newData.extreme_solution.trim() === '' ? null : e.newData.extreme_solution; // Multiline Text
 
-          if (typeof(e.newData.extreme_serialnumber) === 'string') assetRecord.extreme_serialnumber = e.newData.extreme_serialnumber.trim() === '' ? null : e.newData.extreme_serialnumber.trim(); // Text
-          if (typeof(e.newData.extreme_inventoryno) === 'string') assetRecord.extreme_inventoryno = e.newData.extreme_inventoryno.trim() === '' ? null : e.newData.extreme_inventoryno.trim(); // Text
-          if (typeof(e.newData.extreme_location) === 'string') assetRecord.extreme_location = e.newData.extreme_location.trim() === '' ? null : e.newData.extreme_location.trim(); // Text
+          if (typeof (e.newData.extreme_serialnumber) === 'string') assetRecord.extreme_serialnumber = e.newData.extreme_serialnumber.trim() === '' ? null : e.newData.extreme_serialnumber.trim(); // Text
+          if (typeof (e.newData.extreme_inventoryno) === 'string') assetRecord.extreme_inventoryno = e.newData.extreme_inventoryno.trim() === '' ? null : e.newData.extreme_inventoryno.trim(); // Text
+          if (typeof (e.newData.extreme_location) === 'string') assetRecord.extreme_location = e.newData.extreme_location.trim() === '' ? null : e.newData.extreme_location.trim(); // Text
           if (e.newData.extreme_warrantystartdate) assetRecord.extreme_warrantystartdate = e.newData.extreme_warrantystartdate; // Date Time
           if (e.newData.extreme_warrantyend) assetRecord.extreme_warrantyend = e.newData.extreme_warrantyend; // Date Time
           if (e.newData.extreme_warrantyenddatevendor) assetRecord.extreme_warrantyenddatevendor = e.newData.extreme_warrantyenddatevendor; // Date Time

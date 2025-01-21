@@ -708,6 +708,21 @@ async function setClientApiContext(Xrm, formContext) {
               var record = {};
               record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
               record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.data.extreme_asset})`; // Lookup
+              const dateNow = new Date();
+              const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${e.data.extreme_asset}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+              if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                const startDate = new Date(warranty.extreme_warrantystartdate);
+                const endDate = new Date(warranty.extreme_warrantyend);
+                if (dateNow >= startDate && dateNow <= endDate) {
+                  record.extreme_warranty = true;
+                }
+                else {
+                  record.extreme_warranty = false;
+                }
+              }
+              else {
+                record.extreme_warranty = false;
+              }
 
               await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
                 function success(result) {

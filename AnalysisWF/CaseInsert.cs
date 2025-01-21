@@ -156,7 +156,7 @@ namespace AnalysisWF
                 acVatCode = "",
                 anRebate1 = 0,
                 acNote = "",
-                adDeliveryDeadline = ""
+                adDeliveryDeadline = adDeliveryDate
             }).ToList();
 
             var data = new

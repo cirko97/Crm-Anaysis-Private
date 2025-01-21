@@ -50,7 +50,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			puniBrojPonude = brojPonude;
 		}
 
-		var emailId = await createEmail(quoteId, puniBrojPonude, formContext);
+		var emailId = await createEmail(quoteId, brojPonude, formContext);
 
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
@@ -358,11 +358,6 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
 
             Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
 
-            Srdačan pozdrav,<br>
-            <b>${currentUserName}</b><br>
-            Analysis d.o.o, Japanska 4, 11070 Beograd<br>
-            +381 11 318 64 46 / info@analysis.rs<br>
-            https://www.analysis.rs/
         `,
         "email_activity_parties": emailActivityParties
     };
@@ -846,7 +841,7 @@ const syncQuote = async function (quoteId, formContext) {
 			};
 		}
 	};
-	Xrm.WebApi.execute(executeWorkflowRequest).then(
+	await Xrm.WebApi.execute(executeWorkflowRequest).then(
 		function success(response) {
 			if (response.ok) { /*return response.json(); */ }
 		}
