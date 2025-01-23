@@ -539,7 +539,7 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onEditorPreparing: async (e) => {
           console.log('Editor Preparing');
-          if (e.dataField == "extreme_unit") e.editorOptions.disabled = true;
+          // if (e.dataField == "extreme_unit") e.editorOptions.disabled = true;
           if (e.dataField == "extreme_producttypecode") e.editorOptions.disabled = true;
 
           if (e.dataField == "extreme_asset" || e.dataField == "extreme_product" || e.dataField == "owner") {
