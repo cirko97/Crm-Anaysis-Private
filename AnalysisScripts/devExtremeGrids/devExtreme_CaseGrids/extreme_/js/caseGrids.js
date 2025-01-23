@@ -600,6 +600,22 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(error.message);
             }
           );
+
+          // create N:N relationship
+          // var record = {};
+          // record["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+          // record["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${e.data.extreme_asset})`; // Lookup
+
+          // await Xrm.WebApi.createRecord("extreme_caseline_caseasset", record).then(
+          //   function success(result) {
+          //     var newId = result.id;
+          //     console.log(newId);
+          //   },
+          //   function (error) {
+          //     console.log(error.message);
+          //   }
+          // );
+
         },
         onRowInserted: async (e) => {
           console.log('RowInserted');
@@ -1039,7 +1055,7 @@ async function setClientApiContext(Xrm, formContext) {
               await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000)
           }
-          
+
           var record = {};
           if (e.newData.extreme_name) record.extreme_name = e.newData.extreme_name.trim();
           if (e.newData.extreme_asset) record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.newData.extreme_asset})`; // Lookup
@@ -1102,6 +1118,31 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(error.message);
             }
           );
+
+          // remove N:N relationship
+          // await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${e.key} and _extreme_caseasset_value eq ${e.data.extreme_asset})`).then(
+          //   async function success(results) {
+          //     console.log(results);
+          //     for (var i = 0; i < results.entities.length; i++) {
+          //       var result = results.entities[i];
+          //       // Columns
+          //       var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+
+          //       await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+          //         function success(result) {
+          //           console.log(result);
+          //         },
+          //         function (error) {
+          //           console.log(error.message);
+          //         }
+          //       );
+
+          //     }
+          //   },
+          //   function (error) {
+          //     console.log(error.message);
+          //   }
+          // );
           // Check case assets after removing
           await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
           // Refresh grid for case assets
