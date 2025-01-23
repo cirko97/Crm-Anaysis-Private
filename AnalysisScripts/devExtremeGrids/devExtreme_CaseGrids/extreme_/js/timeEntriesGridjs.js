@@ -451,9 +451,7 @@ async function setClientApiContext(Xrm, formContext) {
               visible(e) {
                 return !e.row.isEditing;
               },
-              disabled(e) {
-                return false;
-              },
+              disabled: !isEditable,
               async onClick(e) {
 
                 Xrm.Utility.showProgressIndicator("Duplication in progress... Please wait...");
