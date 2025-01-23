@@ -1039,7 +1039,7 @@ async function setClientApiContext(Xrm, formContext) {
               await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000)
           }
-
+          
           var record = {};
           if (e.newData.extreme_name) record.extreme_name = e.newData.extreme_name.trim();
           if (e.newData.extreme_asset) record["extreme_Asset@odata.bind"] = `/extreme_assets(${e.newData.extreme_asset})`; // Lookup
