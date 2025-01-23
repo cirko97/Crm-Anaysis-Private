@@ -208,7 +208,7 @@ var CaseRibbon = window.CaseRibbon || {};
 	}
 	this.ReactivateCaseEnableRule = function (formContext) {
 		var statuscode = formContext.getAttribute("statuscode").getValue();
-		return (isSysAdminRole() || isServiceManager()) && (statuscode == 934670004 || statuscode == 2);
+		return (isSysAdminRole() || isServiceManager()) && (statuscode == 934670004 || statuscode == 2 || statuscode == 934670003);
 	}
 
 }).call(CaseRibbon);
