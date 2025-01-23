@@ -168,6 +168,8 @@ async function setClientApiContext(Xrm, formContext) {
   await getQuoteProducts(quoteIdForm);
   await getPriceLists();
 
+  DevExpress.localization.locale("de");
+
   initDataGrid(quoteIdForm, userId);
 
   // Set title for grid inside header
@@ -2436,6 +2438,55 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 onSaved() {
                   console.log('Saved');
+                },
+                onCellDblClick(e) {
+                  console.log('CELL DOUBLE CLICK');
+                  console.log(e);
+
+                  if (e.column.dataField === "productid" && typeof (e.data.productid) !== "number") {
+                    // Create an anchor element
+                    const globalContext = Xrm.Utility.getGlobalContext();
+                    globalContext.getClientUrl();
+
+                    console.log('CLIENT URL');
+                    console.log(globalContext.getClientUrl());
+
+                    const link = document.createElement('a');
+                    link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=product&id=${e.data.productid}`;
+                    link.target = "_blank";
+
+                    // Append the anchor to the body (required for Firefox)
+                    document.body.appendChild(link);
+
+                    // Trigger a click event on the anchor
+                    link.click();
+
+                    // Remove the anchor from the body
+                    document.body.removeChild(link);
+                  }
+
+                  if (e.column.dataField === "quotedetailname") {
+                    // Create an anchor element
+                    const globalContext = Xrm.Utility.getGlobalContext();
+                    globalContext.getClientUrl();
+
+                    console.log('CLIENT URL');
+                    console.log(globalContext.getClientUrl());
+
+                    const link = document.createElement('a');
+                    link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=quotedetail&id=${e.data.quotedetailid}`;
+                    link.target = "_blank";
+
+                    // Append the anchor to the body (required for Firefox)
+                    document.body.appendChild(link);
+
+                    // Trigger a click event on the anchor
+                    link.click();
+
+                    // Remove the anchor from the body
+                    document.body.removeChild(link);
+                  }
+
                 },
                 onEditCanceling() {
                   console.log('EditCanceling');
@@ -4938,6 +4989,55 @@ async function setClientApiContext(Xrm, formContext) {
             dataGrid.columnOption("extreme_vatsetting", "allowEditing", true);
             dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
           }
+        },
+        onCellDblClick(e) {
+          console.log('CELL DOUBLE CLICK');
+          console.log(e);
+
+          if (e.column.dataField === "productid" && typeof (e.data.productid) !== "number") {
+            // Create an anchor element
+            const globalContext = Xrm.Utility.getGlobalContext();
+            globalContext.getClientUrl();
+
+            console.log('CLIENT URL');
+            console.log(globalContext.getClientUrl());
+
+            const link = document.createElement('a');
+            link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=product&id=${e.data.productid}`;
+            link.target = "_blank";
+
+            // Append the anchor to the body (required for Firefox)
+            document.body.appendChild(link);
+
+            // Trigger a click event on the anchor
+            link.click();
+
+            // Remove the anchor from the body
+            document.body.removeChild(link);
+          }
+
+          if (e.column.dataField === "quotedetailname") {
+            // Create an anchor element
+            const globalContext = Xrm.Utility.getGlobalContext();
+            globalContext.getClientUrl();
+
+            console.log('CLIENT URL');
+            console.log(globalContext.getClientUrl());
+
+            const link = document.createElement('a');
+            link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=quotedetail&id=${e.data.quotedetailid}`;
+            link.target = "_blank";
+
+            // Append the anchor to the body (required for Firefox)
+            document.body.appendChild(link);
+
+            // Trigger a click event on the anchor
+            link.click();
+
+            // Remove the anchor from the body
+            document.body.removeChild(link);
+          }
+
         },
         onEditCanceling() {
           console.log('EditCanceling');
