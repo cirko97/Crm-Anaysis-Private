@@ -673,6 +673,13 @@ async function setClientApiContext(Xrm, formContext) {
               onFocusOut: function (e) {
                 heightAuto = true;
               }
+            },
+            // setuj warranty end 1 godinu unapred
+            setCellValue: async function (newData, value, currentRowData) {
+              newData.extreme_warrantystartdate = value;
+              const yearAfter = new Date(value);
+              yearAfter.setFullYear(yearAfter.getFullYear() + 1);
+              newData.extreme_warrantyend = yearAfter;
             }
           },
           {
