@@ -1136,6 +1136,32 @@ async function setClientApiContext(Xrm, formContext) {
           Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
           console.log('RowRemoving');
           console.log(e.key);
+
+          // remove N:N relationship
+          await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=_extreme_caseline_value eq ${e.key}`).then(
+            async function success(results) {
+              console.log(results);
+              for (var i = 0; i < results.entities.length; i++) {
+                var result = results.entities[i];
+                // Columns
+                var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+
+                await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+                  function success(result) {
+                    console.log(result);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+
+              }
+            },
+            function (error) {
+              console.log(error.message);
+            }
+          );
+
           if (e.data.extreme_producttypecode == 3) {
             // Create time entry on another web resource
             await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);

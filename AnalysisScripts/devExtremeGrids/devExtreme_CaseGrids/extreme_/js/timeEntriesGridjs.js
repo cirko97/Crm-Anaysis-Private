@@ -1023,7 +1023,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
     let assetExistsInTimeEntries = true;
     let assetExistsInCaseLines = true;
     let parentChildItems = [];
-    let caseLineGuids = [];
+    // let caseLineGuids = [];
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid,_extreme_asset_value,extreme_isparent,_extreme_parentcaseasset_value&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
       async function success(results) {
@@ -1138,13 +1138,13 @@ async function checkAssetsAfterDelete(assetId, caseId) {
               sumOfItems += 1;
             };
 
-            for (var i = 0; i < results.entities.length; i++) {
-              var result = results.entities[i];
-              // Columns
-              var extreme_caselineid = result["extreme_caselineid"]; // Guid
+            // for (var i = 0; i < results.entities.length; i++) {
+            //   var result = results.entities[i];
+            //   // Columns
+            //   var extreme_caselineid = result["extreme_caselineid"]; // Guid
 
-              caseLineGuids.push(extreme_caselineid);
-            }
+            //   caseLineGuids.push(extreme_caselineid);
+            // }
           },
           function (error) {
             console.log(error.message);
@@ -1204,36 +1204,36 @@ async function checkAssetsAfterDelete(assetId, caseId) {
           );
 
           // remove N:N relationship
-          if (caseLineGuids.length > 0) {
-            for (let i = 0; i < caseLineGuids.length; i++) {
-              await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${parentChildItems[i].assetId})`).then(
-                async function success(results) {
-                  console.log(results);
-                  for (var i = 0; i < results.entities.length; i++) {
-                    var result = results.entities[i];
-                    // Columns
-                    var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+          // if (caseLineGuids.length > 0) {
+          //   for (let i = 0; i < caseLineGuids.length; i++) {
+          //     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${parentChildItems[i].assetId})`).then(
+          //       async function success(results) {
+          //         console.log(results);
+          //         for (var i = 0; i < results.entities.length; i++) {
+          //           var result = results.entities[i];
+          //           // Columns
+          //           var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
 
-                    await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
-                      function success(result) {
-                        console.log(result);
-                      },
-                      function (error) {
-                        console.log(error.message);
-                      }
-                    );
+          //           await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+          //             function success(result) {
+          //               console.log(result);
+          //             },
+          //             function (error) {
+          //               console.log(error.message);
+          //             }
+          //           );
 
-                  }
+          //         }
 
-                  if (results.entities.length > 0) caseLineGuids = [];
+          //         if (results.entities.length > 0) caseLineGuids = [];
 
-                },
-                function (error) {
-                  console.log(error.message);
-                }
-              );
-            }
-          }
+          //       },
+          //       function (error) {
+          //         console.log(error.message);
+          //       }
+          //     );
+          //   }
+          // }
 
         }
       }
@@ -1246,15 +1246,15 @@ async function checkAssetsAfterDelete(assetId, caseId) {
         console.log(results);
         if (results.entities.length === 0) assetExistsInCaseLines = false;
 
-        if (results.entities.length > 0) {
-          for (var i = 0; i < results.entities.length; i++) {
-            var result = results.entities[i];
-            // Columns
-            var extreme_caselineid = result["extreme_caselineid"]; // Guid
+        // if (results.entities.length > 0) {
+        //   for (var i = 0; i < results.entities.length; i++) {
+        //     var result = results.entities[i];
+        //     // Columns
+        //     var extreme_caselineid = result["extreme_caselineid"]; // Guid
 
-            caseLineGuids.push(extreme_caselineid);
-          }
-        }
+        //     caseLineGuids.push(extreme_caselineid);
+        //   }
+        // }
 
       },
       function (error) {
@@ -1292,36 +1292,36 @@ async function checkAssetsAfterDelete(assetId, caseId) {
           }
 
           // remove N:N relationship
-          if (caseLineGuids.length > 0) {
-            for (let i = 0; i < caseLineGuids.length; i++) {
-              await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${assetId})`).then(
-                async function success(results) {
-                  console.log(results);
-                  for (var i = 0; i < results.entities.length; i++) {
-                    var result = results.entities[i];
-                    // Columns
-                    var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+          // if (caseLineGuids.length > 0) {
+          //   for (let i = 0; i < caseLineGuids.length; i++) {
+          //     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${assetId})`).then(
+          //       async function success(results) {
+          //         console.log(results);
+          //         for (var i = 0; i < results.entities.length; i++) {
+          //           var result = results.entities[i];
+          //           // Columns
+          //           var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
 
-                    await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
-                      function success(result) {
-                        console.log(result);
-                      },
-                      function (error) {
-                        console.log(error.message);
-                      }
-                    );
+          //           await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+          //             function success(result) {
+          //               console.log(result);
+          //             },
+          //             function (error) {
+          //               console.log(error.message);
+          //             }
+          //           );
 
-                  }
+          //         }
 
-                  if (results.entities.length > 0) caseLineGuids = [];
+          //         if (results.entities.length > 0) caseLineGuids = [];
 
-                },
-                function (error) {
-                  console.log(error.message);
-                }
-              );
-            }
-          }
+          //       },
+          //       function (error) {
+          //         console.log(error.message);
+          //       }
+          //     );
+          //   }
+          // }
 
         },
         function (error) {
