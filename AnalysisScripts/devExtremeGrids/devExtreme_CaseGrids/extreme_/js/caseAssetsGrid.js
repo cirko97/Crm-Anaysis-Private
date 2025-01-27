@@ -61,7 +61,7 @@ async function setClientApiContext(Xrm, formContext) {
   );
   console.log('CaseAssets: ', caseAssetsDisplayName);
   // setTimeout(() => {
-  //   const toolbarBefore = Xrm.Page.getControl("WebResource_caseAssets").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
+  //   const toolbarBefore = formContext.getControl("WebResource_caseAssets").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
   //   console.log('dx toolbar before: ', toolbarBefore);
   //   toolbarBefore.innerHTML = `<span style='font-weight: 500; position: absolute; width: 100px; bottom: 30%; left: 0;'>${caseAssetsDisplayName}</span>`;
   //   console.log(formContext.data.entity);
@@ -534,9 +534,9 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('RowRemoving');
                   console.log(e);
                   // Delete case line on another web resource
-                  // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
+                  // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
                   // Refresh grid for case lines
-                  // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+                  // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
                   await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
                     function success(result) {
                       console.log(result);
@@ -1211,9 +1211,9 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('RowRemoving');
           console.log(e);
           // // Delete case line on another web resource
-          // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
+          // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
           // // Refresh grid for case lines
-          // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
             function success(result) {
               console.log(result);
@@ -1323,7 +1323,7 @@ async function setClientApiContext(Xrm, formContext) {
 
   // Xrm.Utility.closeProgressIndicator();
 
-  Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets");
+  formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets");
 
 }
 
