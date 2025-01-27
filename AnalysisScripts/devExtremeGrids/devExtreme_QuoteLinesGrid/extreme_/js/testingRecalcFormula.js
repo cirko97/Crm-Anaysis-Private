@@ -29,8 +29,8 @@ const fullPd = pdPerUnit * 1; // Assuming quantity is always 1
 
 
 
-
-function calculateAmounts(supplierPricePerUnit, margin, discount, supplierDiscount, defaultTax) {
+// Recalculate amounts for each row
+function recalculateAmounts(supplierPricePerUnit, margin, discount, supplierDiscount, defaultTax) {
     const taxRate = defaultTax / 100;
     const supplierBaseAmount = supplierPricePerUnit * 1; // Assuming quantity is always 1
     const pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
