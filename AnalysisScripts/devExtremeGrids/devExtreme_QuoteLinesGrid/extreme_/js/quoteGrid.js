@@ -167,7 +167,7 @@ async function setClientApiContext(Xrm, formContext) {
   await getVatGroups();
   await getQuoteProducts(quoteIdForm);
   await getPriceLists();
-  // TESTING MERGE BRANCHES
+  
   DevExpress.localization.locale("de");
 
   initDataGrid(quoteIdForm, userId);
