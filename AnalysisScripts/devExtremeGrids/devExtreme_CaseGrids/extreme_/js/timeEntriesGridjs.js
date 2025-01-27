@@ -1023,6 +1023,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
     let assetExistsInTimeEntries = true;
     let assetExistsInCaseLines = true;
     let parentChildItems = [];
+    let caseLineGuids = [];
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid,_extreme_asset_value,extreme_isparent,_extreme_parentcaseasset_value&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
       async function success(results) {
@@ -1125,7 +1126,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
       for (let i = 0; i < parentChildItems.length; i++) {
 
-        let caseLineGuids = [];
+
 
         await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${parentChildItems[i].assetId})`).then(
           function success(results) {

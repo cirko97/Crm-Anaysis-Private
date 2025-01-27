@@ -601,21 +601,6 @@ async function setClientApiContext(Xrm, formContext) {
             }
           );
 
-          // create N:N relationship
-          // var record = {};
-          // record["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
-          // record["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${e.data.extreme_asset})`; // Lookup
-
-          // await Xrm.WebApi.createRecord("extreme_caseline_caseasset", record).then(
-          //   function success(result) {
-          //     var newId = result.id;
-          //     console.log(newId);
-          //   },
-          //   function (error) {
-          //     console.log(error.message);
-          //   }
-          // );
-
         },
         onRowInserted: async (e) => {
           console.log('RowInserted');
@@ -731,6 +716,21 @@ async function setClientApiContext(Xrm, formContext) {
               await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
                 async function success(result) {
                   var newId = result.id;
+
+                  var recordNN = {};
+                  recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+                  recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
+
+                  await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
+                    function success(result) {
+                      var newId = result.id;
+                      console.log(newId);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+
                   newCreatedCasseAssetId = result.id;
                   console.log(newId);
                 },
@@ -780,6 +780,41 @@ async function setClientApiContext(Xrm, formContext) {
 
             // Refresh grid for case assets
             await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          }
+
+          // If case asset already exists
+          if (oneAssetId.indexOf(e.data.extreme_asset) !== -1) {
+
+            // create N:N relationship
+
+            await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseIdForm} and _extreme_asset_value eq ${e.data.extreme_asset})`).then(
+              async function success(results) {
+                console.log(results);
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  // Columns
+                  var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+
+                  var recordNN = {};
+                  recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+                  recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${extreme_caseassetid})`; // Lookup
+
+                  await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
+                    function success(result) {
+                      var newId = result.id;
+                      console.log(newId);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+
+                }
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
           }
 
           console.log('caseLineUnit: ', e.data.extreme_unit);
