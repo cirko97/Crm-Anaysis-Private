@@ -14,6 +14,12 @@ function form_onload(executionContext) {
   console.log('formType');
   console.log(formType);
 
+  formContext.getAttribute("statuscode").addOnChange(async () => {
+    await formContext.getControl('WebResource_caseLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+    await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+    await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+  });
+
   if (formType !== FORM_NEW) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseLines"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
