@@ -609,6 +609,8 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('RowInserted');
           console.log('newCreatedId: ', newCreateId);
 
+          Xrm.Utility.showProgressIndicator('Creating... Please wait...');
+
           if (
             (oneAssetId !== undefined && oneAssetId.indexOf(e.data.extreme_asset) === -1) ||
             oneAssetId === 'none' ||
@@ -633,7 +635,7 @@ async function setClientApiContext(Xrm, formContext) {
               parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
               parentRecord.extreme_isparent = true; // Boolean
               const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-              dateNow.setHours(0,0,0,0);
+              dateNow.setHours(0, 0, 0, 0);
               const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
               if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                 const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -674,7 +676,7 @@ async function setClientApiContext(Xrm, formContext) {
                 childRecord.extreme_isparent = false; // Boolean
                 childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
                 const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                dateNow.setHours(0,0,0,0);
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -715,7 +717,7 @@ async function setClientApiContext(Xrm, formContext) {
               record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
               record.extreme_isparent = assetsArray.find(item => item.id === e.data.extreme_asset).extreme_isparent; // Boolean
               const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-              dateNow.setHours(0,0,0,0);
+              dateNow.setHours(0, 0, 0, 0);
               const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
               if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                 const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -771,7 +773,7 @@ async function setClientApiContext(Xrm, formContext) {
                 childRecord.extreme_isparent = false; // Boolean
                 childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
                 const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                dateNow.setHours(0,0,0,0);
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -852,6 +854,9 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('unitsArray: ', unitsArray);
 
           if (e.data.extreme_producttypecode == 3) {
+
+            Xrm.Utility.showProgressIndicator('Creating time entry... Please wait...');
+
             let description = null;
             let highestScheduledEnd = null;
             await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
@@ -886,7 +891,10 @@ async function setClientApiContext(Xrm, formContext) {
             // Refresh grid for time entries
             setTimeout(async () => {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+            }, 1000);
+
+            Xrm.Utility.closeProgressIndicator();
+
           }
 
           await getCaseLines(caseIdForm);
@@ -931,7 +939,7 @@ async function setClientApiContext(Xrm, formContext) {
                 parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
                 parentRecord.extreme_isparent = true; // Boolean
                 const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                dateNow.setHours(0,0,0,0);
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -972,7 +980,7 @@ async function setClientApiContext(Xrm, formContext) {
                   childRecord.extreme_isparent = false; // Boolean
                   childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
                   const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                  dateNow.setHours(0,0,0,0);
+                  dateNow.setHours(0, 0, 0, 0);
                   const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                   if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                     const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -1013,7 +1021,7 @@ async function setClientApiContext(Xrm, formContext) {
                 record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
                 record.extreme_isparent = assetsArray.find(item => item.id === e.newData.extreme_asset).extreme_isparent; // Boolean
                 const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                dateNow.setHours(0,0,0,0);
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -1054,7 +1062,7 @@ async function setClientApiContext(Xrm, formContext) {
                   childRecord.extreme_isparent = false; // Boolean
                   childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
                   const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                  dateNow.setHours(0,0,0,0);
+                  dateNow.setHours(0, 0, 0, 0);
                   const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                   if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                     const startDate = new Date(warranty.extreme_warrantystartdate);
@@ -1094,6 +1102,8 @@ async function setClientApiContext(Xrm, formContext) {
 
           // if owner or quantity is changed for time entries records
           if ((e.newData.owner || e.newData.extreme_quantity || e.newData.extreme_asset) && e.oldData.extreme_producttypecode == 3) {
+            Xrm.Utility.showProgressIndicator('Updating time entry... Please wait...');
+
             const ownerId = e.newData.owner ? e.newData.owner : e.oldData.owner;
             const quantity = e.newData.extreme_quantity ? e.newData.extreme_quantity : e.oldData.extreme_quantity;
             const assetId = e.newData.extreme_asset ? e.newData.extreme_asset : e.oldData.extreme_asset;
@@ -1101,9 +1111,13 @@ async function setClientApiContext(Xrm, formContext) {
             await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.updateTimeEntry(e.key, assetId, ownerId, quantity * 60);
             setTimeout(async () => {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+            }, 1000);
+
+            Xrm.Utility.closeProgressIndicator();
           }
           else if (e.newData.extreme_producttypecode == 3) {
+            Xrm.Utility.showProgressIndicator('Creating time entry... Please wait...');
+
             let description = null;
             let highestScheduledEnd = null;
             await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
@@ -1138,16 +1152,21 @@ async function setClientApiContext(Xrm, formContext) {
             // Refresh grid for time entries
             setTimeout(async () => {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+            }, 1000);
 
+            Xrm.Utility.closeProgressIndicator();
           }
           else if (typeof (e.newData.extreme_producttypecode) === 'number' && e.newData.extreme_producttypecode !== 3) {
+            Xrm.Utility.showProgressIndicator('Deleting time entry... Please wait...');
+
             // Create time entry on another web resource
             await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);
             // Refresh grid for time entries
             setTimeout(async () => {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+            }, 1000);
+
+            Xrm.Utility.closeProgressIndicator();
           }
 
           var record = {};
