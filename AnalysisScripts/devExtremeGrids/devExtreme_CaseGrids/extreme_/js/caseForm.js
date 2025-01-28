@@ -15,9 +15,19 @@ function form_onload(executionContext) {
   console.log(formType);
 
   formContext.getAttribute("statuscode").addOnChange(async () => {
-    await formContext.getControl('WebResource_caseLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-    await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-    await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+    const caseLinesControl = formContext.getControl('WebResource_caseLines');
+    const timeEntriesControl = formContext.getControl('WebResource_timeEntries');
+    const caseAssetsControl = formContext.getControl('WebResource_caseAssets');
+
+    if (caseLinesControl && caseLinesControl.getObject() && caseLinesControl.getObject().contentWindow) {
+      await caseLinesControl.getObject().contentWindow.setClientApiContext(Xrm, formContext);
+    }
+    if (timeEntriesControl && timeEntriesControl.getObject() && timeEntriesControl.getObject().contentWindow) {
+      await timeEntriesControl.getObject().contentWindow.setClientApiContext(Xrm, formContext);
+    }
+    if (caseAssetsControl && caseAssetsControl.getObject() && caseAssetsControl.getObject().contentWindow) {
+      await caseAssetsControl.getObject().contentWindow.setClientApiContext(Xrm, formContext);
+    }
   });
 
   if (formType !== FORM_NEW) {

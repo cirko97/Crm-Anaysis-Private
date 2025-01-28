@@ -158,33 +158,67 @@ var CaseRibbon = window.CaseRibbon || {};
 	}
 	this.ResolveCaseButton = function (formContext) {
 		const caseId = formContext.data.entity.getId().slice(1,-1);
-		var confirmStrings = { text:"Are you sure you want to resolve this case?", title:"Case Resolution Prompt" };
-		var confirmOptions = { height: 200, width: 450 };
-		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-		async function (success) {    
-			if (success.confirmed){
-				if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
-					Xrm.Utility.showProgressIndicator("Resolving Case...");
-					var record = {};
-					record.statecode = 0; // State
-					record.statuscode = 934670004; // Status
-					
-					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
-					Xrm.Utility.closeProgressIndicator();
-					formContext.data.refresh(true);
-				}
-				else{//set as resolved & signed
-					Xrm.Utility.showProgressIndicator("Resolving Case...");
-					var record = {};
-					record.statecode = 1; // State
-					record.statuscode = 2; // Status
-					
-					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
-					Xrm.Utility.closeProgressIndicator();
-					formContext.data.refresh(true);
-				}
-			}	
-		});	
+		var PAQuoteID = formContext.getAttribute("extreme_pantheonno").getValue();
+
+		if(PAQuoteID === null){
+			var confirmStrings = { text:"Are you sure you want to resolve this case?", title:"Case Resolution Prompt" };
+			var confirmOptions = { height: 200, width: 450 };
+			Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+				async function (success) {    
+					if (success.confirmed){
+						if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+							Xrm.Utility.showProgressIndicator("Resolving Case...");
+	
+							var record = {};
+							record.statecode = 0; // State
+							record.statuscode = 934670004; // Status
+							
+							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+							Xrm.Utility.closeProgressIndicator();
+							formContext.data.refresh(true);
+						}
+						else{//set as resolved & signed
+							Xrm.Utility.showProgressIndicator("Resolving Case...");
+							var record = {};
+							record.statecode = 1; // State
+							record.statuscode = 2; // Status
+							
+							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+							Xrm.Utility.closeProgressIndicator();
+							formContext.data.refresh(true);
+						}
+					}	
+				});	
+		} else {
+			var confirmStrings = { text:"THIS CASE IS ALREADY SYNCHRONIZED!!! \n\n Delete the synchronized document in Pantheon and then resolve. \n\n\n\n Are you sure you want to resolve this case?", title:"CASE ALREADY SYNCHRONIZED PROMPT" };
+			var confirmOptions = { height: 400, width: 600 };
+			Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+				async function (success) {    
+					if (success.confirmed){
+						if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+							Xrm.Utility.showProgressIndicator("Resolving Case...");
+	
+							var record = {};
+							record.statecode = 0; // State
+							record.statuscode = 934670004; // Status
+							
+							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+							Xrm.Utility.closeProgressIndicator();
+							formContext.data.refresh(true);
+						}
+						else{//set as resolved & signed
+							Xrm.Utility.showProgressIndicator("Resolving Case...");
+							var record = {};
+							record.statecode = 1; // State
+							record.statuscode = 2; // Status
+							
+							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+							Xrm.Utility.closeProgressIndicator();
+							formContext.data.refresh(true);
+						}
+					}	
+				});
+		}	
 	}
 	this.ReactivateCaseButton = function (formContext) {
 		const caseId = formContext.data.entity.getId().slice(1,-1);
