@@ -873,9 +873,9 @@ async function setClientApiContext(Xrm, formContext) {
         //   visible: true,
         //   height: 200
         // },
-        // paging: {
-        //   pageSize: 5,
-        // },
+        paging: {
+          pageSize: 100,
+        },
         editing: {
           mode: 'cell',
           allowUpdating: isDraftStatus,
@@ -981,9 +981,9 @@ async function setClientApiContext(Xrm, formContext) {
                 //   visible: true,
                 //   height: 200
                 // },
-                // paging: {
-                //   pageSize: 5,
-                // },
+                paging: {
+                  pageSize: 100,
+                },
                 editing: {
                   mode: 'cell',
                   allowUpdating: isDraftStatus,
