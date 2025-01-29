@@ -160,13 +160,14 @@ async function setClientApiContext(Xrm, formContext) {
   await getProductTypes();
   await getUnits();
   await getCurrencies();
-  await getProductsLookUp();
   await getAreas();
   await getTechs();
   await getVensSups();
   await getVatGroups();
-  await getQuoteProducts(quoteIdForm);
   await getPriceLists();
+  await getProductsLookUp();
+  await getQuoteProducts(quoteIdForm);
+
 
   DevExpress.localization.locale("de");
 
@@ -1145,6 +1146,7 @@ async function setClientApiContext(Xrm, formContext) {
                       if (typeof (value) !== 'number') {
                         if (value !== null) {
                           productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
+                          newData.extreme_producttype = productType.producttypecode;
                           defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
                           defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
                         }
@@ -1155,10 +1157,12 @@ async function setClientApiContext(Xrm, formContext) {
                       let supplierPricePerUnit = 0;
 
                       if (productsStore._array.find((item) => item.id === value).pricelevelid) {
-                        if (value !== null) {
+                        if (value !== null && typeof (value) !== 'number') {
                           priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
-                          classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
                         }
+                      }
+                      if (value !== null && typeof (value) !== 'number') {
+                        classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
                       }
 
                       if (classifyLookupsInfo !== null) {
@@ -1224,23 +1228,33 @@ async function setClientApiContext(Xrm, formContext) {
                         console.log(currentRowData.extreme_margin);
                         console.log(supplierPricePerUnit);
                         console.log(currentRowData.extreme_discount);
-                        newData.quantity = 1;
-                        newData.extreme_supplierbaseamount = supplierPricePerUnit * 1;
-                        newData.priceperunit = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit);
-                        const pricePerUnit = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit);
-                        newData.baseamount = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit) * 1;
-                        newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1;
-                        console.log(newData.extreme_fullpricewithdiscount);
-                        newData.manualdiscountamount = (1 * (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit))) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                        newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                        newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                        const supplierDiscountAmount = supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100);
-                        const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
-                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                        newData.extreme_pd = pdPerUnit;
-                        newData.extreme_fullpd = pdPerUnit * 1;
+                        console.log(1);
+
+                        const recalcResult = recalculateAmounts({
+
+                          quantity: 1,
+                          supplierPricePerUnit: supplierPricePerUnit,
+                          supplierDiscount: currentRowData.extreme_supplierdiscount,
+                          margin: currentRowData.extreme_margin,
+                          discount: currentRowData.extreme_discount,
+                          TaxPercent: defaultTax
+
+                        });
+
+                        newData.extreme_margin = recalcResult.margin;
+                        newData.quantity = recalcResult.quantity;
+                        newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                        newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        newData.priceperunit = recalcResult.pricePerUnit;
+                        newData.baseamount = recalcResult.baseAmount;
+                        newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                        newData.tax = recalcResult.tax;
+                        newData.extendedamount = recalcResult.extendedAmount;
+                        newData.extreme_pd = recalcResult.pdPerUnit;
+                        newData.extreme_fullpd = recalcResult.fullPd;
+                        newData.extreme_discount = recalcResult.discountPercentage;
+                        newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
                       }
                     },
                     customizeText: function (cellInfo) {
@@ -1290,37 +1304,53 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log(currentRowData);
 
                       newData.quantity = value;
-                      if (currentRowData.extreme_supplierpriceperunit !== null) newData.extreme_supplierbaseamount = currentRowData.extreme_supplierpriceperunit * value;
-                      if (currentRowData.priceperunit !== null) newData.baseamount = value * currentRowData.priceperunit;
-                      if (currentRowData.extreme_margin !== null &&
-                        currentRowData.extreme_supplierpriceperunit !== null &&
-                        currentRowData.extreme_supplierdiscount !== null &&
-                        currentRowData.extreme_discount !== null &&
-                        currentRowData.extreme_tax !== null) {
-                        newData.priceperunit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
-                        const pricePerUnit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
-                        newData.baseamount = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit) * value;
-                        newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value;
-                        newData.manualdiscountamount = (value * (Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                        newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                        newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                        newData.extreme_pd = pdPerUnit;
-                        newData.extreme_fullpd = pdPerUnit * value;
-                      }
-                      else {
-                        if (currentRowData.priceperunit !== null && value !== null && currentRowData.extreme_discount !== null) {
-                          newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value;
-                          newData.manualdiscountamount = (value * currentRowData.priceperunit) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
-                        };
-                        if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
-                          newData.tax = (((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
-                          newData.extendedamount = ((((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value)) + ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                      if (!isAddingSet) {
+                        if (
+                          currentRowData.extreme_margin !== null &&
+                          currentRowData.extreme_supplierpriceperunit !== null &&
+                          currentRowData.extreme_supplierdiscount !== null &&
+                          currentRowData.extreme_discount !== null &&
+                          currentRowData.extreme_tax !== null &&
+                          currentRowData.extreme_supplierpriceperunit !== null &&
+                          currentRowData.priceperunit !== null &&
+                          value !== null
+                        ) {
+                          const recalcResult = recalculateAmounts({
+
+                            quantity: value,
+                            supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                            supplierDiscount: currentRowData.extreme_supplierdiscount,
+                            margin: currentRowData.extreme_margin,
+                            discount: currentRowData.extreme_discount,
+                            TaxPercent: currentRowData.extreme_tax
+
+                          });
+
+                          newData.extreme_margin = recalcResult.margin;
+                          newData.quantity = recalcResult.quantity;
+                          newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                          newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                          newData.priceperunit = recalcResult.pricePerUnit;
+                          newData.baseamount = recalcResult.baseAmount;
+                          newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                          newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                          newData.tax = recalcResult.tax;
+                          newData.extendedamount = recalcResult.extendedAmount;
+                          newData.extreme_pd = recalcResult.pdPerUnit;
+                          newData.extreme_fullpd = recalcResult.fullPd;
+                          newData.extreme_discount = recalcResult.discountPercentage;
+                          newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
                         }
+                        // else {
+                        //   if (currentRowData.priceperunit !== null && value !== null && currentRowData.extreme_discount !== null) {
+                        //     newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value;
+                        //     newData.manualdiscountamount = (value * currentRowData.priceperunit) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                        //   };
+                        //   if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
+                        //     newData.tax = (((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                        //     newData.extendedamount = ((((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value)) + ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                        //   }
+                        // }
                       }
                     },
                     visible: dataGrid.columnOption("quantity", "visible")
@@ -1401,22 +1431,32 @@ async function setClientApiContext(Xrm, formContext) {
                       precision: 2
                     },
                     setCellValue: async function (newData, value, currentRowData) {
-                      newData.extreme_supplierpriceperunit = value;
-                      if (currentRowData.quantity !== null) newData.extreme_supplierbaseamount = value * currentRowData.quantity;
-                      if (currentRowData.extreme_margin !== null && currentRowData.extreme_supplierdiscount !== null) {
-                        const pricePerUnit = Math.ceil(value * currentRowData.extreme_margin);
-                        newData.priceperunit = Math.ceil(value * currentRowData.extreme_margin);
-                        newData.baseamount = pricePerUnit * currentRowData.quantity;
-                        newData.extreme_fullpricewithdiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
-                        const fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
-                        newData.extendedamount = (fullPriceWithDiscount * (1 + currentRowData.extreme_tax / 100) - fullPriceWithDiscount) + fullPriceWithDiscount;
-                        const supplierDiscountAmount = value * (currentRowData.extreme_supplierdiscount / 100);
-                        const pricePerUnitWithSupplierDiscount = value - supplierDiscountAmount;
-                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                        newData.extreme_pd = pdPerUnit;
-                        newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                      if (currentRowData.extreme_margin !== null && currentRowData.extreme_supplierdiscount !== null && currentRowData.quantity !== null) {
+                        const recalcResult = recalculateAmounts({
+
+                          quantity: currentRowData.quantity,
+                          supplierPricePerUnit: value,
+                          supplierDiscount: currentRowData.extreme_supplierdiscount,
+                          margin: currentRowData.extreme_margin,
+                          discount: currentRowData.extreme_discount,
+                          TaxPercent: currentRowData.extreme_tax
+
+                        });
+
+                        newData.extreme_margin = recalcResult.margin;
+                        newData.quantity = recalcResult.quantity;
+                        newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                        newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        newData.priceperunit = recalcResult.pricePerUnit;
+                        newData.baseamount = recalcResult.baseAmount;
+                        newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                        newData.tax = recalcResult.tax;
+                        newData.extendedamount = recalcResult.extendedAmount;
+                        newData.extreme_pd = recalcResult.pdPerUnit;
+                        newData.extreme_fullpd = recalcResult.fullPd;
+                        newData.extreme_discount = recalcResult.discountPercentage;
+                        newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
                       };
                       if (typeof (currentRowData.productid) === 'number') {
                         newData.extreme_pricelistpriceperunit = value;
@@ -1455,15 +1495,32 @@ async function setClientApiContext(Xrm, formContext) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
                     },
                     setCellValue: async function (newData, value, currentRowData) {
-                      newData.extreme_supplierdiscount = value;
                       if (currentRowData.priceperunit !== null && currentRowData.extreme_supplierpriceperunit !== null && currentRowData.quantity !== null) {
-                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (value / 100);
-                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                        const customDiscountAmount = currentRowData.priceperunit * (currentRowData.extreme_discount / 100);
-                        const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
-                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                        newData.extreme_pd = pdPerUnit;
-                        newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                        const recalcResult = recalculateAmounts({
+
+                          quantity: currentRowData.quantity,
+                          supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                          supplierDiscount: value,
+                          margin: currentRowData.extreme_margin,
+                          discount: currentRowData.extreme_discount,
+                          TaxPercent: currentRowData.extreme_tax
+
+                        });
+
+                        newData.extreme_margin = recalcResult.margin;
+                        newData.quantity = recalcResult.quantity;
+                        newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                        newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        newData.priceperunit = recalcResult.pricePerUnit;
+                        newData.baseamount = recalcResult.baseAmount;
+                        newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                        newData.tax = recalcResult.tax;
+                        newData.extendedamount = recalcResult.extendedAmount;
+                        newData.extreme_pd = recalcResult.pdPerUnit;
+                        newData.extreme_fullpd = recalcResult.fullPd;
+                        newData.extreme_discount = recalcResult.discountPercentage;
+                        newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
                       }
                     },
                     visible: dataGrid.columnOption("extreme_supplierdiscount", "visible")
@@ -1479,25 +1536,32 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_margin = value;
-                      if (currentRowData.extreme_supplierpriceperunit !== null) {
-                        newData.priceperunit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
-                        const pricePerUnit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
-                        newData.baseamount = Math.ceil(value * currentRowData.extreme_supplierpriceperunit) * currentRowData.quantity;
-                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                        newData.extreme_pd = pdPerUnit;
-                        newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
-                      };
-                      if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
-                        newData.extreme_fullpricewithdiscount = ((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity;
-                        newData.manualdiscountamount = (currentRowData.quantity * (Math.ceil(value * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                      };
-                      if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
-                        newData.tax = ((((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                        newData.extendedamount = (((((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                      if (currentRowData.extreme_supplierpriceperunit !== null && currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null && currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
+                        const recalcResult = recalculateAmounts({
+
+                          quantity: currentRowData.quantity,
+                          supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                          supplierDiscount: currentRowData.extreme_supplierdiscount,
+                          margin: value,
+                          discount: currentRowData.extreme_discount,
+                          TaxPercent: currentRowData.extreme_tax
+
+                        });
+
+                        newData.extreme_margin = recalcResult.margin;
+                        newData.quantity = recalcResult.quantity;
+                        newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                        newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        newData.priceperunit = recalcResult.pricePerUnit;
+                        newData.baseamount = recalcResult.baseAmount;
+                        newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                        newData.tax = recalcResult.tax;
+                        newData.extendedamount = recalcResult.extendedAmount;
+                        newData.extreme_pd = recalcResult.pdPerUnit;
+                        newData.extreme_fullpd = recalcResult.fullPd;
+                        newData.extreme_discount = recalcResult.discountPercentage;
+                        newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
                       };
                     },
                     visible: dataGrid.columnOption("extreme_margin", "visible")
@@ -1514,27 +1578,65 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     allowEditing: true,
                     setCellValue: async function (newData, value, currentRowData) {
-                      const pricePerUnit = value;
-                      newData.priceperunit = pricePerUnit;
-                      const margin = value / currentRowData.extreme_supplierpriceperunit;
-                      if (currentRowData.extreme_supplierpriceperunit !== null) {
-                        newData.extreme_margin = value / currentRowData.extreme_supplierpriceperunit;
-                        newData.baseamount = pricePerUnit * currentRowData.quantity;
-                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                        const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                        newData.extreme_pd = pdPerUnit;
-                        newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
-                      };
-                      if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
-                        newData.extreme_fullpricewithdiscount = ((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity;
-                        newData.manualdiscountamount = (currentRowData.quantity * (pricePerUnit)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                      };
-                      if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
-                        newData.tax = ((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                        newData.extendedamount = (((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                      if (currentRowData.quantity !== null && currentRowData.extreme_discount !== null && currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null && currentRowData.extreme_margin) {
+                        if ((currentRowData.extreme_supplierpriceperunit === null || currentRowData.extreme_supplierpriceperunit === undefined || currentRowData.extreme_supplierpriceperunit === 0) && currentRowData.extreme_margin !== null) {
+                          newData.extreme_supplierpriceperunit = value / currentRowData.extreme_margin;
+
+                          const recalcResult = recalculateAmounts({
+
+                            quantity: currentRowData.quantity,
+                            supplierPricePerUnit: value / currentRowData.extreme_margin,
+                            supplierDiscount: currentRowData.extreme_supplierdiscount,
+                            margin: currentRowData.extreme_margin,
+                            discount: currentRowData.extreme_discount,
+                            TaxPercent: currentRowData.extreme_tax,
+                            pricePerUnit: value
+
+                          });
+
+                          newData.extreme_margin = recalcResult.margin;
+                          newData.quantity = recalcResult.quantity;
+                          newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                          newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                          newData.priceperunit = recalcResult.pricePerUnit;
+                          newData.baseamount = recalcResult.baseAmount;
+                          newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                          newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                          newData.tax = recalcResult.tax;
+                          newData.extendedamount = recalcResult.extendedAmount;
+                          newData.extreme_pd = recalcResult.pdPerUnit;
+                          newData.extreme_fullpd = recalcResult.fullPd;
+                          newData.extreme_discount = recalcResult.discountPercentage;
+                          newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+                        }
+                        else {
+                          const recalcResult = recalculateAmounts({
+
+                            quantity: currentRowData.quantity,
+                            supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                            supplierDiscount: currentRowData.extreme_supplierdiscount,
+                            margin: currentRowData.extreme_margin,
+                            discount: currentRowData.extreme_discount,
+                            TaxPercent: currentRowData.extreme_tax,
+                            pricePerUnit: value
+
+                          });
+
+                          newData.extreme_margin = recalcResult.margin;
+                          newData.quantity = recalcResult.quantity;
+                          newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                          newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                          newData.priceperunit = recalcResult.pricePerUnit;
+                          newData.baseamount = recalcResult.baseAmount;
+                          newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                          newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                          newData.tax = recalcResult.tax;
+                          newData.extendedamount = recalcResult.extendedAmount;
+                          newData.extreme_pd = recalcResult.pdPerUnit;
+                          newData.extreme_fullpd = recalcResult.fullPd;
+                          newData.extreme_discount = recalcResult.discountPercentage;
+                          newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+                        }
                       };
                     },
                     customizeText: function (cellInfo) {
@@ -1571,27 +1673,42 @@ async function setClientApiContext(Xrm, formContext) {
                       precision: 2
                     },
                     setCellValue: async function (newData, value, currentRowData) {
-                      newData.extreme_discount = value;
-                      if (currentRowData.priceperunit !== null && currentRowData.quantity !== null) {
-                        // newData.extreme_pricewithdiscount = currentRowData.priceperunit * (1 - value / 100);
-                        newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity;
-                        newData.manualdiscountamount = currentRowData.baseamount - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
+                      // Do so only if it is not parent item (SET)
 
-                        const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                        const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                        const customDiscountAmount = currentRowData.priceperunit * (value / 100);
-                        const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
-                        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                      if (currentRowData.extreme_isparentitem !== true) {
+                        if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_tax !== null) {
+                          const recalcResult = recalculateAmounts({
 
-                        newData.extreme_pd = pdPerUnit;
-                        newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                            quantity: currentRowData.quantity,
+                            supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                            supplierDiscount: currentRowData.extreme_supplierdiscount,
+                            margin: currentRowData.extreme_margin,
+                            discount: value,
+                            TaxPercent: currentRowData.extreme_tax
 
-                      };
-                      if (currentRowData.extreme_tax !== null) {
-                        newData.tax = (((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
-                        newData.extendedamount = ((((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity)) + ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
-                      };
+                          });
 
+                          newData.extreme_margin = recalcResult.margin;
+                          newData.quantity = recalcResult.quantity;
+                          newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                          newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                          newData.priceperunit = recalcResult.pricePerUnit;
+                          newData.baseamount = recalcResult.baseAmount;
+                          newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                          newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                          newData.tax = recalcResult.tax;
+                          newData.extendedamount = recalcResult.extendedAmount;
+                          newData.extreme_pd = recalcResult.pdPerUnit;
+                          newData.extreme_fullpd = recalcResult.fullPd;
+                          newData.extreme_discount = recalcResult.discountPercentage;
+                          newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+
+                        };
+                        if (currentRowData.extreme_tax !== null) {
+                          newData.tax = (((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
+                          newData.extendedamount = ((((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity)) + ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
+                        };
+                      }
                     },
                     customizeText: function (cellInfo) {
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
@@ -1633,13 +1750,35 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_fullpricewithdiscount = value;
-                      if (currentRowData.priceperunit !== null && currentRowData.quantity !== null) {
-                        newData.extreme_discount = 100 * (1 - (value / (currentRowData.priceperunit * currentRowData.quantity)));
-                        newData.manualdiscountamount = currentRowData.baseamount - ((currentRowData.priceperunit * (1 - (100 * (1 - (value / (currentRowData.priceperunit * currentRowData.quantity)))) / 100)) * currentRowData.quantity);
-                      };
-                      if (currentRowData.extreme_tax !== null) {
-                        newData.tax = value * (1 + currentRowData.extreme_tax / 100) - value;
-                        newData.extendedamount = (value * (1 + currentRowData.extreme_tax / 100) - value) + value;
+                      if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_tax !== null) {
+
+                        const recalcResult = recalculateAmounts({
+
+                          quantity: currentRowData.quantity,
+                          supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                          supplierDiscount: currentRowData.extreme_supplierdiscount,
+                          margin: currentRowData.extreme_margin,
+                          discount: currentRowData.extreme_discount,
+                          TaxPercent: currentRowData.extreme_tax,
+                          fullPriceWithDiscount: value
+
+                        });
+
+                        newData.extreme_margin = recalcResult.margin;
+                        newData.quantity = recalcResult.quantity;
+                        newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                        newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        newData.priceperunit = recalcResult.pricePerUnit;
+                        newData.baseamount = recalcResult.baseAmount;
+                        newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                        newData.tax = recalcResult.tax;
+                        newData.extendedamount = recalcResult.extendedAmount;
+                        newData.extreme_pd = recalcResult.pdPerUnit;
+                        newData.extreme_fullpd = recalcResult.fullPd;
+                        newData.extreme_discount = recalcResult.discountPercentage;
+                        newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+
                       };
                     },
                     customizeText: function (cellInfo) {
@@ -1725,8 +1864,31 @@ async function setClientApiContext(Xrm, formContext) {
                         currentRowData.extreme_supplierpriceperunit !== null &&
                         currentRowData.extreme_discount !== null
                       ) {
-                        newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                        newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                        const recalcResult = recalculateAmounts({
+
+                          quantity: currentRowData.quantity,
+                          supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                          supplierDiscount: currentRowData.extreme_supplierdiscount,
+                          margin: currentRowData.extreme_margin,
+                          discount: currentRowData.extreme_discount,
+                          TaxPercent: defaultTax
+
+                        });
+
+                        newData.extreme_margin = recalcResult.margin;
+                        newData.quantity = recalcResult.quantity;
+                        newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                        newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        newData.priceperunit = recalcResult.pricePerUnit;
+                        newData.baseamount = recalcResult.baseAmount;
+                        newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                        newData.tax = recalcResult.tax;
+                        newData.extendedamount = recalcResult.extendedAmount;
+                        newData.extreme_pd = recalcResult.pdPerUnit;
+                        newData.extreme_fullpd = recalcResult.fullPd;
+                        newData.extreme_discount = recalcResult.discountPercentage;
+                        newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
                       }
 
                     },
@@ -1887,28 +2049,32 @@ async function setClientApiContext(Xrm, formContext) {
 
 
                       var pricePerUnit = (newOrgPrice * newOrgCurrencyValue) * currentRowData.extreme_margin;
-                      var baseAmount = pricePerUnit * currentRowData.quantity;
-                      var manualDiscountAmount = baseAmount - (baseAmount * (1 - currentRowData.extreme_discount / 100));
-                      var fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
-                      var tax = ((pricePerUnit * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity * (1 + currentRowData.extreme_tax / 100)) - (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
-                      var extendedAmount = tax + (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
+                      const recalcResult = recalculateAmounts({
 
-                      newData.extreme_supplierpriceperunit = newOrgPrice * newOrgCurrencyValue;
-                      const supplierPricePerUnit = newOrgPrice * newOrgCurrencyValue;
-                      newData.extreme_supplierbaseamount = (newOrgPrice * newOrgCurrencyValue) * currentRowData.quantity;
-                      newData.priceperunit = pricePerUnit;
-                      newData.baseamount = baseAmount;
-                      newData.manualdiscountamount = manualDiscountAmount;
-                      newData.extreme_fullpricewithdiscount = fullPriceWithDiscount;
-                      newData.tax = tax;
-                      newData.extendedamount = extendedAmount;
-                      const supplierDiscountAmount = supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100);
-                      const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
-                      const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                      const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                      const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                      newData.extreme_pd = pdPerUnit;
-                      newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                        quantity: currentRowData.quantity,
+                        supplierPricePerUnit: (newOrgPrice * newOrgCurrencyValue),
+                        supplierDiscount: currentRowData.extreme_supplierdiscount,
+                        margin: currentRowData.extreme_margin,
+                        discount: currentRowData.extreme_discount,
+                        TaxPercent: currentRowData.extreme_tax,
+                        pricePerUnit: pricePerUnit
+
+                      });
+
+                      newData.extreme_margin = recalcResult.margin;
+                      newData.quantity = recalcResult.quantity;
+                      newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                      newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                      newData.priceperunit = recalcResult.pricePerUnit;
+                      newData.baseamount = recalcResult.baseAmount;
+                      newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                      newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                      newData.tax = recalcResult.tax;
+                      newData.extendedamount = recalcResult.extendedAmount;
+                      newData.extreme_pd = recalcResult.pdPerUnit;
+                      newData.extreme_fullpd = recalcResult.fullPd;
+                      newData.extreme_discount = recalcResult.discountPercentage;
+                      newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
 
                     },
                     visible: dataGrid.columnOption("extreme_pricelist", "visible")
@@ -2614,10 +2780,12 @@ async function setClientApiContext(Xrm, formContext) {
               let supplierPricePerUnit = 0;
 
               if (productsStore._array.find((item) => item.id === value).pricelevelid) {
-                if (value !== null) {
+                if (value !== null && typeof (value) !== 'number') {
                   priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
-                  classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
                 }
+              }
+              if (value !== null && typeof (value) !== 'number') {
+                classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
               }
 
               if (classifyLookupsInfo !== null) {
@@ -2696,7 +2864,9 @@ async function setClientApiContext(Xrm, formContext) {
 
                 });
 
+                newData.extreme_margin = recalcResult.margin;
                 newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
                 newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
                 newData.priceperunit = recalcResult.pricePerUnit;
                 newData.baseamount = recalcResult.baseAmount;
@@ -2706,6 +2876,8 @@ async function setClientApiContext(Xrm, formContext) {
                 newData.extendedamount = recalcResult.extendedAmount;
                 newData.extreme_pd = recalcResult.pdPerUnit;
                 newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
               }
             },
             customizeText: function (cellInfo) {
@@ -2764,38 +2936,52 @@ async function setClientApiContext(Xrm, formContext) {
 
               newData.quantity = value;
               if (!isAddingSet) {
-                if (currentRowData.extreme_supplierpriceperunit !== null) newData.extreme_supplierbaseamount = currentRowData.extreme_supplierpriceperunit * value;
-                if (currentRowData.priceperunit !== null) newData.baseamount = value * currentRowData.priceperunit;
-                if (currentRowData.extreme_margin !== null &&
+                if (
+                  currentRowData.extreme_margin !== null &&
                   currentRowData.extreme_supplierpriceperunit !== null &&
                   currentRowData.extreme_supplierdiscount !== null &&
                   currentRowData.extreme_discount !== null &&
-                  currentRowData.extreme_tax !== null) {
-                  newData.priceperunit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
-                  const pricePerUnit = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit);
-                  newData.baseamount = Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit) * value;
-                  newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value;
-                  newData.manualdiscountamount = (value * (Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                  newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                  newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * value);
-                  const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                  const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                  const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                  const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                  const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                  newData.extreme_pd = pdPerUnit;
-                  newData.extreme_fullpd = pdPerUnit * value;
+                  currentRowData.extreme_tax !== null &&
+                  currentRowData.extreme_supplierpriceperunit !== null &&
+                  currentRowData.priceperunit !== null &&
+                  value !== null
+                ) {
+                  const recalcResult = recalculateAmounts({
+
+                    quantity: value,
+                    supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                    supplierDiscount: currentRowData.extreme_supplierdiscount,
+                    margin: currentRowData.extreme_margin,
+                    discount: currentRowData.extreme_discount,
+                    TaxPercent: currentRowData.extreme_tax
+
+                  });
+
+                  newData.extreme_margin = recalcResult.margin;
+                  newData.quantity = recalcResult.quantity;
+                  newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                  newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                  newData.priceperunit = recalcResult.pricePerUnit;
+                  newData.baseamount = recalcResult.baseAmount;
+                  newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                  newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                  newData.tax = recalcResult.tax;
+                  newData.extendedamount = recalcResult.extendedAmount;
+                  newData.extreme_pd = recalcResult.pdPerUnit;
+                  newData.extreme_fullpd = recalcResult.fullPd;
+                  newData.extreme_discount = recalcResult.discountPercentage;
+                  newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
                 }
-                else {
-                  if (currentRowData.priceperunit !== null && value !== null && currentRowData.extreme_discount !== null) {
-                    newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value;
-                    newData.manualdiscountamount = (value * currentRowData.priceperunit) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
-                  };
-                  if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
-                    newData.tax = (((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
-                    newData.extendedamount = ((((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value)) + ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
-                  }
-                }
+                // else {
+                //   if (currentRowData.priceperunit !== null && value !== null && currentRowData.extreme_discount !== null) {
+                //     newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value;
+                //     newData.manualdiscountamount = (value * currentRowData.priceperunit) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                //   };
+                //   if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
+                //     newData.tax = (((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                //     newData.extendedamount = ((((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value) * (1 + currentRowData.extreme_tax / 100)) - ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value)) + ((currentRowData.priceperunit * (1 - currentRowData.extreme_discount / 100)) * value);
+                //   }
+                // }
               }
             }
           },
@@ -2874,22 +3060,32 @@ async function setClientApiContext(Xrm, formContext) {
               precision: 2
             },
             setCellValue: async function (newData, value, currentRowData) {
-              newData.extreme_supplierpriceperunit = value;
-              if (currentRowData.quantity !== null) newData.extreme_supplierbaseamount = value * currentRowData.quantity;
-              if (currentRowData.extreme_margin !== null && currentRowData.extreme_supplierdiscount !== null) {
-                const pricePerUnit = Math.ceil(value * currentRowData.extreme_margin);
-                newData.priceperunit = Math.ceil(value * currentRowData.extreme_margin);
-                newData.baseamount = pricePerUnit * currentRowData.quantity;
-                newData.extreme_fullpricewithdiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
-                const fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
-                newData.extendedamount = (fullPriceWithDiscount * (1 + currentRowData.extreme_tax / 100) - fullPriceWithDiscount) + fullPriceWithDiscount;
-                const supplierDiscountAmount = value * (currentRowData.extreme_supplierdiscount / 100);
-                const pricePerUnitWithSupplierDiscount = value - supplierDiscountAmount;
-                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                newData.extreme_pd = pdPerUnit;
-                newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+              if (currentRowData.extreme_margin !== null && currentRowData.extreme_supplierdiscount !== null && currentRowData.quantity !== null) {
+                const recalcResult = recalculateAmounts({
+
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: value,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: currentRowData.extreme_tax
+
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
               };
               if (typeof (currentRowData.productid) === 'number') {
                 newData.extreme_pricelistpriceperunit = value;
@@ -2926,15 +3122,32 @@ async function setClientApiContext(Xrm, formContext) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
             },
             setCellValue: async function (newData, value, currentRowData) {
-              newData.extreme_supplierdiscount = value;
               if (currentRowData.priceperunit !== null && currentRowData.extreme_supplierpriceperunit !== null && currentRowData.quantity !== null) {
-                const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (value / 100);
-                const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                const customDiscountAmount = currentRowData.priceperunit * (currentRowData.extreme_discount / 100);
-                const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
-                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                newData.extreme_pd = pdPerUnit;
-                newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                const recalcResult = recalculateAmounts({
+
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                  supplierDiscount: value,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: currentRowData.extreme_tax
+
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
               }
             },
             visible: false
@@ -2950,25 +3163,32 @@ async function setClientApiContext(Xrm, formContext) {
             },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_margin = value;
-              if (currentRowData.extreme_supplierpriceperunit !== null) {
-                newData.priceperunit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
-                const pricePerUnit = Math.ceil(value * currentRowData.extreme_supplierpriceperunit);
-                newData.baseamount = Math.ceil(value * currentRowData.extreme_supplierpriceperunit) * currentRowData.quantity;
-                const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                newData.extreme_pd = pdPerUnit;
-                newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
-              };
-              if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
-                newData.extreme_fullpricewithdiscount = ((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity;
-                newData.manualdiscountamount = (currentRowData.quantity * (Math.ceil(value * currentRowData.extreme_supplierpriceperunit))) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-              };
-              if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
-                newData.tax = ((((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                newData.extendedamount = (((((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((Math.ceil(value * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+              if (currentRowData.extreme_supplierpriceperunit !== null && currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null && currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
+                const recalcResult = recalculateAmounts({
+
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: value,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: currentRowData.extreme_tax
+
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
               };
             }
           },
@@ -2984,27 +3204,65 @@ async function setClientApiContext(Xrm, formContext) {
             },
             allowEditing: true,
             setCellValue: async function (newData, value, currentRowData) {
-              const pricePerUnit = value;
-              newData.priceperunit = pricePerUnit;
-              const margin = value / currentRowData.extreme_supplierpriceperunit;
-              if (currentRowData.extreme_supplierpriceperunit !== null) {
-                newData.extreme_margin = value / currentRowData.extreme_supplierpriceperunit;
-                newData.baseamount = pricePerUnit * currentRowData.quantity;
-                const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                newData.extreme_pd = pdPerUnit;
-                newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
-              };
-              if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_discount !== null) {
-                newData.extreme_fullpricewithdiscount = ((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity;
-                newData.manualdiscountamount = (currentRowData.quantity * (pricePerUnit)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-              };
-              if (currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null) {
-                newData.tax = ((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                newData.extendedamount = (((((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + currentRowData.extreme_tax / 100)) - (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((pricePerUnit) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+              if (currentRowData.quantity !== null && currentRowData.extreme_discount !== null && currentRowData.extreme_tax !== null && currentRowData.extreme_discount !== null && currentRowData.extreme_margin) {
+                if ((currentRowData.extreme_supplierpriceperunit === null || currentRowData.extreme_supplierpriceperunit === undefined || currentRowData.extreme_supplierpriceperunit === 0) && currentRowData.extreme_margin !== null) {
+                  newData.extreme_supplierpriceperunit = value / currentRowData.extreme_margin;
+
+                  const recalcResult = recalculateAmounts({
+
+                    quantity: currentRowData.quantity,
+                    supplierPricePerUnit: value / currentRowData.extreme_margin,
+                    supplierDiscount: currentRowData.extreme_supplierdiscount,
+                    margin: currentRowData.extreme_margin,
+                    discount: currentRowData.extreme_discount,
+                    TaxPercent: currentRowData.extreme_tax,
+                    pricePerUnit: value
+
+                  });
+
+                  newData.extreme_margin = recalcResult.margin;
+                  newData.quantity = recalcResult.quantity;
+                  newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                  newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                  newData.priceperunit = recalcResult.pricePerUnit;
+                  newData.baseamount = recalcResult.baseAmount;
+                  newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                  newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                  newData.tax = recalcResult.tax;
+                  newData.extendedamount = recalcResult.extendedAmount;
+                  newData.extreme_pd = recalcResult.pdPerUnit;
+                  newData.extreme_fullpd = recalcResult.fullPd;
+                  newData.extreme_discount = recalcResult.discountPercentage;
+                  newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+                }
+                else {
+                  const recalcResult = recalculateAmounts({
+
+                    quantity: currentRowData.quantity,
+                    supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                    supplierDiscount: currentRowData.extreme_supplierdiscount,
+                    margin: currentRowData.extreme_margin,
+                    discount: currentRowData.extreme_discount,
+                    TaxPercent: currentRowData.extreme_tax,
+                    pricePerUnit: value
+
+                  });
+
+                  newData.extreme_margin = recalcResult.margin;
+                  newData.quantity = recalcResult.quantity;
+                  newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                  newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                  newData.priceperunit = recalcResult.pricePerUnit;
+                  newData.baseamount = recalcResult.baseAmount;
+                  newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                  newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                  newData.tax = recalcResult.tax;
+                  newData.extendedamount = recalcResult.extendedAmount;
+                  newData.extreme_pd = recalcResult.pdPerUnit;
+                  newData.extreme_fullpd = recalcResult.fullPd;
+                  newData.extreme_discount = recalcResult.discountPercentage;
+                  newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+                }
               };
             },
             customizeText: function (cellInfo) {
@@ -3040,21 +3298,34 @@ async function setClientApiContext(Xrm, formContext) {
             },
             setCellValue: async function (newData, value, currentRowData) {
               // Do so only if it is not parent item (SET)
-              newData.extreme_discount = value;
+
               if (currentRowData.extreme_isparentitem !== true) {
-                if (currentRowData.priceperunit !== null && currentRowData.quantity !== null) {
-                  // newData.extreme_pricewithdiscount = currentRowData.priceperunit * (1 - value / 100);
-                  newData.extreme_fullpricewithdiscount = (currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity;
-                  newData.manualdiscountamount = currentRowData.baseamount - ((currentRowData.priceperunit * (1 - value / 100)) * currentRowData.quantity);
+                if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_tax !== null) {
+                  const recalcResult = recalculateAmounts({
 
-                  const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-                  const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-                  const customDiscountAmount = currentRowData.priceperunit * (value / 100);
-                  const pricePerUnitWithCustomDiscount = currentRowData.priceperunit - customDiscountAmount;
-                  const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+                    quantity: currentRowData.quantity,
+                    supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                    supplierDiscount: currentRowData.extreme_supplierdiscount,
+                    margin: currentRowData.extreme_margin,
+                    discount: value,
+                    TaxPercent: currentRowData.extreme_tax
 
-                  newData.extreme_pd = pdPerUnit;
-                  newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                  });
+
+                  newData.extreme_margin = recalcResult.margin;
+                  newData.quantity = recalcResult.quantity;
+                  newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                  newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                  newData.priceperunit = recalcResult.pricePerUnit;
+                  newData.baseamount = recalcResult.baseAmount;
+                  newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                  newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                  newData.tax = recalcResult.tax;
+                  newData.extendedamount = recalcResult.extendedAmount;
+                  newData.extreme_pd = recalcResult.pdPerUnit;
+                  newData.extreme_fullpd = recalcResult.fullPd;
+                  newData.extreme_discount = recalcResult.discountPercentage;
+                  newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
 
                 };
                 if (currentRowData.extreme_tax !== null) {
@@ -3102,13 +3373,35 @@ async function setClientApiContext(Xrm, formContext) {
             },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_fullpricewithdiscount = value;
-              if (currentRowData.priceperunit !== null && currentRowData.quantity !== null) {
-                newData.extreme_discount = 100 * (1 - (value / (currentRowData.priceperunit * currentRowData.quantity)));
-                newData.manualdiscountamount = currentRowData.baseamount - ((currentRowData.priceperunit * (1 - (100 * (1 - (value / (currentRowData.priceperunit * currentRowData.quantity)))) / 100)) * currentRowData.quantity);
-              };
-              if (currentRowData.extreme_tax !== null) {
-                newData.tax = value * (1 + currentRowData.extreme_tax / 100) - value;
-                newData.extendedamount = (value * (1 + currentRowData.extreme_tax / 100) - value) + value;
+              if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_tax !== null) {
+
+                const recalcResult = recalculateAmounts({
+
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: currentRowData.extreme_tax,
+                  fullPriceWithDiscount: value
+
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+
               };
             },
             customizeText: function (cellInfo) {
@@ -3193,8 +3486,31 @@ async function setClientApiContext(Xrm, formContext) {
                 currentRowData.extreme_supplierpriceperunit !== null &&
                 currentRowData.extreme_discount !== null
               ) {
-                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
-                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity)) + (((Math.ceil(currentRowData.extreme_margin * currentRowData.extreme_supplierpriceperunit)) * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity);
+                const recalcResult = recalculateAmounts({
+
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: defaultTax
+
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
               }
 
             },
@@ -3353,28 +3669,32 @@ async function setClientApiContext(Xrm, formContext) {
 
 
               var pricePerUnit = (newOrgPrice * newOrgCurrencyValue) * currentRowData.extreme_margin;
-              var baseAmount = pricePerUnit * currentRowData.quantity;
-              var manualDiscountAmount = baseAmount - (baseAmount * (1 - currentRowData.extreme_discount / 100));
-              var fullPriceWithDiscount = pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity;
-              var tax = ((pricePerUnit * (1 - currentRowData.extreme_discount / 100)) * currentRowData.quantity * (1 + currentRowData.extreme_tax / 100)) - (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
-              var extendedAmount = tax + (pricePerUnit * (1 - currentRowData.extreme_discount / 100) * currentRowData.quantity);
+              const recalcResult = recalculateAmounts({
 
-              newData.extreme_supplierpriceperunit = newOrgPrice * newOrgCurrencyValue;
-              const supplierPricePerUnit = newOrgPrice * newOrgCurrencyValue;
-              newData.extreme_supplierbaseamount = (newOrgPrice * newOrgCurrencyValue) * currentRowData.quantity;
-              newData.priceperunit = pricePerUnit;
-              newData.baseamount = baseAmount;
-              newData.manualdiscountamount = manualDiscountAmount;
-              newData.extreme_fullpricewithdiscount = fullPriceWithDiscount;
-              newData.tax = tax;
-              newData.extendedamount = extendedAmount;
-              const supplierDiscountAmount = currentRowData.extreme_supplierpriceperunit * (currentRowData.extreme_supplierdiscount / 100);
-              const pricePerUnitWithSupplierDiscount = currentRowData.extreme_supplierpriceperunit - supplierDiscountAmount;
-              const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-              const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-              const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-              newData.extreme_pd = pdPerUnit;
-              newData.extreme_fullpd = pdPerUnit * currentRowData.quantity;
+                quantity: currentRowData.quantity,
+                supplierPricePerUnit: (newOrgPrice * newOrgCurrencyValue),
+                supplierDiscount: currentRowData.extreme_supplierdiscount,
+                margin: currentRowData.extreme_margin,
+                discount: currentRowData.extreme_discount,
+                TaxPercent: currentRowData.extreme_tax,
+                pricePerUnit: pricePerUnit
+
+              });
+
+              newData.extreme_margin = recalcResult.margin;
+              newData.quantity = recalcResult.quantity;
+              newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+              newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+              newData.priceperunit = recalcResult.pricePerUnit;
+              newData.baseamount = recalcResult.baseAmount;
+              newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+              newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+              newData.tax = recalcResult.tax;
+              newData.extendedamount = recalcResult.extendedAmount;
+              newData.extreme_pd = recalcResult.pdPerUnit;
+              newData.extreme_fullpd = recalcResult.fullPd;
+              newData.extreme_discount = recalcResult.discountPercentage;
+              newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
 
             }
           },
@@ -5072,6 +5392,9 @@ async function setClientApiContext(Xrm, formContext) {
         // Calculate pricePerUnit if not provided
         if (pricePerUnit === null) {
           pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
+        } else {
+          // Calculate new margin based on supplierBaseAmount
+          margin = pricePerUnit / supplierPricePerUnit;
         }
 
         const baseAmount = pricePerUnit * quantity;
@@ -5079,6 +5402,9 @@ async function setClientApiContext(Xrm, formContext) {
         // Calculate fullPriceWithDiscount if not provided
         if (fullPriceWithDiscount === null) {
           fullPriceWithDiscount = pricePerUnit * (1 - discount / 100) * quantity;
+        } else {
+          // Calculate new discount and discount percentage based on baseAmount
+          discount = ((baseAmount - fullPriceWithDiscount) / baseAmount) * 100;
         }
 
         const manualDiscountAmount = baseAmount - fullPriceWithDiscount;
@@ -5105,7 +5431,11 @@ async function setClientApiContext(Xrm, formContext) {
           customDiscountAmount,
           pricePerUnitWithCustomDiscount,
           pdPerUnit,
-          fullPd
+          fullPd,
+          discountPercentage: discount,
+          supplierDiscountPercentage: supplierDiscount,
+          margin,
+          supplierPricePerUnit
         };
       }
 
