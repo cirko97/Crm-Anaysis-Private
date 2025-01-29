@@ -167,7 +167,7 @@ async function setClientApiContext(Xrm, formContext) {
   await getVatGroups();
   await getQuoteProducts(quoteIdForm);
   await getPriceLists();
-  
+
   DevExpress.localization.locale("de");
 
   initDataGrid(quoteIdForm, userId);
@@ -2684,23 +2684,28 @@ async function setClientApiContext(Xrm, formContext) {
                 console.log(supplierPricePerUnit);
                 console.log(currentRowData.extreme_discount);
                 console.log(1);
-                newData.quantity = 1;
-                newData.extreme_supplierbaseamount = supplierPricePerUnit * 1;
-                newData.priceperunit = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit);
-                const pricePerUnit = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit);
-                newData.baseamount = Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit) * 1;
-                newData.extreme_fullpricewithdiscount = ((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1;
-                console.log(newData.extreme_fullpricewithdiscount);
-                newData.manualdiscountamount = (1 * (Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit))) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                newData.tax = ((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                newData.extendedamount = (((((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1)) + (((Math.ceil(currentRowData.extreme_margin * supplierPricePerUnit)) * (1 - currentRowData.extreme_discount / 100)) * 1);
-                const supplierDiscountAmount = supplierPricePerUnit * (currentRowData.extreme_supplierdiscount / 100);
-                const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
-                const customDiscountAmount = pricePerUnit * (currentRowData.extreme_discount / 100);
-                const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                newData.extreme_pd = pdPerUnit;
-                newData.extreme_fullpd = pdPerUnit * 1;
+
+                const recalcResult = recalculateAmounts({
+
+                  quantity: 1,
+                  supplierPricePerUnit: supplierPricePerUnit,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: defaultTax
+
+                });
+
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
               }
             },
             customizeText: function (cellInfo) {
@@ -5049,6 +5054,60 @@ async function setClientApiContext(Xrm, formContext) {
           checkClassifyRows();
         }
       }).dxDataGrid('instance');
+
+      // Recalculate amounts for each row based on changed value
+      const recalculateAmounts = ({
+        quantity = 1,
+        supplierPricePerUnit,
+        supplierDiscount,
+        margin,
+        pricePerUnit = null,
+        discount,
+        fullPriceWithDiscount = null,
+        TaxPercent
+      }) => {
+        const taxRate = TaxPercent / 100;
+        const supplierBaseAmount = supplierPricePerUnit * quantity;
+
+        // Calculate pricePerUnit if not provided
+        if (pricePerUnit === null) {
+          pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
+        }
+
+        const baseAmount = pricePerUnit * quantity;
+
+        // Calculate fullPriceWithDiscount if not provided
+        if (fullPriceWithDiscount === null) {
+          fullPriceWithDiscount = pricePerUnit * (1 - discount / 100) * quantity;
+        }
+
+        const manualDiscountAmount = baseAmount - fullPriceWithDiscount;
+        const tax = fullPriceWithDiscount * taxRate;
+        const extendedAmount = fullPriceWithDiscount + tax;
+        const supplierDiscountAmount = supplierPricePerUnit * (supplierDiscount / 100);
+        const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
+        const customDiscountAmount = pricePerUnit * (discount / 100);
+        const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+        const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+        const fullPd = pdPerUnit * quantity;
+
+        return {
+          quantity,
+          supplierBaseAmount,
+          pricePerUnit,
+          baseAmount,
+          fullPriceWithDiscount,
+          manualDiscountAmount,
+          tax,
+          extendedAmount,
+          supplierDiscountAmount,
+          pricePerUnitWithSupplierDiscount,
+          customDiscountAmount,
+          pricePerUnitWithCustomDiscount,
+          pdPerUnit,
+          fullPd
+        };
+      }
 
 
       // function for changing exchange rates
