@@ -71,8 +71,11 @@ async function form_onload(executionContext) {
 
     formContext.getAttribute("customerid").addOnChange(populateAccountDefaults);
     formContext.getAttribute("statecode").addOnChange(async () => {
-        await formContext.getControl('WebResource_quoteLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-    })
+        const quoteLinesControl = formContext.getControl('WebResource_quoteLines');
+        if (quoteLinesControl && quoteLinesControl.getObject() && quoteLinesControl.getObject().contentWindow) {
+            await quoteLinesControl.getObject().contentWindow.setClientApiContext(Xrm, formContext);
+        }
+    });
     const attributesToUpdate = [
         "extreme_printinenglish",
         "extreme_printoutname",
