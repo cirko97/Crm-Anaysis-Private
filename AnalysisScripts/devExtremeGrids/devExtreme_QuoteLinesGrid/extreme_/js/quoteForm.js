@@ -36,17 +36,29 @@ async function form_onload(executionContext) {
         && formContext.getAttribute("extreme_paymentterms").getValue() === null){
             populateAccountDefaults();
         }
-        var publishingLocation = await readConfigurationValue("QuotePublishingLocation")
-        formContext.getAttribute("extreme_placeofpublishing").setValue(publishingLocation);   
+        
     } else {
         // Get Nav. Item
         var navItem = formContext.ui.navigation.items.get("navSPDocuments");
         // First set focus on Nav. Item to open related tab
-        navItem.setFocus();
+        if (navItem) {
+            navItem.setFocus();
+        } else {
+            console.error("Navigation item 'navSPDocuments' not found.");
+        }
         // get Main tab (replace it with your tab name)
-        var mainTab =  formContext.ui.tabs.get("general");
+        var mainTab = formContext.ui.tabs.get("general");
         // Then move to Main Tab
-        mainTab.setFocus();
+        if (mainTab) {
+            mainTab.setFocus();
+        } else {
+            console.error("Main tab 'general' not found.");
+        }
+    }
+
+    if(formContext.getAttribute("extreme_placeofpublishing").getValue() === null){
+        var publishingLocation = await readConfigurationValue("QuotePublishingLocation")
+        formContext.getAttribute("extreme_placeofpublishing").setValue(publishingLocation);
     }
 
     if(formContext.getAttribute("effectivefrom").getValue() === null){
@@ -61,6 +73,41 @@ async function form_onload(executionContext) {
     formContext.getAttribute("statecode").addOnChange(async () => {
         await Xrm.Page.getControl('WebResource_quoteLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
     })
+    const attributesToUpdate = [
+        "extreme_printinenglish",
+        "extreme_printoutname",
+        "extreme_bankaccountonprintout"
+    ];
+
+    attributesToUpdate.forEach(attribute => {
+        formContext.getAttribute(attribute).addOnChange(async () => {
+            var sysAdminGuid = await readConfigurationValue("SystemAdminGuid");
+            var record = {};
+            attributesToUpdate.forEach(attr => {
+                record[attr] = formContext.getAttribute(attr).getValue();
+            });
+
+            var req = new XMLHttpRequest();
+            req.open("PATCH", Xrm.Utility.getGlobalContext().getClientUrl() + `/api/data/v9.2/quotes(${formContext.data.entity.getId().slice(1, -1)})`, false);
+            req.setRequestHeader("OData-MaxVersion", "4.0");
+            req.setRequestHeader("OData-Version", "4.0");
+            req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+            req.setRequestHeader("Accept", "application/json");
+            req.setRequestHeader("Prefer", "odata.include-annotations=*");
+            req.setRequestHeader("MSCRMCallerID", `${sysAdminGuid}`);
+            req.onreadystatechange = function () {
+                if (this.readyState === 4) {
+                    req.onreadystatechange = null;
+                    if (this.status === 204) {
+                        console.log("Record updated");
+                    } else {
+                        console.log(this.responseText);
+                    }
+                }
+            };
+            req.send(JSON.stringify(record));
+        });
+    });
 
 
 
