@@ -800,9 +800,6 @@ async function setClientApiContext(Xrm, formContext) {
 
   }
 
-
-
-
   // Function to initialize data grid for case lines
   function initDataGrid(quoteIdForm, userId) {
     $(() => {
@@ -946,10 +943,12 @@ async function setClientApiContext(Xrm, formContext) {
             console.log(productsData);
             console.log(productsData.sequencenumber);
 
-            container.css('padding', '0 0 10px 10px');
+            // container.css('padding', '0 0 10px 10px');
             container.css('background', '#e5edfe');
+            container.css('padding', 0);
 
-            $(`<div id="${productsData.quotedetailid}" class="child-grid">`)
+
+            $(`<div id="${productsData.quotedetailid}" class="child-grid">`).css("margin-left", "0px").addClass("internal-grid")
               .dxDataGrid({
 
                 // dataSource: new DevExpress.data.DataSource({
@@ -1061,7 +1060,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'productid',
                     caption: 'Product ID',
-                    width: 120,
+                    width: 150,
                     lookup: {
                       dataSource: {
                         store: productsStore,
@@ -2659,6 +2658,9 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 onEditCanceled() {
                   console.log('EditCanceled');
+                },
+                onContentReady: function (e) {
+                  e.component.columnOption("command:select", "visibleIndex", 999);
                 }
               }).appendTo(container);
           },
@@ -5370,10 +5372,40 @@ async function setClientApiContext(Xrm, formContext) {
         onEditCanceled() {
           console.log('EditCanceled');
         },
-        onContentReady() {
+        onContentReady(e) {
+          e.component.columnOption("command:select", "visibleIndex", 999);
+          e.component.getView("columnHeadersView").resizeCompleted.remove(masterGridColumnResized);
+          e.component.getView("columnHeadersView").resizeCompleted.add(masterGridColumnResized);
+          masterGridColumnResized()
           checkClassifyRows();
         }
       }).dxDataGrid('instance');
+
+      // resuze child columns
+      function masterGridColumnResized() {
+        var detailContainers = dataGrid.element().find('.internal-grid');
+        console.log(detailContainers);
+        if (detailContainers.length) {
+          for (var j = 0; j < detailContainers.length; j++) {
+            var detailGridInstance = $(detailContainers.get(j)).dxDataGrid('instance');
+            detailGridInstance.beginUpdate();
+            for (var i = 0; i < dataGrid.columnCount(); i++) {
+              console.log("columnOption dataField");
+              console.log(dataGrid.columnOption(i, "dataField"));
+              if(detailGridInstance.columnOption(i, "dataField") === "productid") {
+                detailGridInstance.columnOption(i, 'width', dataGrid.columnOption(i, 'width') + 30);
+                detailGridInstance.columnOption(i, 'visibleWidth', dataGrid.columnOption(i, 'visibleWidth') + 30);
+              }
+              else {
+                detailGridInstance.columnOption(i, 'width', dataGrid.columnOption(i, 'width'));
+                detailGridInstance.columnOption(i, 'visibleWidth', dataGrid.columnOption(i, 'visibleWidth'));
+              }
+            }
+            detailGridInstance.endUpdate();
+          }
+        }
+
+      }
 
       // Recalculate amounts for each row based on changed value
       const recalculateAmounts = ({
