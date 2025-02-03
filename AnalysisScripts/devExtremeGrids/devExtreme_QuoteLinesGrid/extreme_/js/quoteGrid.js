@@ -371,7 +371,7 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesArray.push({
             "quotedetailid": quotedetailid,
             "productid": productid ? productid : newIdForCustomProducts++,
-            "productnumber": productid_productnumber ? productid_productnumber : newIdForCustomProducts++,
+            "productnumber": productid_productnumber ? productid_productnumber : newIdForCustomProducts,
             "extreme_customproductid": extreme_customproductid,
             "extreme_productdescription": extreme_productdescription,
             "isproductoverridden": isproductoverridden,
@@ -431,10 +431,10 @@ async function setClientApiContext(Xrm, formContext) {
 
           if (!productid) {
             customProductsArray.push({
-              "id": extreme_customproductid,
+              "productid": extreme_customproductid,
               "name": extreme_customproductid,
               "productName": quotedetailname,
-              "productId": extreme_customproductid
+              "productnumber": extreme_customproductid
             });
           }
 
@@ -830,17 +830,22 @@ async function setClientApiContext(Xrm, formContext) {
         ],
       });
 
-      newIdForCustomProducts = 100001
-      // add custom products on init table to lookup field of products if exists
-      if (customProductsArray.length > 0) {
-        customProductsArray.forEach((e) => {
-          var newItem = {};
-          newItem.productid = newIdForCustomProducts++;
-          newItem.name = e.name;
-          newItem.productnumber = e.productId
-          productsODataStore.insert(newItem);
-        })
-      }
+      const customProductsStore = new DevExpress.data.ArrayStore({
+        key: "productid",
+        data: customProductsArray
+      });
+
+      // newIdForCustomProducts = 100001
+      // // add custom products on init table to lookup field of products if exists
+      // if (customProductsArray.length > 0) {
+      //   customProductsArray.forEach((e) => {
+      //     var newItem = {};
+      //     newItem.productid = newIdForCustomProducts++;
+      //     newItem.name = e.name;
+      //     newItem.productnumber = e.productId
+      //     productsODataStore.insert(newItem);
+      //   })
+      // }
 
       var unitsStore = new DevExpress.data.ArrayStore({
         key: "id",
@@ -1138,7 +1143,10 @@ async function setClientApiContext(Xrm, formContext) {
                         setTimeout(function () {
                           dataGrid.columnOption("productid", "lookup", dataGrid.columnOption("productid", "lookup"));
                         });
-                        args.customItem = newItem;
+                        args.customItem = {
+                          name: args.text,
+                          productnumber: args.text,
+                        };
                       },
                       onOpened: function (e) {
                         heightAuto = false;
@@ -2755,13 +2763,27 @@ async function setClientApiContext(Xrm, formContext) {
                   return;
                 }
 
+                dataGrid.columnOption("productid", "lookup", {
+                  dataSource: {
+                    store: customProductsStore,
+                  },
+                  displayExpr: 'productnumber',
+                  valueExpr: 'productid',
+                });
+
                 var newItem = {};
                 newItem.productid = newIdForCustomProducts++;
                 newItem.name = args.text;
                 newItem.productnumber = args.text;
-                productsODataStore.insert(newItem);
+                customProductsStore.insert(newItem);
                 setTimeout(function () {
-                  dataGrid.columnOption("productid", "lookup", dataGrid.columnOption("productid", "lookup"));
+                  dataGrid.columnOption("productid", "lookup", {
+                    dataSource: {
+                      store: customProductsStore,
+                    },
+                    displayExpr: 'productnumber',
+                    valueExpr: 'productid',
+                  });
                 });
                 args.customItem = newItem;
               },
@@ -2784,6 +2806,13 @@ async function setClientApiContext(Xrm, formContext) {
             },
             // editCellTemplate: dropDownBoxEditorTemplateProducts,
             setCellValue: async function (newData, value, currentRowData) {
+
+              console.log("PRODUCT ID SET VALUE");
+              console.log(value);
+              if (typeof (value) === 'number') {
+                newData.productid = value;
+                return;
+              }
 
               // Product types
               let productType = null;
@@ -4963,7 +4992,7 @@ async function setClientApiContext(Xrm, formContext) {
                 await getQuoteProducts(quoteIdForm);
                 await getPriceLists();
                 dataGrid.refresh();
-                
+
 
                 console.log('quoteLinesData after parent created');
                 console.log(quoteLinesData);
