@@ -165,7 +165,7 @@ async function setClientApiContext(Xrm, formContext) {
   await getVensSups();
   await getVatGroups();
   await getPriceLists();
-  await getProductsLookUp();
+  // await getProductsLookUp();
   await getQuoteProducts(quoteIdForm);
 
 
@@ -808,10 +808,25 @@ async function setClientApiContext(Xrm, formContext) {
         data: quoteLinesArray,
       });
 
-      var productsStore = new DevExpress.data.ArrayStore({
-        key: "id",
-        data: productsArray
-      });
+      // var productsStore = new DevExpress.data.ODataStore({
+      //   url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/products",
+      //   key: "productid",
+      //   keyType: "string",
+      //   select: [
+      //     'productid',
+      //     'name',
+      //     'productnumber',
+      //     '_defaultuomid_value',
+      //     '_pricelevelid_value',
+      //     'producttypecode',
+      //     'extreme_isparent',
+      //   ],
+      //   // Other ODataStore properties go here
+      // });
+
+      // console.log('NEW API PRODUCTS STORE');
+      // console.log(productsStore);
+
       newIdForCustomProducts = 100001
       // add custom products on init table to lookup field of products if exists
       if (customProductsArray.length > 0) {
@@ -891,7 +906,7 @@ async function setClientApiContext(Xrm, formContext) {
         allowColumnReordering: true,
         columnResizingMode: "mode",
         columnMinWidth: 10,
-        columnAutoWidth: true,
+        columnAutoWidth: false,
         columnHidingEnabled: false,
         scrolling: {
           mode: "standard",
@@ -1001,7 +1016,7 @@ async function setClientApiContext(Xrm, formContext) {
                 allowColumnReordering: true,
                 columnResizingMode: "mode",
                 columnMinWidth: 10,
-                columnAutoWidth: true,
+                columnAutoWidth: false,
                 columnHidingEnabled: false,
                 scrolling: {
                   mode: "standard",
@@ -1061,19 +1076,46 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'productid',
                     caption: 'Product ID',
                     width: 150,
+                    calculateDisplayValue: "name",
                     lookup: {
-                      dataSource: {
-                        store: productsStore,
-                        paginate: true,
-                        pageSize: 20,
-                        postProcess: function (data) {
-                          // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
-                          // data.unshift({ productId: "ID", productName: "Name", disabled: true });
-                          return data;
+                      dataSource(options) {
+
+                        let filterQuery = null;
+
+                        if (options.data) {
+                          options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                        }
+
+                        return {
+                          store: {
+                            type: "odata",
+                            url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/products",
+                            key: "productid",
+                            keyType: "Guid",
+                            select: [
+                              'productid',
+                              'name',
+                              'productnumber',
+                              '_defaultuomid_value',
+                              '_pricelevelid_value',
+                              'producttypecode',
+                              'extreme_isparent',
+                            ],
+                          },
+                          // searchExpr: ["productnumber", "name"],
+                          paginate: true,
+                          pageSize: 20,
+                          loadMode: 'raw',
+                          filter: filterQuery,
+                          postProcess: function (data) {
+                            // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
+                            // data.unshift({ productId: "ID", productName: "Name", disabled: true });
+                            return data;
+                          }
                         }
                       },
-                      displayExpr: 'name',
-                      valueExpr: 'id',
+                      displayExpr: 'productnumber',
+                      valueExpr: 'productid',
                     },
                     editorOptions: {
                       acceptCustomValue: true,
@@ -1155,9 +1197,10 @@ async function setClientApiContext(Xrm, formContext) {
                       let classifyLookupsInfo = null;
                       let supplierPricePerUnit = 0;
 
-                      if (productsStore._array.find((item) => item.id === value).pricelevelid) {
+                      const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
+                      if (productInfo._pricelevelid_value) {
                         if (value !== null && typeof (value) !== 'number') {
-                          priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
+                          priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})`);
                         }
                       }
                       if (value !== null && typeof (value) !== 'number') {
@@ -1184,7 +1227,7 @@ async function setClientApiContext(Xrm, formContext) {
                       console.log('SET CELL VALUES');
                       console.log(priceListItemAmount);
                       console.log(priceListItemCurrency);
-                      console.log(productsStore._array.find((item) => item.id === value).pricelevelid);
+                      console.log(productInfo._pricelevelid_value);
 
                       console.log('newData: ');
                       console.log(newData);
@@ -1201,15 +1244,13 @@ async function setClientApiContext(Xrm, formContext) {
                         newData.extreme_vatsetting = defaultVatSetting;
                         newData.extreme_vatgroup = vatSettingsArray.find(item => item.id === defaultVatSetting).idVatGroup;
                       }
-                      newData.quotedetailname = productsStore._array.find((item) => item.id === value).productName;
-                      if (productsStore._array.find((item) => item.id === value).productDefaultUnit !== null) newData.uomid = productsStore._array.find((item) => item.id === value).productDefaultUnit;
-                      if (productsStore._array.find((item) => item.id === value).pricelevelid && !isAddingSet) {
-                        newData.extreme_pricelist = productsStore._array.find((item) => item.id === value).pricelevelid;
+                      newData.quotedetailname = productInfo.name;
+                      if (productInfo._defaultuomid_value !== null) newData.uomid = productInfo._defaultuomid_value;
+                      if (productInfo._pricelevelid_value && !isAddingSet) {
+                        newData.extreme_pricelist = productInfo._pricelevelid_value;
                         newData.extreme_pricelistpriceperunit = priceListItemAmount;
                         newData.extreme_pricelistcurrency = priceListItemCurrency;
                         if (quoteCurrencySymbol !== priceListItemCurrency) {
-                          console.log(productsStore._array.find((item) => item.id === value).priceListItemAmount);
-                          console.log(currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode);
                           newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                           supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                         } else {
@@ -1259,7 +1300,8 @@ async function setClientApiContext(Xrm, formContext) {
                     customizeText: function (cellInfo) {
                       if (cellInfo.valueText) {
                         // console.log(productsStore._array.find((item) => item.name === cellInfo.valueText))
-                        return productsStore._array.find((item) => item.name === cellInfo.valueText)["productId"]
+                        return cellInfo.valueText;
+                        // return productsStore._array.find((item) => item.name === cellInfo.valueText)["productId"]
                       }
                       else {
                         return cellInfo.valueText;
@@ -1271,7 +1313,7 @@ async function setClientApiContext(Xrm, formContext) {
                         type: 'custom',
                         message: 'Must be at least 3 characters',
                         validationCallback(params) {
-                          return productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number' ? false : true;
+                          return params.value.length < 3 && typeof (params.value) == 'number' ? false : true;
                         },
                       }
                     ],
@@ -1790,15 +1832,16 @@ async function setClientApiContext(Xrm, formContext) {
                     caption: 'VAT %',
                     width: 60,
                     lookup: {
-                      dataSource(options) {
+                      async dataSource(options) {
                         console.log('OPTIONS FROM VAT GROUP LOOKUP');
                         console.log(options);
 
                         let filterQuery = null;
                         if (options.data) {
+                          const productInfo = await Xrm.WebApi.retrieveRecord("product", `${options.data.productid}`, "?$select=producttypecode");
                           if (options.isNewRow !== true) {
-                            if (productsArray.find(item => item.id === options.data.productid).producttypecode) {
-                              filterQuery = ["productTypeCode", "=", productsArray.find(item => item.id === options.data.productid).producttypecode]
+                            if (productInfo.producttypecode) {
+                              filterQuery = ["productTypeCode", "=", productInfo.producttypecode]
                             }
                             else if (quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype) {
                               filterQuery = ["productTypeCode", "=", quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype]
@@ -2677,6 +2720,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'productid',
             caption: 'Product ID',
             width: 120,
+            calculateDisplayValue: "productnumber",
             lookup: {
               dataSource(options) {
 
@@ -2687,9 +2731,27 @@ async function setClientApiContext(Xrm, formContext) {
                 }
 
                 return {
-                  store: productsStore,
+                  store: {
+                    type: "odata",
+                    version: 4,
+                    filterToLower: false,
+                    url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/products",
+                    key: "productid",
+                    keyType: "Guid",
+                    select: [
+                      'productid',
+                      'name',
+                      'productnumber',
+                      '_defaultuomid_value',
+                      '_pricelevelid_value',
+                      'producttypecode',
+                      'extreme_isparent',
+                    ],
+                  },
+                  searchExpr: ["productnumber", "name"],
                   paginate: true,
-                  pageSize: 20,
+                  pageSize: 100,
+                  loadMode: 'raw',
                   filter: filterQuery,
                   postProcess: function (data) {
                     // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
@@ -2698,20 +2760,20 @@ async function setClientApiContext(Xrm, formContext) {
                   }
                 }
               },
-              displayExpr: 'name',
-              valueExpr: 'id',
+              displayExpr: 'productnumber',
+              valueExpr: 'productid',
             },
             editorOptions: {
               acceptCustomValue: true,
               // popupWidth: 600,
               searchEnabled: true,
               // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
-              searchExpr: ["productId", "productName"],
+              searchExpr: ["productnumber", "name"],
               itemTemplate: function (data, index, container) {
                 var row = $("<div>").addClass("row text-wrap");
                 var containerFluid = $("<div>").addClass("container-fluid");
-                $("<div>").addClass("col-3").text(data["productId"]).appendTo(row);
-                $("<div>").addClass("col-9").text(data["productName"]).appendTo(row);
+                $("<div>").addClass("col-3").text(data["productnumber"]).appendTo(row);
+                $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
                 // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
                 row.appendTo(containerFluid);
                 container.append(containerFluid);
@@ -2781,9 +2843,10 @@ async function setClientApiContext(Xrm, formContext) {
               let classifyLookupsInfo = null;
               let supplierPricePerUnit = 0;
 
-              if (productsStore._array.find((item) => item.id === value).pricelevelid) {
+              const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
+              if (productInfo._pricelevelid_value) {
                 if (value !== null && typeof (value) !== 'number') {
-                  priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === value).pricelevelid} and _productid_value eq ${value})`);
+                  priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})`);
                 }
               }
               if (value !== null && typeof (value) !== 'number') {
@@ -2810,7 +2873,7 @@ async function setClientApiContext(Xrm, formContext) {
               console.log('SET CELL VALUES');
               console.log(priceListItemAmount);
               console.log(priceListItemCurrency);
-              console.log(productsStore._array.find((item) => item.id === value).pricelevelid);
+              console.log(productInfo._pricelevelid_value);
 
               console.log('newData: ');
               console.log(newData);
@@ -2827,15 +2890,13 @@ async function setClientApiContext(Xrm, formContext) {
                 newData.extreme_vatsetting = defaultVatSetting;
                 newData.extreme_vatgroup = vatSettingsArray.find(item => item.id === defaultVatSetting).idVatGroup;
               }
-              newData.quotedetailname = productsStore._array.find((item) => item.id === value).productName;
-              if (productsStore._array.find((item) => item.id === value).productDefaultUnit !== null) newData.uomid = productsStore._array.find((item) => item.id === value).productDefaultUnit;
-              if (productsStore._array.find((item) => item.id === value).pricelevelid && !isAddingSet) {
-                newData.extreme_pricelist = productsStore._array.find((item) => item.id === value).pricelevelid;
+              newData.quotedetailname = productInfo.name;
+              if (productInfo._defaultuomid_value !== null) newData.uomid = productInfo._defaultuomid_value;
+              if (productInfo._pricelevelid_value && !isAddingSet) {
+                newData.extreme_pricelist = productInfo._defaultuomid_value;
                 newData.extreme_pricelistpriceperunit = priceListItemAmount;
                 newData.extreme_pricelistcurrency = priceListItemCurrency;
                 if (quoteCurrencySymbol !== priceListItemCurrency) {
-                  console.log(productsStore._array.find((item) => item.id === value).priceListItemAmount);
-                  console.log(currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode);
                   newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                   supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                 } else {
@@ -2885,7 +2946,8 @@ async function setClientApiContext(Xrm, formContext) {
             customizeText: function (cellInfo) {
               if (cellInfo.valueText) {
                 // console.log(productsStore._array.find((item) => item.name === cellInfo.valueText))
-                return productsStore._array.find((item) => item.name === cellInfo.valueText)["productId"]
+                return cellInfo.valueText;
+                // return productsStore._array.find((item) => item.name === cellInfo.valueText)["productId"]
               }
               else {
                 return cellInfo.valueText;
@@ -2897,8 +2959,8 @@ async function setClientApiContext(Xrm, formContext) {
                 type: 'custom',
                 message: 'Must be at least 3 characters',
                 validationCallback(params) {
-                  if (productsArray.find(item => item.id === params.value)) {
-                    if (productsArray.find(item => item.id === params.value).name.length < 3 && typeof (params.value) == 'number') {
+                  if (params.value) {
+                    if (params.value < 3 && typeof (params.value) == 'number') {
                       return false;
                     }
                     else {
@@ -3415,15 +3477,16 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'VAT %',
             width: 60,
             lookup: {
-              dataSource(options) {
+              async dataSource(options) {
                 console.log('OPTIONS FROM VAT GROUP LOOKUP');
                 console.log(options);
 
                 let filterQuery = null;
                 if (options.data) {
+                  const productInfo = await Xrm.WebApi.retrieveRecord("product", `${options.data.productid}`, "?$select=producttypecode");
                   if (options.isNewRow !== true) {
-                    if (productsArray.find(item => item.id === options.data.productid).producttypecode) {
-                      filterQuery = ["productTypeCode", "=", productsArray.find(item => item.id === options.data.productid).producttypecode]
+                    if (productInfo.producttypecode) {
+                      filterQuery = ["productTypeCode", "=", productInfo.producttypecode]
                     }
                     else if (quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype) {
                       filterQuery = ["productTypeCode", "=", quoteLinesData._array.find(item => item.quotedetailid === options.data.quotedetailid).extreme_producttype]
@@ -4697,9 +4760,10 @@ async function setClientApiContext(Xrm, formContext) {
                         let classifyLookupsInfo = null;
                         let supplierPricePerUnit = 0;
 
-                        if (productsStore._array.find((item) => item.id === productid).pricelevelid) {
+                        const productInfo = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
+                        if (productInfo._pricelevelid_value) {
                           if (productid !== null) {
-                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productsStore._array.find((item) => item.id === productid).pricelevelid} and _productid_value eq ${productid})`);
+                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${productid})`);
                             classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
                           }
                         }
@@ -4740,9 +4804,10 @@ async function setClientApiContext(Xrm, formContext) {
                           vatSetting = defaultVatSetting;
                           vatGroup = vatSettingsArray.find(item => item.id === defaultVatSetting).idVatGroup;
                         };
-                        if (productsStore._array.find((item) => item.id === productid).productDefaultUnit !== null) defaultUomid = productsStore._array.find((item) => item.id === productid).productDefaultUnit;
-                        if (productsStore._array.find((item) => item.id === productid).pricelevelid) {
-                          priceList = productsStore._array.find((item) => item.id === productid).pricelevelid;
+
+                        if (productInfo._defaultuomid_value !== null) defaultUomid = productInfo._defaultuomid_value;
+                        if (productInfo._pricelevelid_value) {
+                          priceList = productInfo._pricelevelid_value;
                           priceListPPU = priceListItemAmount;
                           priceListCurrecy = priceListItemCurrency;
                           if (quoteCurrencySymbol !== priceListItemCurrency) {
@@ -5392,7 +5457,7 @@ async function setClientApiContext(Xrm, formContext) {
             for (var i = 0; i < dataGrid.columnCount(); i++) {
               console.log("columnOption dataField");
               console.log(dataGrid.columnOption(i, "dataField"));
-              if(detailGridInstance.columnOption(i, "dataField") === "productid") {
+              if (detailGridInstance.columnOption(i, "dataField") === "productid") {
                 detailGridInstance.columnOption(i, 'width', dataGrid.columnOption(i, 'width') + 30);
                 detailGridInstance.columnOption(i, 'visibleWidth', dataGrid.columnOption(i, 'visibleWidth') + 30);
               }
