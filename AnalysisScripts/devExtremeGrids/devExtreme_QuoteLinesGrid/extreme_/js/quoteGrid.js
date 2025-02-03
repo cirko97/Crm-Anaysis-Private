@@ -220,7 +220,7 @@ async function setClientApiContext(Xrm, formContext) {
     customUnitsArray = [];
     filterForPriceListsQuery = '';
 
-    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatsetting_value,_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$filter=_quoteid_value eq ${quoteId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatsetting_value,_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,quotedetailname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$expand=productid($select=productnumber)&$filter=_quoteid_value eq ${quoteId}`).then(
       async function success(results) {
         console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -348,6 +348,9 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_vatsetting_lookuplogicalname = result["_extreme_vatsetting_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
           var extreme_producttype = result["extreme_producttype"]; // Choice
 
+          if (result.hasOwnProperty("productid") && result["productid"] !== null) {
+            var productid_productnumber = result["productid"]["productnumber"]; // Text
+          }
 
           let newCustomIdForUnit = 0;
           if (!uomid && extreme_uomid && !unitsArray.find((item) => item.name === extreme_uomid)) {
@@ -368,6 +371,7 @@ async function setClientApiContext(Xrm, formContext) {
           quoteLinesArray.push({
             "quotedetailid": quotedetailid,
             "productid": productid ? productid : newIdForCustomProducts++,
+            "productnumber": productid_productnumber ? productid_productnumber : newIdForCustomProducts++,
             "extreme_customproductid": extreme_customproductid,
             "extreme_productdescription": extreme_productdescription,
             "isproductoverridden": isproductoverridden,
