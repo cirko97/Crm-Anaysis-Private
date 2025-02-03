@@ -2897,7 +2897,7 @@ async function setClientApiContext(Xrm, formContext) {
               newData.quotedetailname = productInfo.name;
               if (productInfo._defaultuomid_value !== null) newData.uomid = productInfo._defaultuomid_value;
               if (productInfo._pricelevelid_value && !isAddingSet) {
-                newData.extreme_pricelist = productInfo._defaultuomid_value;
+                newData.extreme_pricelist = productInfo._pricelevelid_value;
                 newData.extreme_pricelistpriceperunit = priceListItemAmount;
                 newData.extreme_pricelistcurrency = priceListItemCurrency;
                 if (quoteCurrencySymbol !== priceListItemCurrency) {
