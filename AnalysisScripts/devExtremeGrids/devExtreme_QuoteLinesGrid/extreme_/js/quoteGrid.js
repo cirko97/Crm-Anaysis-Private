@@ -1421,22 +1421,9 @@ async function setClientApiContext(Xrm, formContext) {
                           return;
                         }
 
-                        var newItem = {};
-                        newItem.id = newIdForCustomUnits++;
-                        newItem.name = args.text;
-                        // unitsStore.insert(newItem);
-                        // setTimeout(function () {
-                        //   dataGrid.columnOption("uomid", "lookup", {
-                        //     dataSource: {
-                        //       store: unitsStore,
-                        //       paginate: true,
-                        //       pageSize: 20,
-                        //     },
-                        //     displayExpr: "name",
-                        //     valueExpr: "id"
-                        //   });
-                        // });
-                        args.customItem = newItem;
+                        if (args.customItem = unitsStore._array.find(item => item.name.toLowerCase().trim().startsWith(args.text.toLowerCase().trim()))) {
+                          args.customItem = unitsStore._array.find(item => item.name.toLowerCase().trim().startsWith(args.text.toLowerCase().trim()));
+                        }
                       }
                     },
                     // validationRules: [{ type: 'required' }],
@@ -3058,22 +3045,10 @@ async function setClientApiContext(Xrm, formContext) {
                   return;
                 }
 
-                var newItem = {};
-                newItem.id = newIdForCustomUnits++;
-                newItem.name = args.text;
-                // unitsStore.insert(newItem);
-                // setTimeout(function () {
-                //   dataGrid.columnOption("uomid", "lookup", {
-                //     dataSource: {
-                //       store: unitsStore,
-                //       paginate: true,
-                //       pageSize: 20,
-                //     },
-                //     displayExpr: "name",
-                //     valueExpr: "id"
-                //   });
-                // });
-                args.customItem = newItem;
+                if (unitsStore._array.find(item => item.name.toLowerCase().trim().startsWith(args.text.toLowerCase().trim()))) {
+                  args.customItem = unitsStore._array.find(item => item.name.toLowerCase().trim().startsWith(args.text.toLowerCase().trim()));
+                }
+
               }
             },
             // validationRules: [{ type: 'required' }],
