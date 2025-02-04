@@ -11,7 +11,26 @@ function form_onload(executionContext) {
   const maxRetries = 100;
   const retryDelay = 1000; // 1-second delay
 
-  if (formType == FORM_EDIT) {
+  console.log('formType');
+  console.log(formType);
+
+  formContext.getAttribute("statuscode").addOnChange(async () => {
+    const caseLinesControl = formContext.getControl('WebResource_caseLines');
+    const timeEntriesControl = formContext.getControl('WebResource_timeEntries');
+    const caseAssetsControl = formContext.getControl('WebResource_caseAssets');
+
+    if (caseLinesControl && caseLinesControl.getObject() && caseLinesControl.getObject().contentWindow) {
+      await caseLinesControl.getObject().contentWindow.setClientApiContext(Xrm, formContext);
+    }
+    if (timeEntriesControl && timeEntriesControl.getObject() && timeEntriesControl.getObject().contentWindow) {
+      await timeEntriesControl.getObject().contentWindow.setClientApiContext(Xrm, formContext);
+    }
+    if (caseAssetsControl && caseAssetsControl.getObject() && caseAssetsControl.getObject().contentWindow) {
+      await caseAssetsControl.getObject().contentWindow.setClientApiContext(Xrm, formContext);
+    }
+  });
+
+  if (formType !== FORM_NEW) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseLines"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));

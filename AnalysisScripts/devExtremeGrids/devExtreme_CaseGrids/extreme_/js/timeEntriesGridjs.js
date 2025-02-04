@@ -66,7 +66,7 @@ async function setClientApiContext(Xrm, formContext) {
   );
   console.log('TimeEntriesName: ', timeEntriesDisplayName);
   // setTimeout(() => {
-  //   const toolbarBefore = Xrm.Page.getControl("WebResource_timeEntries").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
+  //   const toolbarBefore = formContext.getControl("WebResource_timeEntries").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
   //   console.log('dx toolbar before: ', toolbarBefore);
   //   toolbarBefore.innerHTML = `<span style='font-weight: 500; position: absolute; width: 100px; bottom: 30%; left: 0;'>${timeEntriesDisplayName}</span>`;
   //   console.log(formContext.data.entity);
@@ -451,9 +451,7 @@ async function setClientApiContext(Xrm, formContext) {
               visible(e) {
                 return !e.row.isEditing;
               },
-              disabled(e) {
-                return false;
-              },
+              disabled: !isEditable,
               async onClick(e) {
 
                 Xrm.Utility.showProgressIndicator("Duplication in progress... Please wait...");
@@ -745,7 +743,7 @@ async function setClientApiContext(Xrm, formContext) {
           //   console.log('timeEntriesData._array is empty');
           // }
 
-          if (newAssetCreated === true) await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          if (newAssetCreated === true) await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
           Xrm.Utility.closeProgressIndicator();
 
@@ -787,7 +785,7 @@ async function setClientApiContext(Xrm, formContext) {
             // Check case assets after removing
             await checkAssetsAfterDelete(oldDataAssetId, caseIdForm);
             // Refresh grid for case assets
-            await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
         },
         onRowUpdated() {
@@ -799,9 +797,9 @@ async function setClientApiContext(Xrm, formContext) {
           console.log(e);
           if (e.data.extreme_caseline) {
             // Delete case line on another web resource
-            await Xrm.Page.getControl('WebResource_caseLines').getObject().contentWindow.window.deleteCaseLine(e.data.extreme_caseline);
+            await formContext.getControl('WebResource_caseLines').getObject().contentWindow.window.deleteCaseLine(e.data.extreme_caseline);
             // Refresh grid for case lines
-            await Xrm.Page.getControl('WebResource_caseLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            await formContext.getControl('WebResource_caseLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
           await Xrm.WebApi.deleteRecord("extreme_timeentry", `${e.key}`).then(
             async function success(result) {
@@ -815,7 +813,7 @@ async function setClientApiContext(Xrm, formContext) {
           );
           await checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
           // Refresh grid for case assets
-          await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
           await getTimeEntries(caseIdForm);
           dataGrid.refresh();
@@ -1025,6 +1023,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
     let assetExistsInTimeEntries = true;
     let assetExistsInCaseLines = true;
     let parentChildItems = [];
+    // let caseLineGuids = [];
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid,_extreme_asset_value,extreme_isparent,_extreme_parentcaseasset_value&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
       async function success(results) {
@@ -1127,6 +1126,8 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
       for (let i = 0; i < parentChildItems.length; i++) {
 
+
+
         await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${parentChildItems[i].assetId})`).then(
           function success(results) {
             console.log(results);
@@ -1136,6 +1137,14 @@ async function checkAssetsAfterDelete(assetId, caseId) {
             else {
               sumOfItems += 1;
             };
+
+            // for (var i = 0; i < results.entities.length; i++) {
+            //   var result = results.entities[i];
+            //   // Columns
+            //   var extreme_caselineid = result["extreme_caselineid"]; // Guid
+
+            //   caseLineGuids.push(extreme_caselineid);
+            // }
           },
           function (error) {
             console.log(error.message);
@@ -1193,6 +1202,39 @@ async function checkAssetsAfterDelete(assetId, caseId) {
               console.log(error.message);
             }
           );
+
+          // remove N:N relationship
+          // if (caseLineGuids.length > 0) {
+          //   for (let i = 0; i < caseLineGuids.length; i++) {
+          //     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${parentChildItems[i].assetId})`).then(
+          //       async function success(results) {
+          //         console.log(results);
+          //         for (var i = 0; i < results.entities.length; i++) {
+          //           var result = results.entities[i];
+          //           // Columns
+          //           var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+
+          //           await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+          //             function success(result) {
+          //               console.log(result);
+          //             },
+          //             function (error) {
+          //               console.log(error.message);
+          //             }
+          //           );
+
+          //         }
+
+          //         if (results.entities.length > 0) caseLineGuids = [];
+
+          //       },
+          //       function (error) {
+          //         console.log(error.message);
+          //       }
+          //     );
+          //   }
+          // }
+
         }
       }
 
@@ -1203,6 +1245,17 @@ async function checkAssetsAfterDelete(assetId, caseId) {
       function success(results) {
         console.log(results);
         if (results.entities.length === 0) assetExistsInCaseLines = false;
+
+        // if (results.entities.length > 0) {
+        //   for (var i = 0; i < results.entities.length; i++) {
+        //     var result = results.entities[i];
+        //     // Columns
+        //     var extreme_caselineid = result["extreme_caselineid"]; // Guid
+
+        //     caseLineGuids.push(extreme_caselineid);
+        //   }
+        // }
+
       },
       function (error) {
         console.log(error.message);
@@ -1237,6 +1290,38 @@ async function checkAssetsAfterDelete(assetId, caseId) {
               }
             );
           }
+
+          // remove N:N relationship
+          // if (caseLineGuids.length > 0) {
+          //   for (let i = 0; i < caseLineGuids.length; i++) {
+          //     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${assetId})`).then(
+          //       async function success(results) {
+          //         console.log(results);
+          //         for (var i = 0; i < results.entities.length; i++) {
+          //           var result = results.entities[i];
+          //           // Columns
+          //           var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+
+          //           await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+          //             function success(result) {
+          //               console.log(result);
+          //             },
+          //             function (error) {
+          //               console.log(error.message);
+          //             }
+          //           );
+
+          //         }
+
+          //         if (results.entities.length > 0) caseLineGuids = [];
+
+          //       },
+          //       function (error) {
+          //         console.log(error.message);
+          //       }
+          //     );
+          //   }
+          // }
 
         },
         function (error) {
