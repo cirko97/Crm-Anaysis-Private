@@ -381,8 +381,7 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_customproductid": extreme_customproductid,
             "extreme_productdescription": extreme_productdescription,
             "isproductoverridden": isproductoverridden,
-            "uomid": uomid,
-            "unitName": uomid ? uomid_formatted : extreme_uomid,
+            "uomid": varForUomid,
             "extreme_uomid": extreme_uomid,
             "extreme_customproductname": extreme_customproductname,
             "extreme_pricelistpriceperunit": extreme_pricelistpriceperunit,
@@ -859,6 +858,20 @@ async function setClientApiContext(Xrm, formContext) {
       //     productsODataStore.insert(newItem);
       //   })
       // }
+
+      var unitsStore = new DevExpress.data.ArrayStore({
+        key: "id",
+        data: unitsArray
+      });
+      newIdForCustomUnits = 200001;
+      if (customUnitsArray.length > 0) {
+        customUnitsArray.forEach((e) => {
+          var newItem = {};
+          newItem.id = newIdForCustomUnits++;
+          newItem.name = e.name;
+          unitsStore.insert(newItem);
+        })
+      }
 
       // let productCurrency = '';
 
@@ -1391,7 +1404,11 @@ async function setClientApiContext(Xrm, formContext) {
                     caption: 'Unit',
                     width: 60,
                     lookup: {
-                      dataSource: unitsArray,
+                      dataSource: {
+                        store: unitsStore,
+                        paginate: true,
+                        pageSize: 20,
+                      },
                       displayExpr: 'name',
                       valueExpr: 'id'
                     },
@@ -1407,7 +1424,7 @@ async function setClientApiContext(Xrm, formContext) {
                         var newItem = {};
                         newItem.id = newIdForCustomUnits++;
                         newItem.name = args.text;
-                        unitsArray.push(newItem);
+                        // unitsStore.insert(newItem);
                         // setTimeout(function () {
                         //   dataGrid.columnOption("uomid", "lookup", {
                         //     dataSource: {
@@ -1421,10 +1438,6 @@ async function setClientApiContext(Xrm, formContext) {
                         // });
                         args.customItem = newItem;
                       }
-                    },
-                    customizeText: function (cellInfo) {
-                      console.log('Customize text func unit');
-                      console.log(cellInfo);
                     },
                     // validationRules: [{ type: 'required' }],
                     visible: dataGrid.columnOption("uomid", "visible")
@@ -3028,7 +3041,11 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Unit',
             width: 60,
             lookup: {
-              dataSource: unitsArray,
+              dataSource: {
+                store: unitsStore,
+                paginate: true,
+                pageSize: 20,
+              },
               displayExpr: 'name',
               valueExpr: 'id'
             },
@@ -3044,7 +3061,7 @@ async function setClientApiContext(Xrm, formContext) {
                 var newItem = {};
                 newItem.id = newIdForCustomUnits++;
                 newItem.name = args.text;
-                unitsArray.push(newItem);
+                // unitsStore.insert(newItem);
                 // setTimeout(function () {
                 //   dataGrid.columnOption("uomid", "lookup", {
                 //     dataSource: {
@@ -3056,18 +3073,8 @@ async function setClientApiContext(Xrm, formContext) {
                 //     valueExpr: "id"
                 //   });
                 // });
-
-
-                console.log("args.component.option('selectedItems')");
-                console.log(args.component.option('selectedItems'));
-                console.log(args.component.option('selectedItems', newItem));
-                console.log(args.component.option('selectedItems'));
                 args.customItem = newItem;
               }
-            },
-            customizeText: function (cellInfo) {
-              console.log('Customize text func unit');
-              console.log(cellInfo);
             },
             // validationRules: [{ type: 'required' }],
           },
@@ -4946,10 +4953,10 @@ async function setClientApiContext(Xrm, formContext) {
               record.extreme_customproductid = customProductsStore._array.find((item) => item.productid === e.data.productid).name;
               if (e.data.uomid) {
                 if (typeof (e.data.uomid) === 'number') {
-                  record.extreme_uomid = unitsArray.find((item) => item.id === e.data.uomid).name;
+                  record.extreme_uomid = unitsStore._array.find((item) => item.id === e.data.uomid).name;
                 }
                 else {
-                  record.extreme_uomid = unitsArray.find((item) => item.id === e.data.uomid).name;
+                  record.extreme_uomid = unitsStore._array.find((item) => item.id === e.data.uomid).name;
                 }
               }
             }
