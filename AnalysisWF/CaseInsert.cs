@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.Remoting.Services;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -129,7 +130,11 @@ namespace AnalysisWF
             var adDeliveryDate = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var acReceiver = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_account"), "extreme_paname30characters", service);
             var acCurrency = caseRecord.GetAttributeValue<EntityReference>("transactioncurrencyid")?.Name;
-            var acNote = caseRecord.GetAttributeValue<string>("extreme_description") ?? "";
+            var actualResolutionDateValue = caseRecord.GetAttributeValue<DateTime?>("extreme_actualdateofcompletion");
+            var actualResolutionDate = actualResolutionDateValue.HasValue
+                ? actualResolutionDateValue.Value.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
+                : null;
+            var acNote = "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + actualResolutionDate + " godine.";
             var acPayMethod = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_code", service);
             var acDelivery = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_deliverymethod"), "extreme_code", service);
             var anDaysForPayment = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_numberofdays", service);
@@ -139,25 +144,79 @@ namespace AnalysisWF
             // Retrieve child Case Details records
             var query = new QueryExpression("extreme_caseline")
             {
-                ColumnSet = new ColumnSet("extreme_product", "extreme_quantity", "extreme_unit"),
+                ColumnSet = new ColumnSet("extreme_product", "extreme_quantity", "extreme_unit", "extreme_name"),
                 Criteria = new FilterExpression()
             };
             query.Criteria.AddCondition("extreme_case", ConditionOperator.Equal, caseRecord.Id);
 
             var caseDetails = service.RetrieveMultiple(query);
-            var lineItems = caseDetails.Entities.Select(detail => new
+
+            // Dohvaćanje extreme_tax sa Account entiteta
+            var accountRef = caseRecord.GetAttributeValue<EntityReference>("extreme_account");
+            var accountTax = Helper.GetLookupFieldValue(accountRef, "extreme_tax", service);
+
+            //var lineItems = caseDetails.Entities.Select(detail => new
+            //{
+
+            //    acIdent = Helper.GetLookupFieldValue(detail.GetAttributeValue<EntityReference>("extreme_product"), "extreme_productid16characters", service),
+            //    acName = detail.GetAttributeValue<EntityReference>("extreme_product")?.Name,
+            //    anQty = detail.GetAttributeValue<decimal>("extreme_quantity"),
+            //    acUM = detail.GetAttributeValue<EntityReference>("extreme_unit")?.Name,
+            //    anPrice = 0,
+            //    acCostDrv = "",
+            //    acVatCode = "",
+            //    anRebate1 = 0,
+            //    acNote = "",
+            //    adDeliveryDeadline = adDeliveryDate
+            //}).ToList();
+            var lineItems = new List<object>();
+            foreach (var detail in caseDetails.Entities)
             {
-                acIdent = Helper.GetLookupFieldValue(detail.GetAttributeValue<EntityReference>("extreme_product"), "extreme_productid16characters", service),
-                acName = detail.GetAttributeValue<EntityReference>("extreme_product")?.Name,
-                anQty = detail.GetAttributeValue<decimal>("extreme_quantity"),
-                acUM = detail.GetAttributeValue<EntityReference>("extreme_unit")?.Name,
-                anPrice = 0,
-                acCostDrv = "",
-                acVatCode = "",
-                anRebate1 = 0,
-                acNote = "",
-                adDeliveryDeadline = adDeliveryDate
-            }).ToList();
+                // Dohvaćanje Product-a
+                var productRef = detail.GetAttributeValue<EntityReference>("extreme_product");
+                var optionSetValue = Helper.GetLookupFieldValue(productRef, "producttypecode", service) as OptionSetValue;
+                var productTypeCode = optionSetValue?.Value;
+
+                // Query na extreme_vatsettings tabelu
+                var vatSettingsQuery = new QueryExpression("extreme_vatsetting")
+                {
+                    ColumnSet = new ColumnSet("extreme_vatgroup"),
+                    Criteria = new FilterExpression(LogicalOperator.And)
+                    {
+                        Conditions =
+                {
+                    new ConditionExpression("extreme_customertaxpercentage", ConditionOperator.Equal, accountTax),
+                    new ConditionExpression("extreme_producttype", ConditionOperator.Equal, productTypeCode)
+                }
+                    }
+                };
+                var vatSettingsResult = service.RetrieveMultiple(vatSettingsQuery).Entities.FirstOrDefault();
+
+                if (vatSettingsResult == null)
+                {
+                    var errorMessage = $"No matching VAT Settings found for the provided Account Tax ({accountTax}) and Product Type ({productTypeCode}).";
+                    throw new InvalidPluginExecutionException(errorMessage);
+                }
+
+                // Dohvaćanje VAT Group-a
+                var vatGroupRef = vatSettingsResult.GetAttributeValue<EntityReference>("extreme_vatgroup");
+                var vatGroupName = vatGroupRef?.Name;
+
+                // Dodavanje linije sa pripremljenim podacima
+                lineItems.Add(new
+                {
+                    acIdent = Helper.GetLookupFieldValue(productRef, "extreme_productid16characters", service),
+                    acName = detail.GetAttributeValue<string>("extreme_name"),
+                    anQty = detail.GetAttributeValue<decimal>("extreme_quantity"),
+                    acUM = detail.GetAttributeValue<EntityReference>("extreme_unit")?.Name,
+                    anPrice = 0,
+                    acCostDrv = "",
+                    acVatCode = vatGroupName,
+                    anRebate1 = 0,
+                    acNote = "",
+                    adDeliveryDeadline = adDeliveryDate
+                });
+            }
 
             var data = new
             {
