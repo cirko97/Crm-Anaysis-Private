@@ -47,3 +47,7 @@ input.currencyRates[type=number] {
 .cell-highlighted {
   background-color: #f2f2f2;
 }
+
+.child-grid td.dx-command-drag {
+  text-align: right !important;
+}

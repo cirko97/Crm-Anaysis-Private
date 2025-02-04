@@ -2788,10 +2788,44 @@ async function setClientApiContext(Xrm, formContext) {
             // editCellTemplate: dropDownBoxEditorTemplateProducts,
             setCellValue: async function (newData, value, currentRowData) {
 
-              console.log("PRODUCT ID SET VALUE");
-              console.log(value);
-              if (typeof (value) === 'number') {
+              if (typeof (value) === 'number' && currentRowData.extreme_isparentitem !== true) {
                 newData.productid = value;
+
+                const recalcResult = recalculateAmounts({
+
+                  quantity: 1,
+                  supplierPricePerUnit: 0,
+                  supplierDiscount: 0,
+                  margin: defaultMargin,
+                  discount: 0,
+                  TaxPercent: 0
+
+                });
+
+                newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+
+                return;
+              }
+              else if (typeof (value) === 'number' && currentRowData.extreme_isparentitem === true) {
+                newData.productid = value;
+                newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+                newData.quantity = 1;
+
                 return;
               }
 
