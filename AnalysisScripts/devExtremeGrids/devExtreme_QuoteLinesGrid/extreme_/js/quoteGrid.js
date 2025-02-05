@@ -5328,10 +5328,6 @@ async function setClientApiContext(Xrm, formContext) {
                   );
                 }
 
-                await getQuoteProducts(quoteIdForm);
-                await getPriceLists();
-                dataGrid.refresh();
-
 
                 console.log('quoteLinesData after parent created');
                 console.log(quoteLinesData);
@@ -5409,6 +5405,9 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
 
           await this.setClientApiContext(Xrm, formContext);
+          // await getQuoteProducts(quoteIdForm);
+          // await getPriceLists();
+          // dataGrid.refresh();
 
           formContext.data.refresh(true);
 
@@ -5419,8 +5418,8 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('RowInserted');
           console.log(e);
 
-          await getQuoteProducts(quoteIdForm);
-          dataGrid.refresh();
+          // await getQuoteProducts(quoteIdForm);
+          // dataGrid.refresh();
         },
         onRowUpdating: async (e) => {
           console.log('RowUpdating');
