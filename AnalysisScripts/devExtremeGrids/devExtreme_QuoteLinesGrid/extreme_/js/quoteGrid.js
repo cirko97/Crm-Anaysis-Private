@@ -5226,7 +5226,7 @@ async function setClientApiContext(Xrm, formContext) {
                         if (PPU) record.priceperunit = Number(parseFloat(PPU).toFixed(4)); // Currency
                         record.extreme_discount = 0; // Decimal
                         record.extreme_supplierdiscount = 0; // Decimal
-                        if (defaultMargin) record.extreme_margin = defaultMargin; // Decimal
+                        if (priceListMargin) record.extreme_margin = priceListMargin; // Decimal
                         if (supplierPricePerUnit) record.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
                         if (description) record.extreme_productdescription = description; // Multi-line Text
 
@@ -5292,7 +5292,7 @@ async function setClientApiContext(Xrm, formContext) {
                         if (PPU) recordForStore.priceperunit = PPU; // Currency
                         recordForStore.extreme_discount = 0; // Decimal
                         recordForStore.extreme_supplierdiscount = 0; // Decimal
-                        if (defaultMargin) recordForStore.extreme_margin = defaultMargin; // Decimal
+                        if (priceListMargin) recordForStore.extreme_margin = priceListMargin; // Decimal
                         if (baseAmount) recordForStore.baseamount = baseAmount; // Currency
                         if (extendedAmount) recordForStore.extendedamount = extendedAmount; // Currency
                         if (supplierPricePerUnit) recordForStore.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
@@ -6095,16 +6095,15 @@ async function setClientApiContext(Xrm, formContext) {
         if (e.fromData === 'root' && e.itemData.extreme_isparentitem === false) {
           console.log('from root to child, no parent item');
 
-          console.log(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_customproductname);
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount += e.itemData.baseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount += e.itemData.extendedamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpd += e.itemData.extreme_fullpd;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount += e.itemData.extreme_fullpricewithdiscount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount += e.itemData.manualdiscountamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount += e.itemData.extreme_supplierbaseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax += e.itemData.tax;
-          const newBaseAmountSum = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount;
-          const newFullPriceWithDiscount = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount) + e.itemData.baseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount) + e.itemData.extendedamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpd = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpd) + e.itemData.extreme_fullpd;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount) + e.itemData.extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount) + e.itemData.manualdiscountamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount) + e.itemData.extreme_supplierbaseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax) + e.itemData.tax;
+          const newBaseAmountSum = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount);
+          const newFullPriceWithDiscount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount);
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_discount = ((newBaseAmountSum - newFullPriceWithDiscount) / newBaseAmountSum) * 100;
 
           key = e.itemData.quotedetailid;
@@ -6122,15 +6121,15 @@ async function setClientApiContext(Xrm, formContext) {
         else if (e.fromData !== 'root' && e.toData === 'root') {
           console.log('from child to parent');
 
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount -= e.itemData.baseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount -= e.itemData.extendedamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpd -= e.itemData.extreme_fullpd;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount -= e.itemData.extreme_fullpricewithdiscount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount -= e.itemData.manualdiscountamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount -= e.itemData.extreme_supplierbaseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax -= e.itemData.tax;
-          const newBaseAmountSum = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount;
-          const newFullPriceWithDiscount = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount) - e.itemData.baseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount) - e.itemData.extendedamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpd = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpd) - e.itemData.extreme_fullpd;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount) - e.itemData.extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount) - e.itemData.manualdiscountamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount) - e.itemData.extreme_supplierbaseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax) - e.itemData.tax;
+          const newBaseAmountSum = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount);
+          const newFullPriceWithDiscount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount);
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_discount = ((newBaseAmountSum - newFullPriceWithDiscount) / newBaseAmountSum) * 100;
 
           key = e.itemData.quotedetailid;
@@ -6148,26 +6147,26 @@ async function setClientApiContext(Xrm, formContext) {
         else if (e.fromData !== 'root' && e.toData !== 'root' && e.fromData !== e.toData) {
           console.log('from child to another child');
 
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount -= e.itemData.baseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount -= e.itemData.extendedamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpd -= e.itemData.extreme_fullpd;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount -= e.itemData.extreme_fullpricewithdiscount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount -= e.itemData.manualdiscountamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount -= e.itemData.extreme_supplierbaseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax -= e.itemData.tax;
-          const newBaseAmountSumFrom = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount;
-          const newFullPriceWithDiscountFrom = quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount) - e.itemData.baseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount) - e.itemData.extendedamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpd = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpd) - e.itemData.extreme_fullpd;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount) - e.itemData.extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).manualdiscountamount) - e.itemData.manualdiscountamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_supplierbaseamount) - e.itemData.extreme_supplierbaseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).tax) - e.itemData.tax;
+          const newBaseAmountSumFrom = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount);
+          const newFullPriceWithDiscountFrom = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_fullpricewithdiscount);
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extreme_discount = ((newBaseAmountSumFrom - newFullPriceWithDiscountFrom) / newBaseAmountSumFrom) * 100;
 
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount += e.itemData.baseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount += e.itemData.extendedamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpd += e.itemData.extreme_fullpd;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount += e.itemData.extreme_fullpricewithdiscount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount += e.itemData.manualdiscountamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount += e.itemData.extreme_supplierbaseamount;
-          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax += e.itemData.tax;
-          const newBaseAmountSumTo = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount;
-          const newFullPriceWithDiscountTo = quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount) + e.itemData.baseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount) + e.itemData.extendedamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpd = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpd) + e.itemData.extreme_fullpd;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount) + e.itemData.extreme_fullpricewithdiscount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).manualdiscountamount) + e.itemData.manualdiscountamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_supplierbaseamount) + e.itemData.extreme_supplierbaseamount;
+          quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).tax) + e.itemData.tax;
+          const newBaseAmountSumTo = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount);
+          const newFullPriceWithDiscountTo = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_fullpricewithdiscount);
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extreme_discount = ((newBaseAmountSumTo - newFullPriceWithDiscountTo) / newBaseAmountSumTo) * 100;
 
           key = e.itemData.quotedetailid;
