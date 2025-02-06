@@ -916,6 +916,8 @@ async function setClientApiContext(Xrm, formContext) {
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
 
+
+          // proveriti time entrije dodavanje
           setTimeout(async () => {
             await this.setClientApiContext(Xrm, formContext);
 
