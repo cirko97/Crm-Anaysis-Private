@@ -418,21 +418,7 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_product',
             caption: 'Product',
-            CalculateDisplayValue: "productname",
-            setCellValue: async function (newData, value, currentRowData) {
-              console.log('newData: ', newData);
-              console.log('value: ', value);
-              newData.extreme_product = value;
-              let defaultuomid;
-              let producttypecode;
-              const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=productid,_defaultuomid_value,name,producttypecode");
-              console.log('DEFAULT UNIT: ', productInfo.defaultuomid);
-              console.log('PRODUCT TYPE: ', productInfo.producttypecode);
-              console.log('currentRowData', currentRowData);
-              newData.extreme_unit = unitsArray.find(item => item.id === defaultuomid).id;
-              newData.extreme_producttypecode = productTypesArray.find(item => item.value === producttypecode).value
-              newData.extreme_name = productInfo.name;
-            },
+            calculateDisplayValue: "productname",
             lookup: {
               dataSource: {
                 store: productsODataStore,
@@ -442,6 +428,36 @@ async function setClientApiContext(Xrm, formContext) {
               },
               displayExpr: 'name',
               valueExpr: 'productid'
+            },
+            editorOptions: {
+              acceptCustomValue: false,
+              // popupWidth: 600,
+              searchEnabled: true,
+              // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
+              searchExpr: ["productnumber", "name"],
+              itemTemplate: function (data, index, container) {
+                var row = $("<div>").addClass("row text-wrap");
+                var containerFluid = $("<div>").addClass("container-fluid");
+                $("<div>").addClass("col-3").text(data["productnumber"]).appendTo(row);
+                $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
+                row.appendTo(containerFluid);
+                container.append(containerFluid);
+              },
+              onOpened: function (e) {
+                e.component._popup.option('width', 400);
+              },
+            },
+            setCellValue: async function (newData, value, currentRowData) {
+              console.log('newData: ', newData);
+              console.log('value: ', value);
+              newData.extreme_product = value;
+              const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=productid,_defaultuomid_value,name,producttypecode");
+              console.log('DEFAULT UNIT: ', productInfo._defaultuomid_value);
+              console.log('PRODUCT TYPE: ', productInfo.producttypecode);
+              console.log('currentRowData', currentRowData);
+              newData.extreme_unit = unitsArray.find(item => item.id === productInfo._defaultuomid_value).id;
+              newData.extreme_producttypecode = productTypesArray.find(item => productInfo.producttypecode).value
+              newData.extreme_name = productInfo.name;
             },
             validationRules: [{ type: 'required' }]
           },
@@ -893,14 +909,16 @@ async function setClientApiContext(Xrm, formContext) {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000);
 
-            Xrm.Utility.closeProgressIndicator();
+            // Xrm.Utility.closeProgressIndicator();
 
           }
 
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
 
-          setTimeout(() => {
+          setTimeout(async () => {
+            await this.setClientApiContext(Xrm, formContext);
+
             Xrm.Utility.closeProgressIndicator();
           }, 1000);
         },
@@ -1113,7 +1131,7 @@ async function setClientApiContext(Xrm, formContext) {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000);
 
-            Xrm.Utility.closeProgressIndicator();
+            // Xrm.Utility.closeProgressIndicator();
           }
           else if (e.newData.extreme_producttypecode == 3) {
             Xrm.Utility.showProgressIndicator('Creating time entry... Please wait...');
@@ -1154,7 +1172,7 @@ async function setClientApiContext(Xrm, formContext) {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000);
 
-            Xrm.Utility.closeProgressIndicator();
+            // Xrm.Utility.closeProgressIndicator();
           }
           else if (typeof (e.newData.extreme_producttypecode) === 'number' && e.newData.extreme_producttypecode !== 3) {
             Xrm.Utility.showProgressIndicator('Deleting time entry... Please wait...');
@@ -1166,7 +1184,7 @@ async function setClientApiContext(Xrm, formContext) {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000);
 
-            Xrm.Utility.closeProgressIndicator();
+            // Xrm.Utility.closeProgressIndicator();
           }
 
           var record = {};
@@ -1199,10 +1217,9 @@ async function setClientApiContext(Xrm, formContext) {
 
           await Promise.all(promises);
 
-          await getCaseLines(caseIdForm);
-          dataGrid.refresh();
+          setTimeout(async () => {
+            await this.setClientApiContext(Xrm, formContext);
 
-          setTimeout(() => {
             Xrm.Utility.closeProgressIndicator();
           }, 1000);
 
