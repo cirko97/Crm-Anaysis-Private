@@ -1135,12 +1135,12 @@ async function setClientApiContext(Xrm, formContext) {
                       // popupWidth: 600,
                       searchEnabled: true,
                       // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
-                      searchExpr: ["productId", "productName"],
+                      searchExpr: ["productnumber", "name"],
                       itemTemplate: function (data, index, container) {
                         var row = $("<div>").addClass("row text-wrap");
                         var containerFluid = $("<div>").addClass("container-fluid");
-                        $("<div>").addClass("col-3").text(data["productId"]).appendTo(row);
-                        $("<div>").addClass("col-9").text(data["productName"]).appendTo(row);
+                        $("<div>").addClass("col-3").text(data["productnumber"]).appendTo(row);
+                        $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
                         // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
                         row.appendTo(containerFluid);
                         container.append(containerFluid);

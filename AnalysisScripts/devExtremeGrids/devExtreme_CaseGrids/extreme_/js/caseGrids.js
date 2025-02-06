@@ -1,7 +1,7 @@
 let caseLinesArray = [];
 let assetsArray = [];
 let usersArray = [];
-let productsArray = [];
+// let productsArray = [];
 let unitsArray = [];
 let newCreateId;
 let oneAssetId = undefined;
@@ -66,7 +66,7 @@ async function setClientApiContext(Xrm, formContext) {
   console.log('GUID: ' + caseIdForm);
   await getAssetsLookUp(accountIdForm);
   await getUsers();
-  await getProductsLookUp();
+  // await getProductsLookUp();
   await getUnitsLookUp();
   await getCaseLines(caseIdForm);
 
@@ -149,7 +149,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline",
       `?$select=extreme_caselineid,_extreme_asset_value,_extreme_case_value,extreme_name,_ownerid_value,_extreme_product_value,extreme_quantity,_extreme_unit_value
-      &$expand=extreme_Product($select=producttypecode)&$filter=_extreme_case_value eq ${caseId}`).then(
+      &$expand=extreme_Product($select=producttypecode,name,productnumber)&$filter=_extreme_case_value eq ${caseId}`).then(
         function success(results) {
           console.log(results);
           caseLinesArray = [];
@@ -181,6 +181,8 @@ async function setClientApiContext(Xrm, formContext) {
             if (result.hasOwnProperty("extreme_Product") && result["extreme_Product"] !== null) {
               var extreme_Product_producttypecode = result["extreme_Product"]["producttypecode"]; // Choice
               var extreme_Product_producttypecode_formatted = result["extreme_Product"]["producttypecode@OData.Community.Display.V1.FormattedValue"];
+              var extreme_Product_name = result["extreme_Product"]["name"]; // String
+              var extreme_Product_productnumber = result["extreme_Product"]["productnumber"]; // String
             }
 
             caseLinesArray.push({
@@ -193,6 +195,7 @@ async function setClientApiContext(Xrm, formContext) {
               'extreme_product': extreme_product,
               'extreme_quantity': extreme_quantity,
               'extreme_producttypecode': extreme_Product_producttypecode,
+              'productname': extreme_Product_productnumber ? extreme_Product_productnumber + ' - ' + extreme_Product_name : extreme_Product_name,
               'extreme_unit': extreme_unit
             });
 
@@ -260,42 +263,42 @@ async function setClientApiContext(Xrm, formContext) {
       }
     );
   }
-  async function getProductsLookUp() {
-    let skipTokenExists = true;
-    let skipToken = '';
-    productsArray = [];
-    while (skipTokenExists) {
-      await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
-        function success(results) {
-          console.log(results);
-          results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
+  // async function getProductsLookUp() {
+  //   let skipTokenExists = true;
+  //   let skipToken = '';
+  //   productsArray = [];
+  //   while (skipTokenExists) {
+  //     await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
+  //       function success(results) {
+  //         console.log(results);
+  //         results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
 
-          console.log("SKIPTOKEN HERE!!!!");
-          console.log(skipToken);
-          for (var i = 0; i < results.entities.length; i++) {
-            var result = results.entities[i];
-            // Columns
-            var productid = result["productid"]; // Guid
-            var name = result["name"]; // Text
-            var productnumber = result["productnumber"]; // Text
+  //         console.log("SKIPTOKEN HERE!!!!");
+  //         console.log(skipToken);
+  //         for (var i = 0; i < results.entities.length; i++) {
+  //           var result = results.entities[i];
+  //           // Columns
+  //           var productid = result["productid"]; // Guid
+  //           var name = result["name"]; // Text
+  //           var productnumber = result["productnumber"]; // Text
 
-            productsArray.push({
-              "id": productid,
-              "name": productnumber ? productnumber + ' - ' + name : name,
-              "nameWoSn": name
-            });
-          }
-          if (skipToken === '') {
-            skipTokenExists = false;
-          }
-          console.log(productsArray);
-        },
-        function (error) {
-          console.log(error.message);
-        }
-      );
-    }
-  }
+  //           productsArray.push({
+  //             "id": productid,
+  //             "name": productnumber ? productnumber + ' - ' + name : name,
+  //             "nameWoSn": name
+  //           });
+  //         }
+  //         if (skipToken === '') {
+  //           skipTokenExists = false;
+  //         }
+  //         console.log(productsArray);
+  //       },
+  //       function (error) {
+  //         console.log(error.message);
+  //       }
+  //     );
+  //   }
+  // }
   async function getUnitsLookUp() {
     await Xrm.WebApi.retrieveMultipleRecords("uom", "?$select=uomid,name").then(
       function success(results) {
@@ -327,6 +330,20 @@ async function setClientApiContext(Xrm, formContext) {
       const caseLinesData = new DevExpress.data.ArrayStore({
         key: 'extreme_caselineid',
         data: caseLinesArray,
+      });
+
+      const productsODataStore = new DevExpress.data.ODataStore({
+        type: "odata",
+        version: 4,
+        filterToLower: false,
+        url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/products",
+        key: "productid",
+        keyType: "Guid",
+        select: [
+          'productid',
+          'name',
+          'productnumber'
+        ],
       });
 
       const dataGrid = $('#gridContainer').dxDataGrid({
@@ -401,47 +418,30 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_product',
             caption: 'Product',
+            CalculateDisplayValue: "productname",
             setCellValue: async function (newData, value, currentRowData) {
               console.log('newData: ', newData);
               console.log('value: ', value);
               newData.extreme_product = value;
               let defaultuomid;
               let producttypecode;
-              await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=productid,_defaultuomid_value,name,producttypecode").then(
-                function success(result) {
-                  console.log(result);
-                  // Columns
-                  var productid = result["productid"]; // Guid
-                  defaultuomid = result["_defaultuomid_value"]; // Lookup
-                  var defaultuomid_formatted = result["_defaultuomid_value@OData.Community.Display.V1.FormattedValue"];
-                  var defaultuomid_lookuplogicalname = result["_defaultuomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-                  var name = result["name"]; // Text
-                  producttypecode = result["producttypecode"]; // Choice
-                  var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
-                },
-                function (error) {
-                  console.log(error.message);
-                }
-              );
-              console.log('DEFAULT UNIT: ', defaultuomid);
-              console.log('PRODUCT TYPE: ', producttypecode);
+              const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=productid,_defaultuomid_value,name,producttypecode");
+              console.log('DEFAULT UNIT: ', productInfo.defaultuomid);
+              console.log('PRODUCT TYPE: ', productInfo.producttypecode);
               console.log('currentRowData', currentRowData);
               newData.extreme_unit = unitsArray.find(item => item.id === defaultuomid).id;
               newData.extreme_producttypecode = productTypesArray.find(item => item.value === producttypecode).value
-              newData.extreme_name = productsArray.find(item => item.id === value).nameWoSn;
+              newData.extreme_name = productInfo.name;
             },
             lookup: {
               dataSource: {
-                store: {
-                  type: "array",
-                  data: productsArray,
-                  key: "id"
-                },
+                store: productsODataStore,
                 paginate: true,
-                pageSize: 20,
+                pageSize: 100,
+                loadMode: 'raw',
               },
               displayExpr: 'name',
-              valueExpr: 'id'
+              valueExpr: 'productid'
             },
             validationRules: [{ type: 'required' }]
           },
