@@ -370,6 +370,7 @@ async function setClientApiContext(Xrm, formContext) {
         // selection: {
         //   mode: 'multiple',
         // },
+        wordWrapEnabled: false,
         allowColumnResizing: true,
         columnResizingMode: "mode",
         columnMinWidth: 10,
@@ -413,6 +414,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_assetType',
             caption: 'Asset Type',
             dataType: 'string',
+            width: 100,
             allowEditing: false
           },
           {
@@ -472,6 +474,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_quantity',
             caption: 'Quantity',
             dataType: 'number',
+            width: 80,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -491,6 +494,7 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
+            width: 80,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -839,14 +843,14 @@ async function setClientApiContext(Xrm, formContext) {
             await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseIdForm} and _extreme_asset_value eq ${e.data.extreme_asset})`).then(
               async function success(results) {
                 console.log(results);
-                for (var i = 0; i < results.entities.length; i++) {
-                  var result = results.entities[i];
+                if (results.entities.length > 0) {
+                  var result = results.entities[0];
                   // Columns
                   var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
 
                   var recordNN = {};
                   recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
-                  recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${extreme_caseassetid})`; // Lookup
+                  recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${extreme_caseassetid ? extreme_caseassetid : newCreatedCasseAssetId})`; // Lookup
 
                   await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
                     function success(result) {
@@ -896,9 +900,19 @@ async function setClientApiContext(Xrm, formContext) {
 
             const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
-            dateTo.addMinutes(e.data.extreme_quantity * 60);
-            const timeSpent = e.data.extreme_quantity * 60;
+            let timeSpent;
+            console.log("UNIT FOR CREATE TIME ENTRY");
+            console.log(unitsArray.find(item => item.id === e.data.extreme_unit).name);
+            if (unitsArray.find(item => item.id === e.data.extreme_unit).name == "PAK" || unitsArray.find(item => item.id === e.data.extreme_unit).name == "DAN") {
+              dateTo.addMinutes(e.data.extreme_quantity * (60 * 8));
+              timeSpent = e.data.extreme_quantity * (60 * 8);
+            }
+            else {
+              dateTo.addMinutes(e.data.extreme_quantity * 60);
+              timeSpent = e.data.extreme_quantity * 60;
+            }
             console.log(e.data.extreme_quantity);
+            console.log(timeSpent);
 
             await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
               e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
@@ -1161,6 +1175,10 @@ async function setClientApiContext(Xrm, formContext) {
 
             const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
+
+            console.log("UNIT FOR CREATE TIME ENTRY");
+            console.log(unitsArray.find(item => item.id === e.oldData.extreme_unit));
+
             dateTo.addMinutes(e.oldData.extreme_quantity * 60);
             const timeSpent = e.oldData.extreme_quantity * 60;
             console.log(e.oldData.extreme_quantity);

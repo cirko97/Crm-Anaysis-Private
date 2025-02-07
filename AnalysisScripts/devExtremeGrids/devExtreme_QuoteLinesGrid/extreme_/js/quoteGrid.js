@@ -5840,12 +5840,12 @@ async function setClientApiContext(Xrm, formContext) {
           e.component.columnOption("command:select", "visibleIndex", 999);
           e.component.getView("columnHeadersView").resizeCompleted.remove(masterGridColumnResized);
           e.component.getView("columnHeadersView").resizeCompleted.add(masterGridColumnResized);
-          masterGridColumnResized()
+          masterGridColumnResized();
           checkClassifyRows();
         }
       }).dxDataGrid('instance');
 
-      // resuze child columns
+      // resize child columns
       function masterGridColumnResized() {
         var detailContainers = dataGrid.element().find('.internal-grid');
         console.log(detailContainers);
