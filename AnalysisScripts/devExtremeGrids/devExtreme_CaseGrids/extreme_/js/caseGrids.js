@@ -456,7 +456,7 @@ async function setClientApiContext(Xrm, formContext) {
               console.log('PRODUCT TYPE: ', productInfo.producttypecode);
               console.log('currentRowData', currentRowData);
               newData.extreme_unit = unitsArray.find(item => item.id === productInfo._defaultuomid_value).id;
-              newData.extreme_producttypecode = productTypesArray.find(item => productInfo.producttypecode).value
+              newData.extreme_producttypecode = productInfo.producttypecode
               newData.extreme_name = productInfo.name;
             },
             validationRules: [{ type: 'required' }]
