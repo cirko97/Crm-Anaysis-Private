@@ -810,6 +810,8 @@ async function setClientApiContext(Xrm, formContext) {
           // Refresh grid for case assets
           await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
+          await formContext.getControl('WebResource_caseLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+
           await getTimeEntries(caseIdForm);
           dataGrid.refresh();
           Xrm.Utility.closeProgressIndicator();
