@@ -85,7 +85,7 @@ async function setClientApiContext(Xrm, formContext) {
     timeEntriesArray = [];
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid,_extreme_caseline_value,extreme_comuteinkm,createdon,_ownerid_value,
-      extreme_expences,scheduledstart,extreme_return,scheduleddurationminutes,scheduledend,extreme_type,description,_extreme_asset_value
+      extreme_expences,scheduledstart,scheduleddurationminutes,scheduledend,extreme_type,description,_extreme_asset_value
       &$filter=_regardingobjectid_value eq ${caseId}`).then(
       function success(results) {
         console.log(results);
@@ -108,8 +108,6 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_expences_formatted = result["extreme_expences@OData.Community.Display.V1.FormattedValue"];
           var scheduledstart = result["scheduledstart"]; // Date Time
           var scheduledstart_formatted = result["scheduledstart@OData.Community.Display.V1.FormattedValue"];
-          var extreme_return = result["extreme_return"]; // Boolean
-          var extreme_return_formatted = result["extreme_return@OData.Community.Display.V1.FormattedValue"];
           var scheduleddurationminutes = result["scheduleddurationminutes"]; // Decimal
           var scheduleddurationminutes_formatted = result["scheduleddurationminutes@OData.Community.Display.V1.FormattedValue"];
           var scheduledend = result["scheduledend"]; // Date Time
@@ -131,7 +129,6 @@ async function setClientApiContext(Xrm, formContext) {
             "extreme_type": extreme_type,
             "scheduleddurationminutes": parseFloat((scheduleddurationminutes / 60).toFixed(2)),
             "extreme_comuteinkm": extreme_comuteinkm,
-            "extreme_return": extreme_return,
             "extreme_expences": extreme_expences,
             "description": description
           });
@@ -355,20 +352,17 @@ async function setClientApiContext(Xrm, formContext) {
               }
               else if (value === 424000001) {
                 newData.extreme_type = value;
-                newData.extreme_return = null;
                 newData.extreme_comuteinkm = null;
                 dataGrid.columnOption('extreme_asset', 'validationRules', [{ type: 'required' }]);
               }
               else if (value === 424000002) {
                 newData.extreme_type = value;
-                newData.extreme_return = false;
                 newData.extreme_comuteinkm = null;
                 dataGrid.columnOption('extreme_asset', 'validationRules', null);
               }
               else {
                 newData.extreme_type = value;
                 newData.extreme_type = value;
-                newData.extreme_return = null;
                 newData.extreme_comuteinkm = null;
                 dataGrid.columnOption('extreme_asset', 'validationRules', [{ type: 'required' }]);
               }
@@ -400,12 +394,6 @@ async function setClientApiContext(Xrm, formContext) {
             caption: 'Comute (km)',
             width: 90,
             dataType: 'number'
-          },
-          {
-            dataField: 'extreme_return',
-            caption: 'Return?',
-            width: 90,
-            dataType: 'boolean'
           },
           {
             dataField: 'extreme_expences',
@@ -476,7 +464,6 @@ async function setClientApiContext(Xrm, formContext) {
                 }; // Choice
                 if (clonedItem.scheduleddurationminutes) record.scheduleddurationminutes = clonedItem.scheduleddurationminutes; // Whole Number
                 if (clonedItem.extreme_comuteinkm) record.extreme_comuteinkm = clonedItem.extreme_comuteinkm; // Decimal
-                record.extreme_return = clonedItem.extreme_return === true ? true : clonedItem.extreme_return === false ? false : null; // Boolean
                 if (clonedItem.extreme_expences) record.extreme_expences = clonedItem.extreme_expences; // Decimal
                 if (clonedItem.description) record.description = `${clonedItem.description.trim()}`; // Multiline Text
 
@@ -500,7 +487,6 @@ async function setClientApiContext(Xrm, formContext) {
                 timeEntriesData._array[e.row.rowIndex + 1].activityid = newCloneId;
                 timeEntriesData._array[e.row.rowIndex + 1].extreme_caseline = null;
                 timeEntriesData._array[e.row.rowIndex + 1].extreme_type = record.extreme_type;
-                timeEntriesData._array[e.row.rowIndex + 1].extreme_return = record.extreme_return;
                 timeEntriesData._array[e.row.rowIndex + 1].owner = null;
                 console.log(timeEntriesData._array[e.row.rowIndex + 1]);
 
@@ -573,9 +559,6 @@ async function setClientApiContext(Xrm, formContext) {
           // else {
           //   e.editorOptions.disabled = false;
           // }
-          if (e.dataField == 'extreme_return' && e.row.data.extreme_type !== 424000002) {
-            e.editorOptions.disabled = true;
-          }
           if (e.dataField === 'extreme_type') {
             e.editorOptions.onFocusOut = function (args) {
               if (args.component.option("value") !== 424000002) {
@@ -630,7 +613,6 @@ async function setClientApiContext(Xrm, formContext) {
 
           e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
           e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
-          e.data.extreme_return = false;
           e.data.scheduledstart = maxDate;
           e.data.scheduledend = dateToFromMax;
           // e.data.extreme_type = timeEntryTypesArray.find(item => item.value == 424000001).value;
@@ -655,7 +637,6 @@ async function setClientApiContext(Xrm, formContext) {
           record.extreme_type = e.data.extreme_type; // Choice
           record.scheduleddurationminutes = parseInt(e.data.scheduleddurationminutes * 60); // Decimal
           record.extreme_comuteinkm = e.data.extreme_comuteinkm; // Decimal
-          record.extreme_return = e.data.extreme_return; // Boolean
           record.extreme_expences = e.data.extreme_expences; // Decimal
 
           await Xrm.WebApi.createRecord("extreme_timeentry", record).then(
@@ -760,7 +741,6 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.extreme_type) record.extreme_type = e.newData.extreme_type; // Choice
           if (e.newData.scheduleddurationminutes) record.scheduleddurationminutes = parseInt(e.newData.scheduleddurationminutes * 60); // Decimal
           if (e.newData.extreme_comuteinkm) record.extreme_comuteinkm = e.newData.extreme_comuteinkm; // Decimal
-          if (typeof e.newData.extreme_return === "boolean") record.extreme_return = e.newData.extreme_return; // Boolean
           if (e.newData.extreme_expences) record.extreme_expences = e.newData.extreme_expences; // Decimal
           if (e.newData.description) record.description = e.newData.description; // Text
 
@@ -910,7 +890,6 @@ async function createTimeEntry(assetId, caseId, caseLineId, ownerId, ownerName, 
   record.scheduledend = dateToFormat; // Date Time
   record.extreme_type = timeEntryTypesArray.find(item => item.value = typeId).value; // Choice
   record.scheduleddurationminutes = timeSpent; // Decimal
-  record.extreme_return = returnValue; // Boolean
   record.subject = ownerName;
   record.description = description;
 
