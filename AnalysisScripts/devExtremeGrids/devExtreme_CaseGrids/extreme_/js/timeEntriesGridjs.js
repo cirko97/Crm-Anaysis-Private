@@ -328,6 +328,7 @@ async function setClientApiContext(Xrm, formContext) {
                   data: timeEntryTypesArray,
                   key: "value"
                 },
+                filter: ["text", "startswith", "S -"],
                 // specify postProcess
                 postProcess: function (data) {
                   // modify items. Here, all IDs divisible by 2 are disabled
