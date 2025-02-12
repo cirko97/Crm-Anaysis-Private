@@ -263,7 +263,7 @@ async function setClientApiContext(Xrm, formContext) {
                     caption: 'Code',
                     dataType: 'string',
                     allowEditing: false,
-                    width: 130,
+                    width: 115,
                     visible: dataGrid.columnOption('extreme_assetcode', 'visible')
                   },
                   {
@@ -290,7 +290,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_serialnumber',
                     caption: 'S/N',
                     dataType: 'string',
-                    width: 150,
+                    width: 130,
                     allowEditing: false,
                     validationRules: [
                       {
@@ -311,7 +311,7 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_inventoryno',
                     caption: 'Inventory No.',
                     dataType: 'string',
-                    width: 150,
+                    width: 130,
                     allowEditing: false,
                     visible: dataGrid.columnOption('extreme_inventoryno', 'visible')
                   },
@@ -418,7 +418,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'extreme_warranty',
                     caption: 'Warranty?',
-                    width: 100,
+                    width: 50,
                     dataType: 'boolean',
                     visible: dataGrid.columnOption('extreme_warranty', 'visible')
                   },
@@ -677,7 +677,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_assetcode',
             caption: 'Code',
             dataType: 'string',
-            width: 130,
+            width: 115,
             allowEditing: false
           },
           {
@@ -703,7 +703,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_serialnumber',
             caption: 'S/N',
             dataType: 'string',
-            width: 150,
+            width: 130,
             allowEditing: false,
             validationRules: [
               {
@@ -723,7 +723,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_inventoryno',
             caption: 'Inventory No.',
             dataType: 'string',
-            width: 150,
+            width: 130,
             allowEditing: false,
             // validationRules: [
             //   {
@@ -893,7 +893,7 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_warranty',
             caption: 'Warranty?',
-            width: 100,
+            width: 50,
             dataType: 'boolean'
           },
           {
