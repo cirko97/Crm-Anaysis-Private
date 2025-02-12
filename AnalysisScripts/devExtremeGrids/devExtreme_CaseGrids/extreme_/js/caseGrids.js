@@ -1147,11 +1147,23 @@ async function setClientApiContext(Xrm, formContext) {
           if ((e.newData.owner || e.newData.extreme_quantity || e.newData.extreme_asset) && e.oldData.extreme_producttypecode == 3) {
             Xrm.Utility.showProgressIndicator('Updating time entry... Please wait...');
 
-            const ownerId = e.newData.owner ? e.newData.owner : e.oldData.owner;
             const quantity = e.newData.extreme_quantity ? e.newData.extreme_quantity : e.oldData.extreme_quantity;
+            const ownerId = e.newData.owner ? e.newData.owner : e.oldData.owner;
             const assetId = e.newData.extreme_asset ? e.newData.extreme_asset : e.oldData.extreme_asset;
+
+            let timeSpent;
+            if (unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "PAK" || unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "DAN") {
+              dateTo.addMinutes(quantity * (60 * 8));
+              timeSpent = quantity * (60 * 8);
+            }
+            else {
+              dateTo.addMinutes(quantity * 60);
+              timeSpent = quantity * 60;
+            }
+
+
             // Create time entry on another web resource
-            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.updateTimeEntry(e.key, assetId, ownerId, quantity * 60);
+            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.updateTimeEntry(e.key, assetId, ownerId, timeSpent);
             setTimeout(async () => {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000);
