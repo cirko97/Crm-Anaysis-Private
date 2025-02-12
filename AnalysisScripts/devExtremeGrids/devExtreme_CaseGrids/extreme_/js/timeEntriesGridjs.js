@@ -923,8 +923,8 @@ async function updateTimeEntry(caseLineId, assetId, ownerId, timeSpent) {
         var record = {};
         record["extreme_Asset_extreme_TimeEntry@odata.bind"] = `/extreme_assets(${assetId})`; // Lookup
         record["ownerid_extreme_timeentry@odata.bind"] = `/systemusers(${ownerId})`; // Owner
-        record.scheduleddurationminutes = timeSpent; // Decimal
-        record.scheduledend = new Date(dateFrom.addHours(timeSpent)).toISOString(); // Date Time
+        record.scheduleddurationminutes = timeSpent / 60; // Decimal
+        record.scheduledend = new Date(dateFrom.addHours(timeSpent / 60)).toISOString(); // Date Time
 
         await Xrm.WebApi.updateRecord("extreme_timeentry", `${activityid}`, record).then(
           function success(result) {

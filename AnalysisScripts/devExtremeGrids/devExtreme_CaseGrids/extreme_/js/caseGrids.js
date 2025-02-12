@@ -1153,11 +1153,9 @@ async function setClientApiContext(Xrm, formContext) {
 
             let timeSpent;
             if (unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "PAK" || unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "DAN") {
-              dateTo.addMinutes(quantity * (60 * 8));
               timeSpent = quantity * (60 * 8);
             }
             else {
-              dateTo.addMinutes(quantity * 60);
               timeSpent = quantity * 60;
             }
 
