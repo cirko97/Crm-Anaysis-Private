@@ -839,6 +839,7 @@ async function setClientApiContext(Xrm, formContext) {
           '_pricelevelid_value',
           'producttypecode',
           'extreme_isparent',
+          'statecode'
         ],
       });
 
@@ -1110,21 +1111,21 @@ async function setClientApiContext(Xrm, formContext) {
                         let filterQuery = null;
 
                         if (options.data) {
-                          options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                          if (options.data.extreme_isparentitem === true) {
+                            filterQuery = [['extreme_isparent', '=', true], "and"["statecode", "=", 0]]
+                          }
+                          else {
+                            filterQuery = [['extreme_isparent', '<>', true], "and"["statecode", "=", 0]]
+                          };
                         }
 
                         return {
                           store: productsODataStore,
-                          // searchExpr: ["productnumber", "name"],
+                          searchExpr: ["productnumber", "name"],
                           paginate: true,
                           pageSize: 100,
                           loadMode: 'raw',
                           filter: filterQuery,
-                          postProcess: function (data) {
-                            // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
-                            // data.unshift({ productId: "ID", productName: "Name", disabled: true });
-                            return data;
-                          }
                         }
                       },
                       displayExpr: 'productnumber',
@@ -2720,7 +2721,12 @@ async function setClientApiContext(Xrm, formContext) {
                 let filterQuery = null;
 
                 if (options.data) {
-                  options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                  if (options.data.extreme_isparentitem === true) {
+                    filterQuery = [['extreme_isparent', '=', true], "and"["statecode", "=", 0]]
+                  }
+                  else {
+                    filterQuery = [['extreme_isparent', '<>', true], "and"["statecode", "=", 0]]
+                  };
                 }
 
                 return {
@@ -2730,11 +2736,6 @@ async function setClientApiContext(Xrm, formContext) {
                   pageSize: 100,
                   loadMode: 'raw',
                   filter: filterQuery,
-                  postProcess: function (data) {
-                    // data.unshift({ productId: "ID", productName: "Name", priceListItemAmountFormatted: "Price", disabled: true });
-                    // data.unshift({ productId: "ID", productName: "Name", disabled: true });
-                    return data;
-                  }
                 }
               },
               displayExpr: 'productnumber',
