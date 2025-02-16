@@ -1112,10 +1112,10 @@ async function setClientApiContext(Xrm, formContext) {
 
                         if (options.data) {
                           if (options.data.extreme_isparentitem === true) {
-                            filterQuery = [['extreme_isparent', '=', true], "and"["statecode", "=", 0]]
+                            filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]]
                           }
                           else {
-                            filterQuery = [['extreme_isparent', '<>', true], "and"["statecode", "=", 0]]
+                            filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]]
                           };
                         }
 
@@ -2722,10 +2722,10 @@ async function setClientApiContext(Xrm, formContext) {
 
                 if (options.data) {
                   if (options.data.extreme_isparentitem === true) {
-                    filterQuery = [['extreme_isparent', '=', true], "and"["statecode", "=", 0]]
+                    filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]]
                   }
                   else {
-                    filterQuery = [['extreme_isparent', '<>', true], "and"["statecode", "=", 0]]
+                    filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]]
                   };
                 }
 
