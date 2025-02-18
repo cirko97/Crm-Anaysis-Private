@@ -47,3 +47,16 @@ input.currencyRates[type=number] {
 .cell-highlighted {
   background-color: #f2f2f2;
 }
+
+.child-grid td.dx-command-drag {
+  text-align: right !important;
+}
+
+.dx-editor-cell .dx-texteditor:not(.dx-tagbox) .dx-texteditor-input {
+  /* height: auto !important; */
+  line-height: 1.6 !important;
+}
+
+.textarea-fields {
+  white-space: break-spaces !important;
+}

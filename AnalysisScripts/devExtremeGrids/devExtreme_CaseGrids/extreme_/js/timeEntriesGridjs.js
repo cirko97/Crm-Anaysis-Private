@@ -85,7 +85,7 @@ async function setClientApiContext(Xrm, formContext) {
     timeEntriesArray = [];
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid,_extreme_caseline_value,extreme_comuteinkm,createdon,_ownerid_value,
-      extreme_expences,scheduledstart,extreme_return,scheduleddurationminutes,scheduledend,extreme_type,description,_extreme_asset_value
+      extreme_expences,scheduledstart,scheduleddurationminutes,scheduledend,extreme_type,description,_extreme_asset_value
       &$filter=_regardingobjectid_value eq ${caseId}`).then(
       function success(results) {
         console.log(results);
@@ -108,8 +108,6 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_expences_formatted = result["extreme_expences@OData.Community.Display.V1.FormattedValue"];
           var scheduledstart = result["scheduledstart"]; // Date Time
           var scheduledstart_formatted = result["scheduledstart@OData.Community.Display.V1.FormattedValue"];
-          var extreme_return = result["extreme_return"]; // Boolean
-          var extreme_return_formatted = result["extreme_return@OData.Community.Display.V1.FormattedValue"];
           var scheduleddurationminutes = result["scheduleddurationminutes"]; // Decimal
           var scheduleddurationminutes_formatted = result["scheduleddurationminutes@OData.Community.Display.V1.FormattedValue"];
           var scheduledend = result["scheduledend"]; // Date Time
@@ -129,9 +127,8 @@ async function setClientApiContext(Xrm, formContext) {
             "scheduledstart": scheduledstart,
             "scheduledend": scheduledend,
             "extreme_type": extreme_type,
-            "scheduleddurationminutes": scheduleddurationminutes,
+            "scheduleddurationminutes": parseFloat((scheduleddurationminutes / 60).toFixed(2)),
             "extreme_comuteinkm": extreme_comuteinkm,
-            "extreme_return": extreme_return,
             "extreme_expences": extreme_expences,
             "description": description
           });
@@ -271,30 +268,7 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
-            validationRules: [{ type: 'required' }]
-          },
-          {
-            dataField: 'owner',
-            caption: 'Employee',
-            width: 90,
-            // lookup: {
-            //   dataSource: usersArray,
-            //   displayExpr: 'name',
-            //   valueExpr: 'id'
-            // },
-            lookup: {
-              dataSource: {
-                store: {
-                  type: "array",
-                  data: usersArray,
-                  key: "id"
-                },
-                paginate: true,
-                pageSize: 20,
-              },
-              displayExpr: 'name',
-              valueExpr: 'id'
-            },
+            width: 200,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -314,7 +288,7 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(currentRowData);
               const dateFrom = new Date(value);
               const currentTime = currentRowData.scheduleddurationminutes;
-              newData.scheduledend = new Date(dateFrom.addMinutes(currentTime));
+              newData.scheduledend = new Date(dateFrom.addHours(currentTime));
               newData.scheduledstart = new Date(value);
             },
             editorOptions: {
@@ -346,7 +320,7 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_type',
             caption: 'Type',
-            width: 70,
+            width: 130,
             lookup: {
               dataSource: {
                 store: {
@@ -354,6 +328,7 @@ async function setClientApiContext(Xrm, formContext) {
                   data: timeEntryTypesArray,
                   key: "value"
                 },
+                filter: ["text", "startswith", "S -"],
                 // specify postProcess
                 postProcess: function (data) {
                   // modify items. Here, all IDs divisible by 2 are disabled
@@ -378,20 +353,17 @@ async function setClientApiContext(Xrm, formContext) {
               }
               else if (value === 424000001) {
                 newData.extreme_type = value;
-                newData.extreme_return = null;
                 newData.extreme_comuteinkm = null;
                 dataGrid.columnOption('extreme_asset', 'validationRules', [{ type: 'required' }]);
               }
               else if (value === 424000002) {
                 newData.extreme_type = value;
-                newData.extreme_return = false;
                 newData.extreme_comuteinkm = null;
                 dataGrid.columnOption('extreme_asset', 'validationRules', null);
               }
               else {
                 newData.extreme_type = value;
                 newData.extreme_type = value;
-                newData.extreme_return = null;
                 newData.extreme_comuteinkm = null;
                 dataGrid.columnOption('extreme_asset', 'validationRules', [{ type: 'required' }]);
               }
@@ -402,7 +374,7 @@ async function setClientApiContext(Xrm, formContext) {
           },
           {
             dataField: 'scheduleddurationminutes',
-            caption: 'Time spent (minutes)',
+            caption: 'Time spent (hours)',
             width: 90,
             dataType: 'number',
             setCellValue: async function (newData, value, currentRowData) {
@@ -414,7 +386,7 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(currentRowData);
               const dateFrom = new Date(currentRowData.scheduledstart);
               const currentTime = value;
-              newData.scheduledend = new Date(dateFrom.addMinutes(currentTime));
+              newData.scheduledend = new Date(dateFrom.addHours(currentTime));
               newData.scheduleddurationminutes = value;
             }
           },
@@ -425,12 +397,6 @@ async function setClientApiContext(Xrm, formContext) {
             dataType: 'number'
           },
           {
-            dataField: 'extreme_return',
-            caption: 'Return?',
-            width: 90,
-            dataType: 'boolean'
-          },
-          {
             dataField: 'extreme_expences',
             caption: 'Expences',
             width: 90,
@@ -439,8 +405,33 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'description',
             caption: 'Description',
-            width: 300,
+            width: 500,
+            cssClass: 'textarea-fields',
             dataType: 'string'
+          },
+          {
+            dataField: 'owner',
+            caption: 'Employee',
+            width: 90,
+            // lookup: {
+            //   dataSource: usersArray,
+            //   displayExpr: 'name',
+            //   valueExpr: 'id'
+            // },
+            lookup: {
+              dataSource: {
+                store: {
+                  type: "array",
+                  data: usersArray,
+                  key: "id"
+                },
+                paginate: true,
+                pageSize: 20,
+              },
+              displayExpr: 'name',
+              valueExpr: 'id'
+            },
+            validationRules: [{ type: 'required' }]
           },
           {
             type: 'buttons',
@@ -448,9 +439,7 @@ async function setClientApiContext(Xrm, formContext) {
             buttons: ['delete', {
               hint: 'Clone',
               icon: 'copy',
-              visible(e) {
-                return !e.row.isEditing;
-              },
+              visible: true,
               disabled: !isEditable,
               async onClick(e) {
 
@@ -476,7 +465,6 @@ async function setClientApiContext(Xrm, formContext) {
                 }; // Choice
                 if (clonedItem.scheduleddurationminutes) record.scheduleddurationminutes = clonedItem.scheduleddurationminutes; // Whole Number
                 if (clonedItem.extreme_comuteinkm) record.extreme_comuteinkm = clonedItem.extreme_comuteinkm; // Decimal
-                record.extreme_return = clonedItem.extreme_return === true ? true : clonedItem.extreme_return === false ? false : null; // Boolean
                 if (clonedItem.extreme_expences) record.extreme_expences = clonedItem.extreme_expences; // Decimal
                 if (clonedItem.description) record.description = `${clonedItem.description.trim()}`; // Multiline Text
 
@@ -500,7 +488,6 @@ async function setClientApiContext(Xrm, formContext) {
                 timeEntriesData._array[e.row.rowIndex + 1].activityid = newCloneId;
                 timeEntriesData._array[e.row.rowIndex + 1].extreme_caseline = null;
                 timeEntriesData._array[e.row.rowIndex + 1].extreme_type = record.extreme_type;
-                timeEntriesData._array[e.row.rowIndex + 1].extreme_return = record.extreme_return;
                 timeEntriesData._array[e.row.rowIndex + 1].owner = null;
                 console.log(timeEntriesData._array[e.row.rowIndex + 1]);
 
@@ -573,9 +560,6 @@ async function setClientApiContext(Xrm, formContext) {
           // else {
           //   e.editorOptions.disabled = false;
           // }
-          if (e.dataField == 'extreme_return' && e.row.data.extreme_type !== 424000002) {
-            e.editorOptions.disabled = true;
-          }
           if (e.dataField === 'extreme_type') {
             e.editorOptions.onFocusOut = function (args) {
               if (args.component.option("value") !== 424000002) {
@@ -597,11 +581,6 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.dataField === "description") {
             e.editorName = "dxTextArea";
             e.editorOptions.autoResizeEnabled = true;
-            setTimeout(() => {
-              // console.log(e.editorElement[0].querySelector("textarea"));
-              e.editorElement[0].querySelector("textarea").style.lineHeight = "1.6";
-              e.editorElement[0].querySelector("textarea").style.height = "auto";
-            }, 200);
           }
 
         },
@@ -625,17 +604,16 @@ async function setClientApiContext(Xrm, formContext) {
               }
             });
             dateToFromMax = new Date(maxDate);
-            dateToFromMax.addMinutes(60);
+            dateToFromMax.addHours(1);
           }
           else {
             maxDate = new Date();
             dateToFromMax = new Date(maxDate);
-            dateToFromMax.addMinutes(60);
+            dateToFromMax.addHours(1);
           }
 
           e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
           e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
-          e.data.extreme_return = false;
           e.data.scheduledstart = maxDate;
           e.data.scheduledend = dateToFromMax;
           // e.data.extreme_type = timeEntryTypesArray.find(item => item.value == 424000001).value;
@@ -658,9 +636,8 @@ async function setClientApiContext(Xrm, formContext) {
           record.scheduledstart = e.data.scheduledstart; // Date Time
           record.scheduledend = e.data.scheduledend; // Date Time
           record.extreme_type = e.data.extreme_type; // Choice
-          record.scheduleddurationminutes = e.data.scheduleddurationminutes; // Decimal
+          record.scheduleddurationminutes = parseInt(e.data.scheduleddurationminutes * 60); // Decimal
           record.extreme_comuteinkm = e.data.extreme_comuteinkm; // Decimal
-          record.extreme_return = e.data.extreme_return; // Boolean
           record.extreme_expences = e.data.extreme_expences; // Decimal
 
           await Xrm.WebApi.createRecord("extreme_timeentry", record).then(
@@ -763,9 +740,8 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.newData.scheduledstart) record.scheduledstart = e.newData.scheduledstart; // Date Time
           if (e.newData.scheduledend) record.scheduledend = e.newData.scheduledend; // Date Time
           if (e.newData.extreme_type) record.extreme_type = e.newData.extreme_type; // Choice
-          if (e.newData.scheduleddurationminutes) record.scheduleddurationminutes = e.newData.scheduleddurationminutes; // Decimal
+          if (e.newData.scheduleddurationminutes) record.scheduleddurationminutes = parseInt(e.newData.scheduleddurationminutes * 60); // Decimal
           if (e.newData.extreme_comuteinkm) record.extreme_comuteinkm = e.newData.extreme_comuteinkm; // Decimal
-          if (typeof e.newData.extreme_return === "boolean") record.extreme_return = e.newData.extreme_return; // Boolean
           if (e.newData.extreme_expences) record.extreme_expences = e.newData.extreme_expences; // Decimal
           if (e.newData.description) record.description = e.newData.description; // Text
 
@@ -814,6 +790,8 @@ async function setClientApiContext(Xrm, formContext) {
           await checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
           // Refresh grid for case assets
           await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+
+          await formContext.getControl('WebResource_caseLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
           await getTimeEntries(caseIdForm);
           dataGrid.refresh();
@@ -913,7 +891,6 @@ async function createTimeEntry(assetId, caseId, caseLineId, ownerId, ownerName, 
   record.scheduledend = dateToFormat; // Date Time
   record.extreme_type = timeEntryTypesArray.find(item => item.value = typeId).value; // Choice
   record.scheduleddurationminutes = timeSpent; // Decimal
-  record.extreme_return = returnValue; // Boolean
   record.subject = ownerName;
   record.description = description;
 
@@ -946,8 +923,8 @@ async function updateTimeEntry(caseLineId, assetId, ownerId, timeSpent) {
         var record = {};
         record["extreme_Asset_extreme_TimeEntry@odata.bind"] = `/extreme_assets(${assetId})`; // Lookup
         record["ownerid_extreme_timeentry@odata.bind"] = `/systemusers(${ownerId})`; // Owner
-        record.scheduleddurationminutes = timeSpent; // Decimal
-        record.scheduledend = new Date(dateFrom.addMinutes(timeSpent)).toISOString(); // Date Time
+        record.scheduleddurationminutes = timeSpent / 60; // Decimal
+        record.scheduledend = new Date(dateFrom.addHours(timeSpent / 60)).toISOString(); // Date Time
 
         await Xrm.WebApi.updateRecord("extreme_timeentry", `${activityid}`, record).then(
           function success(result) {
