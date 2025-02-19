@@ -834,6 +834,7 @@ async function setClientApiContext(Xrm, formContext) {
         select: [
           'accountid',
           'name',
+          'extreme_paname30characters',
           'extreme_relationshiptypeext'
         ],
       });
@@ -2265,6 +2266,15 @@ async function setClientApiContext(Xrm, formContext) {
                     editorOptions: {
                       acceptCustomValue: false,
                       searchEnabled: true,
+                      searchExpr: ["name", "extreme_paname30characters"],
+                      itemTemplate: function (data, index, container) {
+                        var row = $("<div>").addClass("row text-wrap");
+                        var containerFluid = $("<div>").addClass("container-fluid");
+                        $("<div>").addClass("col-4").text(data["name"]).appendTo(row);
+                        $("<div>").addClass("col-8").text(data["extreme_paname30characters"]).appendTo(row);
+                        row.appendTo(containerFluid);
+                        container.append(containerFluid);
+                      },
                       onOpened: function (e) {
                         heightAuto = false;
                         if (heightAuto === false) {
@@ -2273,6 +2283,7 @@ async function setClientApiContext(Xrm, formContext) {
                             wrControl.getObject().style.minHeight = "600px";
                           }
                         }
+                        e.component._popup.option('width', 400);
                       },
                       onClosed: function (e) {
                         heightAuto = true;
@@ -3909,6 +3920,15 @@ async function setClientApiContext(Xrm, formContext) {
             editorOptions: {
               acceptCustomValue: false,
               searchEnabled: true,
+              searchExpr: ["name", "extreme_paname30characters"],
+              itemTemplate: function (data, index, container) {
+                var row = $("<div>").addClass("row text-wrap");
+                var containerFluid = $("<div>").addClass("container-fluid");
+                $("<div>").addClass("col-4").text(data["name"]).appendTo(row);
+                $("<div>").addClass("col-8").text(data["extreme_paname30characters"]).appendTo(row);
+                row.appendTo(containerFluid);
+                container.append(containerFluid);
+              },
               onOpened: function (e) {
                 heightAuto = false;
                 if (heightAuto === false) {
@@ -3917,6 +3937,7 @@ async function setClientApiContext(Xrm, formContext) {
                     wrControl.getObject().style.minHeight = "600px";
                   }
                 }
+                e.component._popup.option('width', 400);
               },
               onClosed: function (e) {
                 heightAuto = true;
@@ -3925,6 +3946,25 @@ async function setClientApiContext(Xrm, formContext) {
                 heightAuto = true;
               }
             },
+            // editorOptions: {
+            //   acceptCustomValue: false,
+            //   searchEnabled: true,
+            //   onOpened: function (e) {
+            //     heightAuto = false;
+            //     if (heightAuto === false) {
+            //       const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+            //       if (iframeCorrentHeight < 450) {
+            //         wrControl.getObject().style.minHeight = "600px";
+            //       }
+            //     }
+            //   },
+            //   onClosed: function (e) {
+            //     heightAuto = true;
+            //   },
+            //   onFocusOut: function (e) {
+            //     heightAuto = true;
+            //   }
+            // },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_vendorsupplier = value;
               checkClassifyRows();
