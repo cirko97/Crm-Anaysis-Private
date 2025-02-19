@@ -8,7 +8,7 @@ let unitsArray = [];
 let currenciesArray = [];
 let areasArray = [];
 let techsArray = [];
-let vensSupsArray = [];
+// let vensSupsArray = [];
 let vatSettingsArray = [];
 let productTypesArray = [];
 let defaultMargin = 0;
@@ -828,7 +828,7 @@ async function setClientApiContext(Xrm, formContext) {
         // type: "odata",
         version: 4,
         filterToLower: false,
-        url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/account",
+        url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/accounts",
         key: "accountid",
         keyType: "Guid",
         select: [
