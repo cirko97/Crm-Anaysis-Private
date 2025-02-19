@@ -3920,12 +3920,12 @@ async function setClientApiContext(Xrm, formContext) {
             editorOptions: {
               acceptCustomValue: false,
               searchEnabled: true,
-              searchExpr: ["name", "extreme_paname30characters"],
+              searchExpr: ["extreme_paname30characters", "name"],
               itemTemplate: function (data, index, container) {
                 var row = $("<div>").addClass("row text-wrap");
                 var containerFluid = $("<div>").addClass("container-fluid");
-                $("<div>").addClass("col-4").text(data["name"]).appendTo(row);
-                $("<div>").addClass("col-8").text(data["extreme_paname30characters"]).appendTo(row);
+                $("<div>").addClass("col-4").text(data["extreme_paname30characters"]).appendTo(row);
+                $("<div>").addClass("col-8").text(data["name"]).appendTo(row);
                 row.appendTo(containerFluid);
                 container.append(containerFluid);
               },
