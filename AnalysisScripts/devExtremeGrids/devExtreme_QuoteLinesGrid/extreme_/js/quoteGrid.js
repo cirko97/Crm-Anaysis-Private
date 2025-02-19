@@ -1140,7 +1140,7 @@ async function setClientApiContext(Xrm, formContext) {
                           paginate: true,
                           pageSize: 100,
                           loadMode: 'raw',
-                          filter: filterQuery,
+                          filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery,
                         }
                       },
                       displayExpr: 'productnumber',
@@ -2757,7 +2757,7 @@ async function setClientApiContext(Xrm, formContext) {
                   paginate: true,
                   pageSize: 100,
                   loadMode: 'raw',
-                  filter: filterQuery,
+                  filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery,
                 }
               },
               displayExpr: 'productnumber',
@@ -4168,7 +4168,7 @@ async function setClientApiContext(Xrm, formContext) {
                       let filterQuery = null;
 
                       if (options.data) {
-                        options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                        options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                       }
 
                       return {
@@ -4177,7 +4177,7 @@ async function setClientApiContext(Xrm, formContext) {
                         paginate: true,
                         pageSize: 100,
                         loadMode: 'raw',
-                        filter: filterQuery
+                        filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                       }
                     },
                     displayExpr: 'productnumber',
@@ -4376,7 +4376,7 @@ async function setClientApiContext(Xrm, formContext) {
                       let filterQuery = null;
 
                       if (options.data) {
-                        options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                        options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                       }
 
                       return {
@@ -4385,7 +4385,7 @@ async function setClientApiContext(Xrm, formContext) {
                         paginate: true,
                         pageSize: 100,
                         loadMode: 'raw',
-                        filter: filterQuery
+                        filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                       }
                     },
                     displayExpr: 'productnumber',
@@ -5393,7 +5393,7 @@ async function setClientApiContext(Xrm, formContext) {
                   let filterQuery = null;
 
                   if (options.data) {
-                    options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                    options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                   }
 
                   return {
@@ -5402,7 +5402,7 @@ async function setClientApiContext(Xrm, formContext) {
                     paginate: true,
                     pageSize: 100,
                     loadMode: 'raw',
-                    filter: filterQuery
+                    filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                   }
                 },
                 displayExpr: 'productnumber',
@@ -5423,7 +5423,7 @@ async function setClientApiContext(Xrm, formContext) {
               let filterQuery = null;
 
               if (options.data) {
-                options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
               }
 
               return {
@@ -5432,7 +5432,7 @@ async function setClientApiContext(Xrm, formContext) {
                 paginate: true,
                 pageSize: 100,
                 loadMode: 'raw',
-                filter: filterQuery
+                filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
               }
             },
             displayExpr: 'productnumber',
@@ -5799,7 +5799,7 @@ async function setClientApiContext(Xrm, formContext) {
                 let filterQuery = null;
 
                 if (options.data) {
-                  options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                  options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                 }
 
                 return {
@@ -5808,7 +5808,7 @@ async function setClientApiContext(Xrm, formContext) {
                   paginate: true,
                   pageSize: 100,
                   loadMode: 'raw',
-                  filter: filterQuery
+                  filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                 }
               },
               displayExpr: 'productnumber',
