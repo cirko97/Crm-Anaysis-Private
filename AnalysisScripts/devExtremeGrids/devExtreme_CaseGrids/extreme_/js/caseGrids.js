@@ -427,6 +427,7 @@ async function setClientApiContext(Xrm, formContext) {
                 paginate: true,
                 pageSize: 100,
                 loadMode: 'raw',
+                filter: ["statecode", "=", 0]
               },
               displayExpr: 'name',
               valueExpr: 'productid'
