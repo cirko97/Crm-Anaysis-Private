@@ -2250,6 +2250,7 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'extreme_vendorsupplier',
                     caption: 'Vendor/Supplier',
+                    calculateDisplayValue: "name",
                     lookup: {
                       dataSource: {
                         store: vendorSupplierODataStore,
@@ -3893,6 +3894,7 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_vendorsupplier',
             caption: 'Vendor/Supplier',
+            calculateDisplayValue: "name",
             lookup: {
               dataSource: {
                 store: vendorSupplierODataStore,
