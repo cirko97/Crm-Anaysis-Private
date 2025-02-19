@@ -168,7 +168,7 @@ async function setClientApiContext(Xrm, formContext) {
   await getCurrencies();
   await getAreas();
   await getTechs();
-  await getVensSups();
+  // await getVensSups();
   await getVatGroups();
   await getPriceLists();
   // await getProductsLookUp();
@@ -720,31 +720,31 @@ async function setClientApiContext(Xrm, formContext) {
   }
 
   // get vendors/suppliers
-  async function getVensSups() {
+  // async function getVensSups() {
 
-    vensSupsArray = [];
+  //   vensSupsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name&$filter=(extreme_relationshiptypeext eq 424000000 or extreme_relationshiptypeext eq 424000003)").then(
-      function success(results) {
-        console.log(results);
-        for (var i = 0; i < results.entities.length; i++) {
-          var result = results.entities[i];
-          // Columns
-          var accountid = result["accountid"]; // Guid
-          var name = result["name"]; // Text
+  //   await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name&$filter=(extreme_relationshiptypeext eq 424000000 or extreme_relationshiptypeext eq 424000003)").then(
+  //     function success(results) {
+  //       console.log(results);
+  //       for (var i = 0; i < results.entities.length; i++) {
+  //         var result = results.entities[i];
+  //         // Columns
+  //         var accountid = result["accountid"]; // Guid
+  //         var name = result["name"]; // Text
 
-          vensSupsArray.push({
-            "id": accountid,
-            "name": name
-          });
+  //         vensSupsArray.push({
+  //           "id": accountid,
+  //           "name": name
+  //         });
 
-        }
-      },
-      function (error) {
-        console.log(error.message);
-      }
-    );
-  }
+  //       }
+  //     },
+  //     function (error) {
+  //       console.log(error.message);
+  //     }
+  //   );
+  // }
 
   // get vat groups
   async function getVatGroups() {
@@ -822,6 +822,20 @@ async function setClientApiContext(Xrm, formContext) {
       const quoteLinesData = new DevExpress.data.ArrayStore({
         key: 'quotedetailid',
         data: quoteLinesArray,
+      });
+
+      const vendorSupplierODataStore = new DevExpress.data.ODataStore({
+        // type: "odata",
+        version: 4,
+        filterToLower: false,
+        url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/account",
+        key: "accountid",
+        keyType: "Guid",
+        select: [
+          'accountid',
+          'name',
+          'extreme_relationshiptypeext'
+        ],
       });
 
       const productsODataStore = new DevExpress.data.ODataStore({
@@ -2237,19 +2251,15 @@ async function setClientApiContext(Xrm, formContext) {
                     dataField: 'extreme_vendorsupplier',
                     caption: 'Vendor/Supplier',
                     lookup: {
-                      dataSource(options) {
-                        return {
-                          store: {
-                            type: "array",
-                            data: vensSupsArray,
-                            key: "id"
-                          },
-                          paginate: true,
-                          pageSize: 20,
-                        }
+                      dataSource: {
+                        store: vendorSupplierODataStore,
+                        paginate: true,
+                        pageSize: 100,
+                        loadMode: 'raw',
+                        filter: [["extreme_relationshiptypeext", "=", 424000000], "or", ["extreme_relationshiptypeext", "=", 424000003]]
                       },
                       displayExpr: 'name',
-                      valueExpr: 'id'
+                      valueExpr: 'accountid'
                     },
                     editorOptions: {
                       acceptCustomValue: false,
@@ -3884,19 +3894,15 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_vendorsupplier',
             caption: 'Vendor/Supplier',
             lookup: {
-              dataSource(options) {
-                return {
-                  store: {
-                    type: "array",
-                    data: vensSupsArray,
-                    key: "id"
-                  },
-                  paginate: true,
-                  pageSize: 20,
-                }
+              dataSource: {
+                store: vendorSupplierODataStore,
+                paginate: true,
+                pageSize: 100,
+                loadMode: 'raw',
+                filter: [["extreme_relationshiptypeext", "=", 424000000], "or", ["extreme_relationshiptypeext", "=", 424000003]]
               },
               displayExpr: 'name',
-              valueExpr: 'id'
+              valueExpr: 'accountid'
             },
             editorOptions: {
               acceptCustomValue: false,
