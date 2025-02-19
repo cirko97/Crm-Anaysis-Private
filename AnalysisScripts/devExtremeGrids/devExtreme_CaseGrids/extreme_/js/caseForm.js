@@ -35,6 +35,18 @@ function form_onload(executionContext) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
 
+    if(formContext.getAttribute("extreme_additionalappointments").getValue() === true){
+    formContext.getControl("ServiceAppointments").setVisible(true);
+    }
+    formContext.getAttribute("extreme_additionalappointments").addOnChange(() => {
+      if(formContext.getAttribute("extreme_additionalappointments").getValue() === true){
+        formContext.getControl("ServiceAppointments").setVisible(true);
+      }else{
+        formContext.getControl("ServiceAppointments").setVisible(false);
+      }
+    }
+    );
+
     if (formContext.getAttribute("extreme_onholdreason").getValue()!== null)
       formContext.getControl("extreme_onholdreason").setVisible(true);
     // addonchange for file column when form is loaded
