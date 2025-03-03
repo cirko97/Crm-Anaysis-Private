@@ -36,35 +36,124 @@ function form_onload(executionContext) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
 
-    if(formContext.getAttribute("extreme_additionalappointments").getValue() === true){
-    formContext.getControl("ServiceAppointments").setVisible(true);
+    formContext.getAttribute("extreme_account").addOnChange(() => {
+      var confirmStrings = { text: "If you change Account, all Case Details will be DELETED!", title: "Are you sre?" };
+      var confirmOptions = { height: 200, width: 450 };
+      Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+        async function (success) {
+          if (success.confirmed) {
+            console.log("Dialog closed using OK button.");
+            // DELETE ALL CASE ASSETS
+            await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=_extreme_case_value eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
+              async function success(results) {
+                console.log(results);
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  // Columns
+                  var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+
+                  await Xrm.WebApi.deleteRecord("extreme_caseasset", extreme_caseassetid).then(
+                    function success(result) {
+                      console.log(result);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+
+                }
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
+            // DELETE ALL CASE LINES
+            await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=_extreme_case_value eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
+              async function success(results) {
+                console.log(results);
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  // Columns
+                  var extreme_caselineid = result["extreme_caselineid"]; // Guid
+
+                  await Xrm.WebApi.deleteRecord("extreme_caseline", extreme_caselineid).then(
+                    function success(result) {
+                      console.log(result);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+
+                }
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
+            // DELETE ALL TIME ENTRIES
+            await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid&$filter=regardingobjectid_extreme_case_extreme_timeentry/extreme_caseid eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
+              async function success(results) {
+                console.log(results);
+                for (var i = 0; i < results.entities.length; i++) {
+                  var result = results.entities[i];
+                  // Columns
+                  var activityid = result["activityid"]; // Guid
+
+                  await Xrm.WebApi.deleteRecord("extreme_timeentry", activityid).then(
+                    function success(result) {
+                      console.log(result);
+                    },
+                    function (error) {
+                      console.log(error.message);
+                    }
+                  );
+
+                }
+              },
+              function (error) {
+                console.log(error.message);
+              }
+            );
+
+          }
+          else {
+            console.log("Dialog closed using Cancel button or X.");
+          }
+        });
+    });
+
+    if (formContext.getAttribute("extreme_additionalappointments").getValue() === true) {
+      formContext.getControl("ServiceAppointments").setVisible(true);
     } else {
-    formContext.getControl("ServiceAppointments").setVisible(false);
+      formContext.getControl("ServiceAppointments").setVisible(false);
     }
 
     formContext.getAttribute("extreme_additionalappointments").addOnChange(() => {
-      if(formContext.getAttribute("extreme_additionalappointments").getValue() === true){
+      if (formContext.getAttribute("extreme_additionalappointments").getValue() === true) {
         formContext.getControl("ServiceAppointments").setVisible(true);
-      }else{
+      } else {
         formContext.getControl("ServiceAppointments").setVisible(false);
       }
     }
     );
 
-    if (formContext.getAttribute("extreme_onholdreason").getValue()!== null)
+    if (formContext.getAttribute("extreme_onholdreason").getValue() !== null)
       formContext.getControl("extreme_onholdreason").setVisible(true);
     // addonchange for file column when form is loaded
     if (fileColumn) {
       fileColumn.addOnChange(checkIfFileExists);
     }
   } else {
-    
+
     // Get Nav. Item
     var navItem = formContext.ui.navigation.items.get("navSPDocuments");
     // First set focus on Nav. Item to open related tab
     navItem.setFocus();
     // get Main tab (replace it with your tab name)
-    var mainTab =  formContext.ui.tabs.get("generalTab");
+    var mainTab = formContext.ui.tabs.get("generalTab");
     // Then move to Main Tab
     mainTab.setFocus();
 
@@ -74,7 +163,7 @@ function form_onload(executionContext) {
   formContext.getAttribute("extreme_calendaruser").setValue(934670000);
   formContext.getAttribute("extreme_calendaruser").addOnChange(changeCalendarView);
 
-  function changeCalendarView(){
+  function changeCalendarView() {
 
     const calendarUser = formContext.getAttribute("extreme_calendaruser").getValue();
     const calendarGridContext = formContext.getControl("calendarSubgrid"); // get the grid context
@@ -124,17 +213,17 @@ function form_onload(executionContext) {
       entityType: 1039,
       id: "e600da0e-20c6-ef11-b8e8-6045bdf313bb",
       name: "Service Team - Dusan Popović"
-    };    
+    };
     var viewGoranPoprzen = {
       entityType: 1039,
       id: "9276e428-20c6-ef11-b8e8-6045bd898d29",
       name: "Service Team - Goran Popržen"
-    };    
+    };
     var viewJovanMitrovic = {
       entityType: 1039,
       id: "e0c99442-20c6-ef11-b8e8-6045bdf313bb",
       name: "Service Team - Jovan Mitrović"
-    };    
+    };
     var viewLukaMihajlovic = {
       entityType: 1039,
       id: "2e307a59-20c6-ef11-b8e9-0022487f5548",
@@ -190,17 +279,17 @@ function form_onload(executionContext) {
       id: "606eea12-0c33-47d3-96e1-ba1529ee8205",
       name: "My Appointments"
     }
-    
+
     var selectedView;
 
     // Dobijanje vrednosti iz option set polja
     switch (calendarUser) {
       case 934670000:
         var owner = formContext.getAttribute("ownerid").getValue();
-        
+
         if (owner && owner.length > 0) {
           var ownerName = owner[0].name; // Dobijamo ime vlasnika
-    
+
           switch (ownerName) {
             case "Aleksandar Števanov":
               selectedView = viewAleksandarStevanov;
@@ -263,7 +352,7 @@ function form_onload(executionContext) {
           selectedView = null;
         }
         break;
-    
+
       case 934670001:
         selectedView = viewAleksandarStevanov;
         break;
@@ -332,13 +421,13 @@ function form_onload(executionContext) {
         selectedView = myAppointmentsView;
         break;
     }
-    
-    
+
+
 
 
     viewSelector.setCurrentView(selectedView);
     //calendarGridContext.refresh();
-    }
+  }
 
 
   //case complaint
