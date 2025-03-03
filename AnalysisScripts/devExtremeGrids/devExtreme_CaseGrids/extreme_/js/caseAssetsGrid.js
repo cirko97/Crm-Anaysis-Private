@@ -34,6 +34,8 @@ async function setClientApiContext(Xrm, formContext) {
     isEditable = false;
   }
 
+  if (formContext.getAttribute('extreme_account').getValue() == null) return;
+
   const preventiveCycleTypes = await Xrm.Utility.getEntityMetadata('extreme_asset', ['extreme_preventiveservicecycle']).then(
     result => result.Attributes._collection.extreme_preventiveservicecycle.OptionSet,
     error => console.log(error)

@@ -34,6 +34,8 @@ async function setClientApiContext(Xrm, formContext) {
     isEditable = false;
   }
 
+  if (formContext.getAttribute('extreme_account').getValue() == null) return;
+
   const caseIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");

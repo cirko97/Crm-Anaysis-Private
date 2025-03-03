@@ -36,93 +36,115 @@ function form_onload(executionContext) {
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
     retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
 
+    let initAcc = formContext.getAttribute("extreme_account").getValue();
+
     formContext.getAttribute("extreme_account").addOnChange(() => {
-      var confirmStrings = { text: "If you change Account, all Case Details will be DELETED!", title: "Are you sre?" };
-      var confirmOptions = { height: 200, width: 450 };
-      Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-        async function (success) {
-          if (success.confirmed) {
-            console.log("Dialog closed using OK button.");
-            // DELETE ALL CASE ASSETS
-            await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=_extreme_case_value eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
-              async function success(results) {
-                console.log(results);
-                for (var i = 0; i < results.entities.length; i++) {
-                  var result = results.entities[i];
-                  // Columns
-                  var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
 
-                  await Xrm.WebApi.deleteRecord("extreme_caseasset", extreme_caseassetid).then(
-                    function success(result) {
-                      console.log(result);
-                    },
-                    function (error) {
-                      console.log(error.message);
-                    }
-                  );
+      if (formContext.getAttribute("extreme_account").getValue() !== null) {
+        initAcc = formContext.getAttribute("extreme_account").getValue();
+      }
+      else {
 
+        var confirmStrings = { text: "If you change Account, all Case Details will be DELETED!", title: "Are you sre?" };
+        var confirmOptions = { height: 200, width: 450 };
+        Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+          async function (success) {
+            if (success.confirmed) {
+              console.log("Dialog closed using OK button.");
+
+              Xrm.Utility.showProgressIndicator('Deleting Case Details...');
+
+              // DELETE ALL CASE ASSETS
+              await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=_extreme_case_value eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
+                async function success(results) {
+                  console.log(results);
+                  for (var i = 0; i < results.entities.length; i++) {
+                    var result = results.entities[i];
+                    // Columns
+                    var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+
+                    await Xrm.WebApi.deleteRecord("extreme_caseasset", extreme_caseassetid).then(
+                      function success(result) {
+                        console.log(result);
+                      },
+                      function (error) {
+                        console.log(error.message);
+                      }
+                    );
+
+                  }
+                },
+                function (error) {
+                  console.log(error.message);
                 }
-              },
-              function (error) {
-                console.log(error.message);
-              }
-            );
+              );
 
-            // DELETE ALL CASE LINES
-            await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=_extreme_case_value eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
-              async function success(results) {
-                console.log(results);
-                for (var i = 0; i < results.entities.length; i++) {
-                  var result = results.entities[i];
-                  // Columns
-                  var extreme_caselineid = result["extreme_caselineid"]; // Guid
+              // DELETE ALL CASE LINES
+              await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=_extreme_case_value eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
+                async function success(results) {
+                  console.log(results);
+                  for (var i = 0; i < results.entities.length; i++) {
+                    var result = results.entities[i];
+                    // Columns
+                    var extreme_caselineid = result["extreme_caselineid"]; // Guid
 
-                  await Xrm.WebApi.deleteRecord("extreme_caseline", extreme_caselineid).then(
-                    function success(result) {
-                      console.log(result);
-                    },
-                    function (error) {
-                      console.log(error.message);
-                    }
-                  );
+                    await Xrm.WebApi.deleteRecord("extreme_caseline", extreme_caselineid).then(
+                      function success(result) {
+                        console.log(result);
+                      },
+                      function (error) {
+                        console.log(error.message);
+                      }
+                    );
 
+                  }
+                },
+                function (error) {
+                  console.log(error.message);
                 }
-              },
-              function (error) {
-                console.log(error.message);
-              }
-            );
+              );
 
-            // DELETE ALL TIME ENTRIES
-            await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid&$filter=regardingobjectid_extreme_case_extreme_timeentry/extreme_caseid eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
-              async function success(results) {
-                console.log(results);
-                for (var i = 0; i < results.entities.length; i++) {
-                  var result = results.entities[i];
-                  // Columns
-                  var activityid = result["activityid"]; // Guid
+              // DELETE ALL TIME ENTRIES
+              await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid&$filter=regardingobjectid_extreme_case_extreme_timeentry/extreme_caseid eq ${formContext.data.entity.getId().slice(1, -1)}`).then(
+                async function success(results) {
+                  console.log(results);
+                  for (var i = 0; i < results.entities.length; i++) {
+                    var result = results.entities[i];
+                    // Columns
+                    var activityid = result["activityid"]; // Guid
 
-                  await Xrm.WebApi.deleteRecord("extreme_timeentry", activityid).then(
-                    function success(result) {
-                      console.log(result);
-                    },
-                    function (error) {
-                      console.log(error.message);
-                    }
-                  );
+                    await Xrm.WebApi.deleteRecord("extreme_timeentry", activityid).then(
+                      function success(result) {
+                        console.log(result);
+                      },
+                      function (error) {
+                        console.log(error.message);
+                      }
+                    );
 
+                  }
+                },
+                function (error) {
+                  console.log(error.message);
                 }
-              },
-              function (error) {
-                console.log(error.message);
-              }
-            );
+              );
 
-          }
-          else {
-            console.log("Dialog closed using Cancel button or X.");
-          }
-        });
+              retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseLines"));
+              retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
+              retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
+
+              Xrm.Utility.closeProgressIndicator();
+
+            }
+            else {
+              console.log("Dialog closed using Cancel button or X.");
+
+              formContext.getAttribute("extreme_account").setValue(initAcc);
+
+            }
+          });
+
+      }
     });
 
     if (formContext.getAttribute("extreme_additionalappointments").getValue() === true) {
