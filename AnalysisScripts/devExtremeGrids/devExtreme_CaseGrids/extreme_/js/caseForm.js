@@ -3,6 +3,7 @@ function form_onload(executionContext) {
   const FORM_EDIT = 2;
   const RESOLVED = 934670004;
   const ONHOLD = 934670002;
+  const RESOLVEDSIGNED = 2;
   const globalContext = Xrm.Utility.getGlobalContext();
   const formContext = executionContext.getFormContext();
   const formType = formContext.ui.getFormType();
@@ -440,7 +441,7 @@ function form_onload(executionContext) {
   }
   function statusHandler() {
     const statusReason = formContext.getAttribute("statuscode").getValue();
-    if (statusReason === RESOLVED || statusReason === ONHOLD) {
+    if (statusReason === RESOLVED || statusReason === ONHOLD || statusReason === RESOLVEDSIGNED) {
       lockOrUnlockFieldsInSection("generalTab", "general", true);
       lockOrUnlockFieldsInSection("generalTab", "ResolutionDetails", true);
       lockOrUnlockFieldsInSection("calendarTab", "Calendar_section_3", true);
