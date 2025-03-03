@@ -51,7 +51,7 @@ function form_onload(executionContext) {
       }
       else {
 
-        var confirmStrings = { text: "If you change Account, all Case Details will be DELETED!", title: "Are you sre?" };
+        var confirmStrings = { text: "If you change Account, all Case Details will be DELETED!", title: "Are you sure?" };
         var confirmOptions = { height: 200, width: 450 };
         Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
           async function (success) {
