@@ -38,7 +38,10 @@ function form_onload(executionContext) {
 
     if(formContext.getAttribute("extreme_additionalappointments").getValue() === true){
     formContext.getControl("ServiceAppointments").setVisible(true);
+    } else {
+    formContext.getControl("ServiceAppointments").setVisible(false);
     }
+
     formContext.getAttribute("extreme_additionalappointments").addOnChange(() => {
       if(formContext.getAttribute("extreme_additionalappointments").getValue() === true){
         formContext.getControl("ServiceAppointments").setVisible(true);
