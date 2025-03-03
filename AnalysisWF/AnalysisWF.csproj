@@ -74,6 +74,7 @@
     <Compile Include="PaymentMethodInsert.cs" />
     <Compile Include="ProductInsert.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="QuoteDetailCalcHelp.cs" />
     <Compile Include="QuoteInsert.cs" />
     <Compile Include="ClassifTechnologyInsert.cs" />
     <Compile Include="UoMInsert.cs" />

@@ -17,7 +17,9 @@ namespace AnalysisWF
         [RequiredArgument]
         public InArgument<EntityReference> Currency { get; set; }
 
-
+        [Input("Default Sales Margin")]
+        [RequiredArgument]
+        public InArgument<decimal> Margin { get; set; }
 
         [Output("Created Price List")]
         [ReferenceTarget("pricelevel")]
@@ -35,6 +37,7 @@ namespace AnalysisWF
                 // Retrieve input parameters
                 string name = PriceListName.Get(executionContext); 
                 EntityReference currency = Currency.Get(executionContext);
+                decimal margin = Margin.Get(executionContext);
 
                 // Validate input parameters
                 if (string.IsNullOrWhiteSpace(name))
@@ -51,6 +54,11 @@ namespace AnalysisWF
                 Entity priceList = new Entity("pricelevel");
                 priceList["name"] = name;
                 priceList["transactioncurrencyid"] = currency;
+                
+                if (margin > 0)
+                {
+                    priceList["extreme_defaultsalesmargin"] = margin;
+                }
 
                 // Create the Price List record
                 Guid priceListId = service.Create(priceList);

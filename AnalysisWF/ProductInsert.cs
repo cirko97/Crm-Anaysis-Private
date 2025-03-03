@@ -134,7 +134,7 @@ namespace AnalysisWF
             var acClassif2 = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_technology"), "extreme_name", service) ?? "";
             var anVATCode = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_code", service) ?? "";
             var anVat = GetLookupFieldValue<decimal>(product.GetAttributeValue<EntityReference>("extreme_vatgroup"), "extreme_vat", service);
-
+            var acSupplier = GetLookupFieldValue<string>(product.GetAttributeValue<EntityReference>("extreme_supplier"), "extreme_paname30characters", service) ?? "";
             var anPrice = Price.Get(context);
 
             return JsonConvert.SerializeObject(new
@@ -156,6 +156,7 @@ namespace AnalysisWF
                             anVat,
                             acCostDrv = "",
                             acCode = acIdentLong,
+                            acSupplier,
                             acType
                         }
                     }
