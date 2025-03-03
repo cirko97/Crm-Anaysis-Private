@@ -25,7 +25,7 @@ var AssetForm = window.AssetForm || {};
             var warrantyStartDate = formContext.getAttribute("extreme_warrantystartdate").getValue();
             if (warrantyStartDate) {
             var warrantyEndDateVendor = formContext.getAttribute("extreme_warrantyenddatevendor").getValue();
-            var warrantyEndDate = formContext.getAttribute("extreme_warrantyenddate").getValue();
+            var warrantyEndDate = formContext.getAttribute("extreme_warrantyend").getValue();
 
             if (!warrantyEndDateVendor) {
                 var newEndDateVendor = new Date(warrantyStartDate);
@@ -36,7 +36,7 @@ var AssetForm = window.AssetForm || {};
             if (!warrantyEndDate) {
                 var newEndDate = new Date(warrantyStartDate);
                 newEndDate.setFullYear(newEndDate.getFullYear() + 1);
-                formContext.getAttribute("extreme_warrantyenddate").setValue(newEndDate);
+                formContext.getAttribute("extreme_warrantyend").setValue(newEndDate);
             }
             }
         });
