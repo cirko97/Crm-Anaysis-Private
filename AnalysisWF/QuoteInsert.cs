@@ -122,6 +122,7 @@ namespace AnalysisWF
         private string PrepareQuoteData(Entity quote, string pantheonDocType, IOrganizationService service)
         {
             var acDocType = pantheonDocType;
+            var acInternalNote = quote.GetAttributeValue<string>("name") ?? "";
             var acCrmNO = quote.GetAttributeValue<string>("quotenumber");
             var revisionNumber = quote.GetAttributeValue<int>("revisionnumber");
             if (revisionNumber > 0)
@@ -257,6 +258,7 @@ namespace AnalysisWF
                             acDelivery,
                             acStatement,
                             acNote,
+                            acInternalNote,
                             anNoteClerk,
                             anClerk,
                             acLinesJSON = lineItems

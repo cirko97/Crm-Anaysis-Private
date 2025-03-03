@@ -1,7 +1,7 @@
 let caseLinesArray = [];
 let assetsArray = [];
 let usersArray = [];
-let productsArray = [];
+// let productsArray = [];
 let unitsArray = [];
 let newCreateId;
 let oneAssetId = undefined;
@@ -25,6 +25,8 @@ async function setClientApiContext(Xrm, formContext) {
   // Optionally set Xrm and formContext as global variables on the page.
   window.Xrm = Xrm;
   window._formContext = formContext;
+
+  if (formContext.getAttribute('extreme_account').getValue() == null) return;
 
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
@@ -66,7 +68,7 @@ async function setClientApiContext(Xrm, formContext) {
   console.log('GUID: ' + caseIdForm);
   await getAssetsLookUp(accountIdForm);
   await getUsers();
-  await getProductsLookUp();
+  // await getProductsLookUp();
   await getUnitsLookUp();
   await getCaseLines(caseIdForm);
 
@@ -80,7 +82,7 @@ async function setClientApiContext(Xrm, formContext) {
     error => console.log(error)
   );
   // setTimeout(() => {
-  //   const toolbarBefore = Xrm.Page.getControl("WebResource_caseLines").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
+  //   const toolbarBefore = formContext.getControl("WebResource_caseLines").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
   //   console.log('dx toolbar before: ', toolbarBefore);
   //   toolbarBefore.innerHTML = `<span style='font-weight: 500; position: absolute; width: 100px; bottom: 30%; left: 0;'>${caseLineDisplayName}</span>`;
   //   console.log(formContext.data.entity);
@@ -88,6 +90,9 @@ async function setClientApiContext(Xrm, formContext) {
 
 
 
+  console.log("GET CONTROLS WITh TWO DIFFERENT METHODS!!!!!");
+  console.log(formContext.getControl('WebResource_timeEntries'));
+  console.log(formContext.getControl('WebResource_timeEntries'));
 
 
 
@@ -145,8 +150,8 @@ async function setClientApiContext(Xrm, formContext) {
     );
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline",
-      `?$select=extreme_caselineid,_extreme_asset_value,_extreme_case_value,extreme_name,_ownerid_value,_extreme_product_value,extreme_quantity,_extreme_unit_value
-      &$expand=extreme_Product($select=producttypecode)&$filter=_extreme_case_value eq ${caseId}`).then(
+      `?$select=extreme_caselineid,_extreme_caseasset_value,_extreme_asset_value,_extreme_case_value,extreme_name,_ownerid_value,_extreme_product_value,extreme_quantity,_extreme_unit_value
+      &$expand=extreme_Product($select=producttypecode,name,productnumber)&$filter=_extreme_case_value eq ${caseId}`).then(
         function success(results) {
           console.log(results);
           caseLinesArray = [];
@@ -173,11 +178,16 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_unit = result["_extreme_unit_value"]; // Lookup
             var extreme_unit_formatted = result["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"];
             var extreme_unit_lookuplogicalname = result["_extreme_unit_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+            var extreme_caseasset = result["_extreme_caseasset_value"]; // Lookup
+            var extreme_caseasset_formatted = result["_extreme_caseasset_value@OData.Community.Display.V1.FormattedValue"];
+            var extreme_caseasset_lookuplogicalname = result["_extreme_caseasset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
             // Many To One Relationships
             if (result.hasOwnProperty("extreme_Product") && result["extreme_Product"] !== null) {
               var extreme_Product_producttypecode = result["extreme_Product"]["producttypecode"]; // Choice
               var extreme_Product_producttypecode_formatted = result["extreme_Product"]["producttypecode@OData.Community.Display.V1.FormattedValue"];
+              var extreme_Product_name = result["extreme_Product"]["name"]; // String
+              var extreme_Product_productnumber = result["extreme_Product"]["productnumber"]; // String
             }
 
             caseLinesArray.push({
@@ -190,7 +200,9 @@ async function setClientApiContext(Xrm, formContext) {
               'extreme_product': extreme_product,
               'extreme_quantity': extreme_quantity,
               'extreme_producttypecode': extreme_Product_producttypecode,
-              'extreme_unit': extreme_unit
+              'productname': extreme_Product_productnumber ? extreme_Product_productnumber + ' - ' + extreme_Product_name : extreme_Product_name,
+              'extreme_unit': extreme_unit,
+              'extreme_caseasset': extreme_caseasset
             });
 
           }
@@ -257,42 +269,42 @@ async function setClientApiContext(Xrm, formContext) {
       }
     );
   }
-  async function getProductsLookUp() {
-    let skipTokenExists = true;
-    let skipToken = '';
-    productsArray = [];
-    while (skipTokenExists) {
-      await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
-        function success(results) {
-          console.log(results);
-          results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
+  // async function getProductsLookUp() {
+  //   let skipTokenExists = true;
+  //   let skipToken = '';
+  //   productsArray = [];
+  //   while (skipTokenExists) {
+  //     await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
+  //       function success(results) {
+  //         console.log(results);
+  //         results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
 
-          console.log("SKIPTOKEN HERE!!!!");
-          console.log(skipToken);
-          for (var i = 0; i < results.entities.length; i++) {
-            var result = results.entities[i];
-            // Columns
-            var productid = result["productid"]; // Guid
-            var name = result["name"]; // Text
-            var productnumber = result["productnumber"]; // Text
+  //         console.log("SKIPTOKEN HERE!!!!");
+  //         console.log(skipToken);
+  //         for (var i = 0; i < results.entities.length; i++) {
+  //           var result = results.entities[i];
+  //           // Columns
+  //           var productid = result["productid"]; // Guid
+  //           var name = result["name"]; // Text
+  //           var productnumber = result["productnumber"]; // Text
 
-            productsArray.push({
-              "id": productid,
-              "name": productnumber ? productnumber + ' - ' + name : name,
-              "nameWoSn": name
-            });
-          }
-          if (skipToken === '') {
-            skipTokenExists = false;
-          }
-          console.log(productsArray);
-        },
-        function (error) {
-          console.log(error.message);
-        }
-      );
-    }
-  }
+  //           productsArray.push({
+  //             "id": productid,
+  //             "name": productnumber ? productnumber + ' - ' + name : name,
+  //             "nameWoSn": name
+  //           });
+  //         }
+  //         if (skipToken === '') {
+  //           skipTokenExists = false;
+  //         }
+  //         console.log(productsArray);
+  //       },
+  //       function (error) {
+  //         console.log(error.message);
+  //       }
+  //     );
+  //   }
+  // }
   async function getUnitsLookUp() {
     await Xrm.WebApi.retrieveMultipleRecords("uom", "?$select=uomid,name").then(
       function success(results) {
@@ -326,6 +338,20 @@ async function setClientApiContext(Xrm, formContext) {
         data: caseLinesArray,
       });
 
+      const productsODataStore = new DevExpress.data.ODataStore({
+        type: "odata",
+        version: 4,
+        filterToLower: false,
+        url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/products",
+        key: "productid",
+        keyType: "Guid",
+        select: [
+          'productid',
+          'name',
+          'productnumber'
+        ],
+      });
+
       const dataGrid = $('#gridContainer').dxDataGrid({
         dataSource: caseLinesData,
         width: "100%",
@@ -350,6 +376,7 @@ async function setClientApiContext(Xrm, formContext) {
         // selection: {
         //   mode: 'multiple',
         // },
+        wordWrapEnabled: false,
         allowColumnResizing: true,
         columnResizingMode: "mode",
         columnMinWidth: 10,
@@ -393,52 +420,53 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_assetType',
             caption: 'Asset Type',
             dataType: 'string',
+            width: 100,
             allowEditing: false
           },
           {
             dataField: 'extreme_product',
             caption: 'Product',
+            calculateDisplayValue: "productname",
+            lookup: {
+              dataSource: {
+                store: productsODataStore,
+                paginate: true,
+                pageSize: 100,
+                loadMode: 'raw',
+                filter: ["statecode", "=", 0]
+              },
+              displayExpr: 'name',
+              valueExpr: 'productid'
+            },
+            editorOptions: {
+              acceptCustomValue: false,
+              // popupWidth: 600,
+              searchEnabled: true,
+              // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
+              searchExpr: ["productnumber", "name"],
+              itemTemplate: function (data, index, container) {
+                var row = $("<div>").addClass("row text-wrap");
+                var containerFluid = $("<div>").addClass("container-fluid");
+                $("<div>").addClass("col-3").text(data["productnumber"]).appendTo(row);
+                $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
+                row.appendTo(containerFluid);
+                container.append(containerFluid);
+              },
+              onOpened: function (e) {
+                e.component._popup.option('width', 400);
+              },
+            },
             setCellValue: async function (newData, value, currentRowData) {
               console.log('newData: ', newData);
               console.log('value: ', value);
               newData.extreme_product = value;
-              let defaultuomid;
-              let producttypecode;
-              await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=productid,_defaultuomid_value,name,producttypecode").then(
-                function success(result) {
-                  console.log(result);
-                  // Columns
-                  var productid = result["productid"]; // Guid
-                  defaultuomid = result["_defaultuomid_value"]; // Lookup
-                  var defaultuomid_formatted = result["_defaultuomid_value@OData.Community.Display.V1.FormattedValue"];
-                  var defaultuomid_lookuplogicalname = result["_defaultuomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-                  var name = result["name"]; // Text
-                  producttypecode = result["producttypecode"]; // Choice
-                  var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
-                },
-                function (error) {
-                  console.log(error.message);
-                }
-              );
-              console.log('DEFAULT UNIT: ', defaultuomid);
-              console.log('PRODUCT TYPE: ', producttypecode);
+              const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=productid,_defaultuomid_value,name,producttypecode");
+              console.log('DEFAULT UNIT: ', productInfo._defaultuomid_value);
+              console.log('PRODUCT TYPE: ', productInfo.producttypecode);
               console.log('currentRowData', currentRowData);
-              newData.extreme_unit = unitsArray.find(item => item.id === defaultuomid).id;
-              newData.extreme_producttypecode = productTypesArray.find(item => item.value === producttypecode).value
-              newData.extreme_name = productsArray.find(item => item.id === value).nameWoSn;
-            },
-            lookup: {
-              dataSource: {
-                store: {
-                  type: "array",
-                  data: productsArray,
-                  key: "id"
-                },
-                paginate: true,
-                pageSize: 20,
-              },
-              displayExpr: 'name',
-              valueExpr: 'id'
+              newData.extreme_unit = unitsArray.find(item => item.id === productInfo._defaultuomid_value).id;
+              newData.extreme_producttypecode = productInfo.producttypecode
+              newData.extreme_name = productInfo.name;
             },
             validationRules: [{ type: 'required' }]
           },
@@ -453,6 +481,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_quantity',
             caption: 'Quantity',
             dataType: 'number',
+            width: 80,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -472,6 +501,7 @@ async function setClientApiContext(Xrm, formContext) {
               displayExpr: 'name',
               valueExpr: 'id'
             },
+            width: 80,
             validationRules: [{ type: 'required' }]
           },
           {
@@ -539,7 +569,7 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onEditorPreparing: async (e) => {
           console.log('Editor Preparing');
-          if (e.dataField == "extreme_unit") e.editorOptions.disabled = true;
+          // if (e.dataField == "extreme_unit") e.editorOptions.disabled = true;
           if (e.dataField == "extreme_producttypecode") e.editorOptions.disabled = true;
 
           if (e.dataField == "extreme_asset" || e.dataField == "extreme_product" || e.dataField == "owner") {
@@ -600,10 +630,13 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(error.message);
             }
           );
+
         },
         onRowInserted: async (e) => {
           console.log('RowInserted');
           console.log('newCreatedId: ', newCreateId);
+
+          Xrm.Utility.showProgressIndicator('Creating... Please wait...');
 
           if (
             (oneAssetId !== undefined && oneAssetId.indexOf(e.data.extreme_asset) === -1) ||
@@ -628,11 +661,18 @@ async function setClientApiContext(Xrm, formContext) {
               parentRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
               parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
               parentRecord.extreme_isparent = true; // Boolean
-              const dateNow = new Date();
+              const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+              dateNow.setHours(0, 0, 0, 0);
               const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
               if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                 const startDate = new Date(warranty.extreme_warrantystartdate);
                 const endDate = new Date(warranty.extreme_warrantyend);
+
+                console.log("DATES!!!");
+                console.log(startDate);
+                console.log(endDate);
+                console.log(dateNow);
+
                 if (dateNow >= startDate && dateNow <= endDate) {
                   parentRecord.extreme_warranty = true;
                 }
@@ -662,11 +702,18 @@ async function setClientApiContext(Xrm, formContext) {
                 childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                 childRecord.extreme_isparent = false; // Boolean
                 childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
-                const dateNow = new Date();
+                const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
                   const endDate = new Date(warranty.extreme_warrantyend);
+
+                  console.log("DATES!!!");
+                  console.log(startDate);
+                  console.log(endDate);
+                  console.log(dateNow);
+
                   if (dateNow >= startDate && dateNow <= endDate) {
                     childRecord.extreme_warranty = true;
                   }
@@ -696,11 +743,18 @@ async function setClientApiContext(Xrm, formContext) {
               record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
               record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
               record.extreme_isparent = assetsArray.find(item => item.id === e.data.extreme_asset).extreme_isparent; // Boolean
-              const dateNow = new Date();
+              const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+              dateNow.setHours(0, 0, 0, 0);
               const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
               if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                 const startDate = new Date(warranty.extreme_warrantystartdate);
                 const endDate = new Date(warranty.extreme_warrantyend);
+
+                console.log("DATES!!!");
+                console.log(startDate);
+                console.log(endDate);
+                console.log(dateNow);
+
                 if (dateNow >= startDate && dateNow <= endDate) {
                   record.extreme_warranty = true;
                 }
@@ -715,7 +769,22 @@ async function setClientApiContext(Xrm, formContext) {
               await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
                 async function success(result) {
                   var newId = result.id;
-                  newCreatedCasseAssetId = result.id;
+
+                  // var recordNN = {};
+                  // recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+                  // recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
+
+                  // await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
+                  //   function success(result) {
+                  //     var newId = result.id;
+                  //     console.log(newId);
+                  //   },
+                  //   function (error) {
+                  //     console.log(error.message);
+                  //   }
+                  // );
+
+                  newCreatedCasseAssetId = newId;
                   console.log(newId);
                 },
                 function (error) {
@@ -730,11 +799,18 @@ async function setClientApiContext(Xrm, formContext) {
                 childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                 childRecord.extreme_isparent = false; // Boolean
                 childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
-                const dateNow = new Date();
+                const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
                   const endDate = new Date(warranty.extreme_warrantyend);
+
+                  console.log("DATES!!!");
+                  console.log(startDate);
+                  console.log(endDate);
+                  console.log(dateNow);
+
                   if (dateNow >= startDate && dateNow <= endDate) {
                     childRecord.extreme_warranty = true;
                   }
@@ -762,14 +838,66 @@ async function setClientApiContext(Xrm, formContext) {
 
             await Promise.all(promises);
 
-            // Refresh grid for case assets
-            await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
+
+          // create N:N relationship
+          await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseIdForm} and _extreme_asset_value eq ${e.data.extreme_asset})`).then(
+            async function success(results) {
+              console.log(results);
+              if (results.entities.length > 0) {
+                var result = results.entities[0];
+                // Columns
+                var extreme_caseassetid = result["extreme_caseassetid"]; // Guid
+
+                var recordNN = {};
+                recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+                recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${extreme_caseassetid})`; // Lookup
+
+                await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
+                  function success(result) {
+                    var newId = result.id;
+                    console.log(newId);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+
+                // Refresh grid for case assets
+                await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+              }
+              else {
+                var recordNN = {};
+                recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+                recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
+
+                await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
+                  function success(result) {
+                    var newId = result.id;
+                    console.log(newId);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+
+                // Refresh grid for case assets
+                await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+
+              }
+            },
+            function (error) {
+              console.log(error.message);
+            }
+          );
 
           console.log('caseLineUnit: ', e.data.extreme_unit);
           console.log('unitsArray: ', unitsArray);
 
           if (e.data.extreme_producttypecode == 3) {
+
+            Xrm.Utility.showProgressIndicator('Creating time entry... Please wait...');
+
             let description = null;
             let highestScheduledEnd = null;
             await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
@@ -793,24 +921,41 @@ async function setClientApiContext(Xrm, formContext) {
 
             const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
-            dateTo.addMinutes(e.data.extreme_quantity * 60);
-            const timeSpent = e.data.extreme_quantity * 60;
+            let timeSpent;
+            console.log("UNIT FOR CREATE TIME ENTRY");
+            console.log(unitsArray.find(item => item.id === e.data.extreme_unit).name);
+            if (unitsArray.find(item => item.id === e.data.extreme_unit).name == "PAK" || unitsArray.find(item => item.id === e.data.extreme_unit).name == "DAN") {
+              dateTo.addMinutes(e.data.extreme_quantity * (60 * 8));
+              timeSpent = e.data.extreme_quantity * (60 * 8);
+            }
+            else {
+              dateTo.addMinutes(e.data.extreme_quantity * 60);
+              timeSpent = e.data.extreme_quantity * 60;
+            }
             console.log(e.data.extreme_quantity);
+            console.log(timeSpent);
 
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
+            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
               e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
             );
 
             // Refresh grid for time entries
             setTimeout(async () => {
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+              await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000);
+
+            // Xrm.Utility.closeProgressIndicator();
+
           }
 
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
 
-          setTimeout(() => {
+
+          // proveriti time entrije dodavanje
+          setTimeout(async () => {
+            await this.setClientApiContext(Xrm, formContext);
+
             Xrm.Utility.closeProgressIndicator();
           }, 1000);
         },
@@ -848,11 +993,18 @@ async function setClientApiContext(Xrm, formContext) {
                 parentRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
                 parentRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
                 parentRecord.extreme_isparent = true; // Boolean
-                const dateNow = new Date();
+                const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
                   const endDate = new Date(warranty.extreme_warrantyend);
+
+                  console.log("DATES!!!");
+                  console.log(startDate);
+                  console.log(endDate);
+                  console.log(dateNow);
+
                   if (dateNow >= startDate && dateNow <= endDate) {
                     parentRecord.extreme_warranty = true;
                   }
@@ -882,11 +1034,18 @@ async function setClientApiContext(Xrm, formContext) {
                   childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                   childRecord.extreme_isparent = false; // Boolean
                   childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
-                  const dateNow = new Date();
+                  const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                  dateNow.setHours(0, 0, 0, 0);
                   const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                   if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                     const startDate = new Date(warranty.extreme_warrantystartdate);
                     const endDate = new Date(warranty.extreme_warrantyend);
+
+                    console.log("DATES!!!");
+                    console.log(startDate);
+                    console.log(endDate);
+                    console.log(dateNow);
+
                     if (dateNow >= startDate && dateNow <= endDate) {
                       childRecord.extreme_warranty = true;
                     }
@@ -916,11 +1075,18 @@ async function setClientApiContext(Xrm, formContext) {
                 record["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
                 record["extreme_Asset@odata.bind"] = `/extreme_assets(${assetToCreate})`; // Lookup
                 record.extreme_isparent = assetsArray.find(item => item.id === e.newData.extreme_asset).extreme_isparent; // Boolean
-                const dateNow = new Date();
+                const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                dateNow.setHours(0, 0, 0, 0);
                 const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${assetToCreate}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                 if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                   const startDate = new Date(warranty.extreme_warrantystartdate);
                   const endDate = new Date(warranty.extreme_warrantyend);
+
+                  console.log("DATES!!!");
+                  console.log(startDate);
+                  console.log(endDate);
+                  console.log(dateNow);
+
                   if (dateNow >= startDate && dateNow <= endDate) {
                     record.extreme_warranty = true;
                   }
@@ -950,11 +1116,18 @@ async function setClientApiContext(Xrm, formContext) {
                   childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
                   childRecord.extreme_isparent = false; // Boolean
                   childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
-                  const dateNow = new Date();
+                  const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                  dateNow.setHours(0, 0, 0, 0);
                   const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
                   if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
                     const startDate = new Date(warranty.extreme_warrantystartdate);
                     const endDate = new Date(warranty.extreme_warrantyend);
+
+                    console.log("DATES!!!");
+                    console.log(startDate);
+                    console.log(endDate);
+                    console.log(dateNow);
+
                     if (dateNow >= startDate && dateNow <= endDate) {
                       childRecord.extreme_warranty = true;
                     }
@@ -984,16 +1157,32 @@ async function setClientApiContext(Xrm, formContext) {
 
           // if owner or quantity is changed for time entries records
           if ((e.newData.owner || e.newData.extreme_quantity || e.newData.extreme_asset) && e.oldData.extreme_producttypecode == 3) {
-            const ownerId = e.newData.owner ? e.newData.owner : e.oldData.owner;
+            Xrm.Utility.showProgressIndicator('Updating time entry... Please wait...');
+
             const quantity = e.newData.extreme_quantity ? e.newData.extreme_quantity : e.oldData.extreme_quantity;
+            const ownerId = e.newData.owner ? e.newData.owner : e.oldData.owner;
             const assetId = e.newData.extreme_asset ? e.newData.extreme_asset : e.oldData.extreme_asset;
+
+            let timeSpent;
+            if (unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "PAK" || unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "DAN") {
+              timeSpent = quantity * (60 * 8);
+            }
+            else {
+              timeSpent = quantity * 60;
+            }
+
+
             // Create time entry on another web resource
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.updateTimeEntry(e.key, assetId, ownerId, quantity * 60);
+            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.updateTimeEntry(e.key, assetId, ownerId, timeSpent);
             setTimeout(async () => {
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+              await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000);
+
+            // Xrm.Utility.closeProgressIndicator();
           }
           else if (e.newData.extreme_producttypecode == 3) {
+            Xrm.Utility.showProgressIndicator('Creating time entry... Please wait...');
+
             let description = null;
             let highestScheduledEnd = null;
             await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
@@ -1017,27 +1206,36 @@ async function setClientApiContext(Xrm, formContext) {
 
             const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
+
+            console.log("UNIT FOR CREATE TIME ENTRY");
+            console.log(unitsArray.find(item => item.id === e.oldData.extreme_unit));
+
             dateTo.addMinutes(e.oldData.extreme_quantity * 60);
             const timeSpent = e.oldData.extreme_quantity * 60;
             console.log(e.oldData.extreme_quantity);
 
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
+            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
               e.oldData.extreme_asset, caseIdForm, e.key, e.oldData.owner, e.oldData.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
             );
 
             // Refresh grid for time entries
             setTimeout(async () => {
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+              await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000);
 
+            // Xrm.Utility.closeProgressIndicator();
           }
           else if (typeof (e.newData.extreme_producttypecode) === 'number' && e.newData.extreme_producttypecode !== 3) {
+            Xrm.Utility.showProgressIndicator('Deleting time entry... Please wait...');
+
             // Create time entry on another web resource
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);
+            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);
             // Refresh grid for time entries
             setTimeout(async () => {
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000)
+              await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            }, 1000);
+
+            // Xrm.Utility.closeProgressIndicator();
           }
 
           var record = {};
@@ -1063,17 +1261,16 @@ async function setClientApiContext(Xrm, formContext) {
 
           if (e.newData.extreme_asset) {
             // Check case assets after removing
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.checkAssetsAfterDelete(oldDataAssetId, caseIdForm);
+            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.checkAssetsAfterDelete(oldDataAssetId, caseIdForm);
             // Refresh grid for case assets
-            await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+            await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
 
           await Promise.all(promises);
 
-          await getCaseLines(caseIdForm);
-          dataGrid.refresh();
+          setTimeout(async () => {
+            await this.setClientApiContext(Xrm, formContext);
 
-          setTimeout(() => {
             Xrm.Utility.closeProgressIndicator();
           }, 1000);
 
@@ -1085,11 +1282,37 @@ async function setClientApiContext(Xrm, formContext) {
           Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
           console.log('RowRemoving');
           console.log(e.key);
+
+          // remove N:N relationship
+          await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=_extreme_caseline_value eq ${e.key}`).then(
+            async function success(results) {
+              console.log(results);
+              for (var i = 0; i < results.entities.length; i++) {
+                var result = results.entities[i];
+                // Columns
+                var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+
+                await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+                  function success(result) {
+                    console.log(result);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+
+              }
+            },
+            function (error) {
+              console.log(error.message);
+            }
+          );
+
           if (e.data.extreme_producttypecode == 3) {
             // Create time entry on another web resource
-            await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);
+            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.deleteTimeEntry(e.key);
             setTimeout(async () => {
-              await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+              await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
             }, 1000)
           }
           await Xrm.WebApi.deleteRecord("extreme_caseline", `${e.key}`).then(
@@ -1102,10 +1325,35 @@ async function setClientApiContext(Xrm, formContext) {
               console.log(error.message);
             }
           );
+
+          // remove N:N relationship
+          // await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${e.key} and _extreme_caseasset_value eq ${e.data.extreme_asset})`).then(
+          //   async function success(results) {
+          //     console.log(results);
+          //     for (var i = 0; i < results.entities.length; i++) {
+          //       var result = results.entities[i];
+          //       // Columns
+          //       var extreme_caseline_caseassetid = result["extreme_caseline_caseassetid"]; // Guid
+
+          //       await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
+          //         function success(result) {
+          //           console.log(result);
+          //         },
+          //         function (error) {
+          //           console.log(error.message);
+          //         }
+          //       );
+
+          //     }
+          //   },
+          //   function (error) {
+          //     console.log(error.message);
+          //   }
+          // );
           // Check case assets after removing
-          await Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
+          await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
           // Refresh grid for case assets
-          await Xrm.Page.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
@@ -1345,7 +1593,7 @@ async function setClientApiContext(Xrm, formContext) {
 
   // Xrm.Utility.closeProgressIndicator();
 
-  Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseLines");
+  formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseLines");
 
 }
 

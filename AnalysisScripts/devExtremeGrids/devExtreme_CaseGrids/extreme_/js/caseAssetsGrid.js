@@ -22,6 +22,8 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
+  if (formContext.getAttribute('extreme_account').getValue() == null) return;
+
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
@@ -61,7 +63,7 @@ async function setClientApiContext(Xrm, formContext) {
   );
   console.log('CaseAssets: ', caseAssetsDisplayName);
   // setTimeout(() => {
-  //   const toolbarBefore = Xrm.Page.getControl("WebResource_caseAssets").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
+  //   const toolbarBefore = formContext.getControl("WebResource_caseAssets").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
   //   console.log('dx toolbar before: ', toolbarBefore);
   //   toolbarBefore.innerHTML = `<span style='font-weight: 500; position: absolute; width: 100px; bottom: 30%; left: 0;'>${caseAssetsDisplayName}</span>`;
   //   console.log(formContext.data.entity);
@@ -197,7 +199,7 @@ async function setClientApiContext(Xrm, formContext) {
         allowColumnResizing: true,
         columnResizingMode: "mode",
         columnMinWidth: 10,
-        columnAutoWidth: true,
+        columnAutoWidth: false,
         columnHidingEnabled: false,
         scrolling: {
           mode: "standard",
@@ -209,10 +211,13 @@ async function setClientApiContext(Xrm, formContext) {
           async template(container, options) {
             const assetData = options.data;
 
-            container.css('padding', '0 0 10px 10px');
             container.css('background', '#e5edfe');
+            container.css('padding', 0);
 
-            $(`<div id="${assetData.extreme_caseassetid}" class="child-grid">`)
+            $(`<div id="${assetData.extreme_caseassetid}" class="child-grid">`).css({
+              "border-bottom": "1rem solid #b6bdca",
+              "border-top": "3px solid #b6bdca",
+            }).addClass("internal-grid")
               .dxDataGrid({
                 dataSource: caseAssetsData,
                 filterValue: [
@@ -220,6 +225,7 @@ async function setClientApiContext(Xrm, formContext) {
                   "and",
                   ["extreme_parentcaseasset", "=", assetData.extreme_caseassetid]
                 ],
+                showColumnHeaders: false,
                 width: "100%",
                 wordWrapEnabled: true,
                 showColumnLines: true,
@@ -246,7 +252,7 @@ async function setClientApiContext(Xrm, formContext) {
                 allowColumnResizing: true,
                 columnResizingMode: "mode",
                 columnMinWidth: 10,
-                columnAutoWidth: true,
+                columnAutoWidth: false,
                 columnHidingEnabled: false,
                 scrolling: {
                   mode: "standard",
@@ -255,90 +261,205 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 columns: [
                   {
-                    dataField: 'extreme_productid',
-                    caption: 'ID',
+                    dataField: 'extreme_assetcode',
+                    caption: 'Code',
                     dataType: 'string',
-                    allowEditing: false
+                    allowEditing: false,
+                    width: 115,
+                    visible: dataGrid.columnOption('extreme_assetcode', 'visible')
                   },
                   {
                     dataField: 'extreme_name',
                     caption: 'Name',
                     dataType: 'string',
-                    allowEditing: false
-                  },
-                  {
-                    dataField: 'extreme_assetcode',
-                    caption: 'Code',
-                    dataType: 'string',
-                    allowEditing: false
+                    width: 130,
+                    allowEditing: false,
+                    visible: dataGrid.columnOption('extreme_name', 'visible')
                   },
                   {
                     dataField: 'extreme_lastactivitydate',
                     caption: 'Last Activity',
                     dataType: 'datetime',
+                    width: 150,
                     pickerType: 'rollers',
                     value: now,
                     inputAttr: { 'aria-label': 'Date and time picker' },
                     format: "dd.MM.yyyy HH:mm",
-                    allowEditing: false
+                    allowEditing: false,
+                    visible: dataGrid.columnOption('extreme_lastactivitydate', 'visible')
                   },
                   {
                     dataField: 'extreme_serialnumber',
                     caption: 'S/N',
                     dataType: 'string',
-                    allowEditing: false
+                    width: 130,
+                    allowEditing: false,
+                    validationRules: [
+                      {
+                        type: 'custom',
+                        message: 'Required',
+                        validationCallback(params) {
+                          console.log('VALIDATION PARAMS');
+                          console.log(params);
+
+                          return params.data.extreme_isparent !== true && (params.value === null || params.value.trim() === '') ? false : true;
+
+                        },
+                      }
+                    ],
+                    visible: dataGrid.columnOption('extreme_serialnumber', 'visible')
                   },
                   {
                     dataField: 'extreme_inventoryno',
                     caption: 'Inventory No.',
                     dataType: 'string',
-                    allowEditing: false
+                    width: 130,
+                    allowEditing: false,
+                    visible: dataGrid.columnOption('extreme_inventoryno', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_location',
+                    caption: 'Location',
+                    dataType: 'string',
+                    width: 150,
+                    allowEditing: false,
+                    visible: dataGrid.columnOption('extreme_location', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_warrantystartdate',
+                    caption: 'Warranty start',
+                    dataType: 'date',
+                    width: 150,
+                    value: now,
+                    inputAttr: { 'aria-label': 'Date and time picker' },
+                    format: "dd.MM.yyyy",
+                    allowEditing: false,
+                    visible: dataGrid.columnOption('extreme_warrantystartdate', 'visible'),
+                    editorOptions: {
+                      onOpened: function (e) {
+                        heightAuto = false;
+                        if (heightAuto === false) {
+                          const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                          wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
+                        }
+                      },
+                      onClosed: function (e) {
+                        heightAuto = true;
+                      },
+                      onFocusOut: function (e) {
+                        heightAuto = true;
+                      }
+                    },
+                    // setuj warranty end 1 godinu unapred
+                    setCellValue: async function (newData, value, currentRowData) {
+                      newData.extreme_warrantystartdate = value;
+                      const yearAfter = new Date(value);
+                      yearAfter.setFullYear(yearAfter.getFullYear() + 1);
+                      newData.extreme_warrantyend = yearAfter;
+                    }
                   },
                   {
                     dataField: 'extreme_warrantyend',
                     caption: 'Warranty end',
-                    dataType: 'datetime',
-                    pickerType: 'rollers',
+                    dataType: 'date',
+                    width: 150,
                     value: now,
                     inputAttr: { 'aria-label': 'Date and time picker' },
-                    format: "dd.MM.yyyy HH:mm",
-                    allowEditing: false
+                    format: "dd.MM.yyyy",
+                    allowEditing: false,
+                    editorOptions: {
+                      onOpened: function (e) {
+                        heightAuto = false;
+                        if (heightAuto === false) {
+                          const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                          wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
+                        }
+                      },
+                      onClosed: function (e) {
+                        heightAuto = true;
+                      },
+                      onFocusOut: function (e) {
+                        heightAuto = true;
+                      }
+                    },
+                    visible: dataGrid.columnOption('extreme_warrantyend', 'visible')
                   },
                   {
                     dataField: 'extreme_warrantyenddatevendor',
                     caption: 'Warranty end (vendor)',
-                    dataType: 'datetime',
-                    pickerType: 'rollers',
+                    dataType: 'date',
+                    width: 150,
                     value: now,
                     inputAttr: { 'aria-label': 'Date and time picker' },
-                    format: "dd.MM.yyyy HH:mm",
-                    allowEditing: false
+                    format: "dd.MM.yyyy",
+                    allowEditing: false,
+                    editorOptions: {
+                      onOpened: function (e) {
+                        heightAuto = false;
+                        if (heightAuto === false) {
+                          const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                          wrControl.getObject().style.minHeight = `${iframeCorrentHeight + 320}px`;
+                        }
+                      },
+                      onClosed: function (e) {
+                        heightAuto = true;
+                      },
+                      onFocusOut: function (e) {
+                        heightAuto = true;
+                      }
+                    },
+                    visible: dataGrid.columnOption('extreme_warrantyenddatevendor', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_preventiveservicecycle',
+                    caption: 'PSC Duration',
+                    width: 130,
+                    wordWrapEnabled: false,
+                    visible: dataGrid.columnOption('extreme_preventiveservicecycle', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_warranty',
+                    caption: 'Warranty?',
+                    width: 50,
+                    dataType: 'boolean',
+                    visible: dataGrid.columnOption('extreme_warranty', 'visible')
                   },
                   {
                     dataField: 'extreme_description',
                     caption: 'Description',
                     dataType: 'string',
+                    cssClass: 'textarea-fields',
                     width: 300,
-                    allowEditing: true
+                    allowEditing: true,
+                    visible: dataGrid.columnOption('extreme_description', 'visible')
                   },
                   {
                     dataField: 'extreme_solution',
                     caption: 'Solution',
                     dataType: 'string',
-                    width: 300,
-                    allowEditing: true
+                    cssClass: 'textarea-fields',
+                    // width: 300,
+                    allowEditing: true,
+                    visible: dataGrid.columnOption('extreme_solution', 'visible')
                   },
                   {
                     dataField: 'extreme_parentcaseasset',
                     caption: 'Parent CA',
                     dataType: 'string',
-                    visible: dataGrid.columnOption("extreme_parentcaseasset", "visible")
+                    visible: dataGrid.columnOption('extreme_parentcaseasset', 'visible')
                   },
                   {
                     dataField: 'extreme_isparent',
                     caption: 'Is Parent',
                     dataType: 'boolean',
-                    visible: dataGrid.columnOption("extreme_isparent", "visible")
+                    visible: dataGrid.columnOption('extreme_isparent', 'visible')
+                  },
+                  {
+                    dataField: 'extreme_productid',
+                    caption: 'ID',
+                    dataType: 'string',
+                    allowEditing: false,
+                    visible: dataGrid.columnOption('extreme_productid', 'visible')
                   },
                 ],
                 onSelectionChanged(data) {
@@ -351,8 +472,8 @@ async function setClientApiContext(Xrm, formContext) {
                   // Check calssify
                   if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === false && (
                     (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
-                    // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
-                    (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
+                    (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+                    // (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
                     (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
                     (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
                     (e.data.extreme_warrantyenddatevendor === null || e.data.extreme_warrantyenddatevendor === undefined) ||
@@ -362,7 +483,7 @@ async function setClientApiContext(Xrm, formContext) {
                     e.rowElement[0].style.backgroundColor = "#fce3c2";
                   }
                   else {
-                    e.rowElement[0].style.backgroundColor = "#fff";
+                    e.rowElement[0].style.backgroundColor = "#fafafa";
                   }
 
                 },
@@ -397,25 +518,10 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('Editor Preparing');
                   console.log(e);
 
-                  if (e.dataField === "extreme_description" || (e.dataField === "extreme_solution")) {
+                  if (e.dataField === "extreme_description" || e.dataField === "extreme_solution") {
                     e.editorName = "dxTextArea";
                     e.editorOptions.autoResizeEnabled = true;
-                    // console.log("EDITOR ELEMENT");
-                    setTimeout(() => {
-                      // console.log(e.editorElement[0].querySelector("textarea"));
-                      e.editorElement[0].querySelector("textarea").style.lineHeight = "1.6";
-                      e.editorElement[0].querySelector("textarea").style.height = "auto";
-                    }, 200);
                   }
-
-                  // if (e.dataField == "createdon") e.editorOptions.disabled = true;
-                  // if (e.dataField == "scheduledend") e.editorOptions.disabled = true;
-                  // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
-                  // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
-                  // if (e.row.data.extreme_caseline) {
-                  //   if (e.dataField == "owner") e.editorOptions.disabled = true;
-                  //   if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = true;
-                  // }
                 },
                 onEditingStart: (e) => {
                   console.log('EditingStart');
@@ -534,9 +640,9 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log('RowRemoving');
                   console.log(e);
                   // Delete case line on another web resource
-                  // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
+                  // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
                   // Refresh grid for case lines
-                  // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+                  // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
                   await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
                     function success(result) {
                       console.log(result);
@@ -561,43 +667,45 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 onEditCanceled() {
                   console.log('EditCanceled');
+                },
+                onContentReady(e) {
+                  e.component.columnOption("command:select", "visibleIndex", 999);
                 }
               }).appendTo(container);
           },
         },
         columns: [
           {
-            dataField: 'extreme_productid',
-            caption: 'ID',
+            dataField: 'extreme_assetcode',
+            caption: 'Code',
             dataType: 'string',
+            width: 115,
             allowEditing: false
           },
           {
             dataField: 'extreme_name',
             caption: 'Name',
             dataType: 'string',
-            allowEditing: false
-          },
-          {
-            dataField: 'extreme_assetcode',
-            caption: 'Code',
-            dataType: 'string',
+            width: 130,
             allowEditing: false
           },
           {
             dataField: 'extreme_lastactivitydate',
             caption: 'Last Activity',
             dataType: 'datetime',
+            width: 150,
             pickerType: 'rollers',
             value: now,
             inputAttr: { 'aria-label': 'Date and time picker' },
             format: "dd.MM.yyyy HH:mm",
-            allowEditing: false
+            allowEditing: false,
+            visible: false
           },
           {
             dataField: 'extreme_serialnumber',
             caption: 'S/N',
             dataType: 'string',
+            width: 130,
             allowEditing: false,
             validationRules: [
               {
@@ -617,6 +725,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_inventoryno',
             caption: 'Inventory No.',
             dataType: 'string',
+            width: 130,
             allowEditing: false,
             // validationRules: [
             //   {
@@ -647,6 +756,7 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_location',
             caption: 'Location',
             dataType: 'string',
+            width: 150,
             allowEditing: false,
             visible: false
           },
@@ -654,11 +764,12 @@ async function setClientApiContext(Xrm, formContext) {
             dataField: 'extreme_warrantystartdate',
             caption: 'Warranty start',
             dataType: 'date',
+            width: 150,
             value: now,
             inputAttr: { 'aria-label': 'Date and time picker' },
             format: "dd.MM.yyyy",
             allowEditing: false,
-            visble: false,
+            visible: false,
             editorOptions: {
               onOpened: function (e) {
                 heightAuto = false;
@@ -673,12 +784,20 @@ async function setClientApiContext(Xrm, formContext) {
               onFocusOut: function (e) {
                 heightAuto = true;
               }
+            },
+            // setuj warranty end 1 godinu unapred
+            setCellValue: async function (newData, value, currentRowData) {
+              newData.extreme_warrantystartdate = value;
+              const yearAfter = new Date(value);
+              yearAfter.setFullYear(yearAfter.getFullYear() + 1);
+              newData.extreme_warrantyend = yearAfter;
             }
           },
           {
             dataField: 'extreme_warrantyend',
             caption: 'Warranty end',
             dataType: 'date',
+            width: 150,
             value: now,
             inputAttr: { 'aria-label': 'Date and time picker' },
             format: "dd.MM.yyyy",
@@ -697,13 +816,15 @@ async function setClientApiContext(Xrm, formContext) {
               onFocusOut: function (e) {
                 heightAuto = true;
               }
-            }
+            },
+            visible: false
           },
           {
             dataField: 'extreme_warrantyenddatevendor',
             caption: 'Warranty end (vendor)',
             dataType: 'date',
             value: now,
+            width: 150,
             inputAttr: { 'aria-label': 'Date and time picker' },
             format: "dd.MM.yyyy",
             allowEditing: false,
@@ -721,7 +842,8 @@ async function setClientApiContext(Xrm, formContext) {
               onFocusOut: function (e) {
                 heightAuto = true;
               }
-            }
+            },
+            visible: false
           },
           {
             dataField: 'extreme_preventiveservicecycle',
@@ -773,21 +895,23 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_warranty',
             caption: 'Warranty?',
-            width: 100,
+            width: 50,
             dataType: 'boolean'
           },
           {
             dataField: 'extreme_description',
             caption: 'Description',
             dataType: 'string',
+            cssClass: 'textarea-fields',
             width: 300,
-            allowEditing: true
+            allowEditing: true,
           },
           {
             dataField: 'extreme_solution',
             caption: 'Solution',
             dataType: 'string',
-            width: 300,
+            cssClass: 'textarea-fields',
+            // width: 300,
             allowEditing: true
           },
           {
@@ -802,6 +926,13 @@ async function setClientApiContext(Xrm, formContext) {
             dataType: 'boolean',
             visible: false
           },
+          {
+            dataField: 'extreme_productid',
+            caption: 'ID',
+            dataType: 'string',
+            allowEditing: false,
+            visible: false
+          }
         ],
         toolbar: {
           items: [
@@ -839,16 +970,17 @@ async function setClientApiContext(Xrm, formContext) {
                   // reset visible for all columns - classify
                   console.log('ALL COLUMNS');
                   console.log(dataGrid.option('columns'));
+                  dataGrid.option('columnAutoWidth', false);
                   dataGrid.option('columns').forEach(col => {
                     if (
-                      col.dataField == "extreme_productid" ||
+                      // col.dataField == "extreme_productid" ||
                       col.dataField == "extreme_name" ||
                       col.dataField == "extreme_assetcode" ||
-                      col.dataField == "extreme_lastactivitydate" ||
+                      // col.dataField == "extreme_lastactivitydate" ||
                       col.dataField == "extreme_serialnumber" ||
                       col.dataField == "extreme_inventoryno" ||
-                      col.dataField == "extreme_warrantyend" ||
-                      col.dataField == "extreme_warrantyenddatevendor" ||
+                      // col.dataField == "extreme_warrantyend" ||
+                      // col.dataField == "extreme_warrantyenddatevendor" ||
                       col.dataField == "extreme_warranty" ||
                       col.dataField == "extreme_description" ||
                       col.dataField == "extreme_solution"
@@ -912,9 +1044,10 @@ async function setClientApiContext(Xrm, formContext) {
                   // reset visible for all columns - classify
                   console.log('ALL COLUMNS');
                   console.log(dataGrid.option('columns'));
+                  dataGrid.option('columnAutoWidth', true);
                   dataGrid.option('columns').forEach(col => {
                     if (
-                      col.dataField == "extreme_productid" ||
+                      // col.dataField == "extreme_productid" ||
                       col.dataField == "extreme_name" ||
                       col.dataField == "extreme_serialnumber" ||
                       col.dataField == "extreme_inventoryno" ||
@@ -976,8 +1109,8 @@ async function setClientApiContext(Xrm, formContext) {
           // Check calssify
           if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === false && (
             (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
-            // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
-            (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
+            (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+            // (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
             (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
             (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
             (e.data.extreme_warrantyenddatevendor === null || e.data.extreme_warrantyenddatevendor === undefined) ||
@@ -988,8 +1121,8 @@ async function setClientApiContext(Xrm, formContext) {
           }
           else if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === true && (
             // (e.data.extreme_serialnumber === null || e.data.extreme_serialnumber === undefined) ||
-            // (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
-            (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
+            (e.data.extreme_inventoryno === null || e.data.extreme_inventoryno === undefined) ||
+            // (e.data.extreme_location === null || e.data.extreme_location === undefined) ||
             (e.data.extreme_warrantystartdate === null || e.data.extreme_warrantystartdate === undefined) ||
             (e.data.extreme_warrantyend === null || e.data.extreme_warrantyend === undefined) ||
             (e.data.extreme_warrantyenddatevendor === null || e.data.extreme_warrantyenddatevendor === undefined) ||
@@ -1001,8 +1134,8 @@ async function setClientApiContext(Xrm, formContext) {
           else if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && e.data.extreme_isparent === true && caseAssetsData._array.find(item =>
             item.extreme_parentcaseasset === e.data.extreme_caseassetid &&
             ((item.extreme_serialnumber === null || item.extreme_serialnumber === undefined) ||
-              // (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
-              (item.extreme_location === null || item.extreme_location === undefined) ||
+              (item.extreme_inventoryno === null || item.extreme_inventoryno === undefined) ||
+              // (item.extreme_location === null || item.extreme_location === undefined) ||
               (item.extreme_warrantystartdate === null || item.extreme_warrantystartdate === undefined) ||
               (item.extreme_warrantyend === null || item.extreme_warrantyend === undefined) ||
               (item.extreme_warrantyenddatevendor === null || item.extreme_warrantyenddatevendor === undefined) ||
@@ -1047,25 +1180,10 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('Editor Preparing');
           console.log(e);
 
-          if (e.dataField === "extreme_description" || (e.dataField === "extreme_solution")) {
+          if (e.dataField === "extreme_description" || e.dataField === "extreme_solution") {
             e.editorName = "dxTextArea";
             e.editorOptions.autoResizeEnabled = true;
-            // console.log("EDITOR ELEMENT");
-            setTimeout(() => {
-              // console.log(e.editorElement[0].querySelector("textarea"));
-              e.editorElement[0].querySelector("textarea").style.lineHeight = "1.6";
-              e.editorElement[0].querySelector("textarea").style.height = "auto";
-            }, 200);
           }
-
-          // if (e.dataField == "createdon") e.editorOptions.disabled = true;
-          // if (e.dataField == "scheduledend") e.editorOptions.disabled = true;
-          // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
-          // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
-          // if (e.row.data.extreme_caseline) {
-          //   if (e.dataField == "owner") e.editorOptions.disabled = true;
-          //   if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = true;
-          // }
         },
         onEditingStart: (e) => {
           console.log('EditingStart');
@@ -1204,9 +1322,9 @@ async function setClientApiContext(Xrm, formContext) {
           console.log('RowRemoving');
           console.log(e);
           // // Delete case line on another web resource
-          // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
+          // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
           // // Refresh grid for case lines
-          // await Xrm.Page.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+          // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
             function success(result) {
               console.log(result);
@@ -1232,10 +1350,40 @@ async function setClientApiContext(Xrm, formContext) {
         onEditCanceled() {
           console.log('EditCanceled');
         },
-        onContentReady() {
+        onContentReady(e) {
+          e.component.columnOption("command:select", "visibleIndex", 999);
+          e.component.getView("columnHeadersView").resizeCompleted.remove(masterGridColumnResized);
+          e.component.getView("columnHeadersView").resizeCompleted.add(masterGridColumnResized);
+          masterGridColumnResized();
           checkClassifyRows();
         }
       }).dxDataGrid('instance');
+
+      // resize child columns
+      function masterGridColumnResized() {
+        var detailContainers = dataGrid.element().find('.internal-grid');
+        console.log(detailContainers);
+        if (detailContainers.length) {
+          for (var j = 0; j < detailContainers.length; j++) {
+            var detailGridInstance = $(detailContainers.get(j)).dxDataGrid('instance');
+            detailGridInstance.beginUpdate();
+            for (var i = 0; i < dataGrid.columnCount(); i++) {
+              console.log("columnOption dataField");
+              console.log(dataGrid.columnOption(i, "dataField"));
+              if (dataGrid.columnOption(i, "dataField") == "extreme_assetcode") {
+                detailGridInstance.columnOption(i, 'width', dataGrid.columnOption(i, 'width') + 30);
+                detailGridInstance.columnOption(i, 'visibleWidth', dataGrid.columnOption(i, 'visibleWidth') + 30);
+              }
+              else {
+                detailGridInstance.columnOption(i, 'width', dataGrid.columnOption(i, 'width'));
+                detailGridInstance.columnOption(i, 'visibleWidth', dataGrid.columnOption(i, 'visibleWidth'));
+              }
+            }
+            detailGridInstance.endUpdate();
+          }
+        }
+
+      }
 
 
       // function for checking classify needed rows
@@ -1316,7 +1464,7 @@ async function setClientApiContext(Xrm, formContext) {
 
   // Xrm.Utility.closeProgressIndicator();
 
-  Xrm.Page.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets");
+  formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets");
 
 }
 
