@@ -768,21 +768,21 @@ async function setClientApiContext(Xrm, formContext) {
                 async function success(result) {
                   var newId = result.id;
 
-                  var recordNN = {};
-                  recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
-                  recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
+                  // var recordNN = {};
+                  // recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+                  // recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
 
-                  await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
-                    function success(result) {
-                      var newId = result.id;
-                      console.log(newId);
-                    },
-                    function (error) {
-                      console.log(error.message);
-                    }
-                  );
+                  // await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
+                  //   function success(result) {
+                  //     var newId = result.id;
+                  //     console.log(newId);
+                  //   },
+                  //   function (error) {
+                  //     console.log(error.message);
+                  //   }
+                  // );
 
-                  newCreatedCasseAssetId = result.id;
+                  newCreatedCasseAssetId = newId;
                   console.log(newId);
                 },
                 function (error) {
