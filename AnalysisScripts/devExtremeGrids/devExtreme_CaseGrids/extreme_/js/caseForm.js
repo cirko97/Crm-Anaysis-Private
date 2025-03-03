@@ -41,7 +41,13 @@ function form_onload(executionContext) {
     formContext.getAttribute("extreme_account").addOnChange(() => {
 
       if (formContext.getAttribute("extreme_account").getValue() !== null) {
+
         initAcc = formContext.getAttribute("extreme_account").getValue();
+
+        retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseLines"));
+        retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_timeEntries"));
+        retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_caseAssets"));
+
       }
       else {
 

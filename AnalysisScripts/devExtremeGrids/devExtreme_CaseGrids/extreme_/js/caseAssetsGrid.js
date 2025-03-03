@@ -22,6 +22,8 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
+  if (formContext.getAttribute('extreme_account').getValue() == null) return;
+
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
@@ -33,8 +35,6 @@ async function setClientApiContext(Xrm, formContext) {
   else {
     isEditable = false;
   }
-
-  if (formContext.getAttribute('extreme_account').getValue() == null) return;
 
   const preventiveCycleTypes = await Xrm.Utility.getEntityMetadata('extreme_asset', ['extreme_preventiveservicecycle']).then(
     result => result.Attributes._collection.extreme_preventiveservicecycle.OptionSet,
