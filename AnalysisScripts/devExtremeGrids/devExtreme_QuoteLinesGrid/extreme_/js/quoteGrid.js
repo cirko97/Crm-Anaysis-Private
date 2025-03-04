@@ -2690,25 +2690,9 @@ async function setClientApiContext(Xrm, formContext) {
                   }
 
                   if (e.column.dataField === "extreme_customproductname") {
-                    // Create an anchor element
-                    const globalContext = Xrm.Utility.getGlobalContext();
-                    globalContext.getCurrentAppUrl();
 
-                    console.log('CLIENT URL');
-                    console.log(globalContext.getCurrentAppUrl());
+                    inventoryInfo(e.data.productid);
 
-                    const link = document.createElement('a');
-                    link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=quotedetail&id=${e.data.quotedetailid}`;
-                    link.target = "_blank";
-
-                    // Append the anchor to the body (required for Firefox)
-                    document.body.appendChild(link);
-
-                    // Trigger a click event on the anchor
-                    link.click();
-
-                    // Remove the anchor from the body
-                    document.body.removeChild(link);
                   }
 
                 },
@@ -5857,7 +5841,7 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
           if (e.column.dataField === "extreme_customproductname") {
-           
+
             inventoryInfo(e.data.productid);
 
           }
