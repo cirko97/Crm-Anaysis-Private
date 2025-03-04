@@ -48,92 +48,23 @@
     <script src="./extreme_/js/inventoryInfoList.js"></script>
 </head>
 
-<body class="dx-viewport">
+<body>
 
-
-
-    <div class="demo-container">
-
-        <!-- Modal -->
-        <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="alertModalLabel">Popunite obavezna polja</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        Molim Vas popunite obavezna polja označena sa <span style="color: red;">*</span> (zvezdicom).
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">U redu</button>
-                        <!-- <button type="button" class="btn btn-primary">Save changes</button> -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="alert alert-warning" role="alert" style="margin: 10px;">
-            Navedite sledeće informacije o tome zašto je ova mogućnost za poslovanje zatvorena.
-        </div>
-
-        <div class="form">
-
-            <div class="dx-fieldset">
-                <div class="dx-field">
-                    <div class="dx-field-label">Razlog statusa: <span style="color: red;">*</span></div>
-                    <div class="dx-field-value">
-                        <div id="lookup-status"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="dx-fieldset">
-                <div class="dx-field">
-                    <div class="dx-field-label">Stvarni promet: <span style="color: red;">*</span></div>
-                    <div class="dx-field-value">
-                        <div id="currency"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="dx-fieldset">
-                <div class="dx-field">
-                    <div class="dx-field-label">Datum zatvaranja: <span style="color: red;">*</span></div>
-                    <div class="dx-field-value">
-                        <div id="date"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="dx-fieldset">
-                <div class="dx-field">
-                    <div class="dx-field-label">Konkurent:</div>
-                    <div class="dx-field-value">
-                        <div id="lookup-competitor"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="dx-fieldset">
-                <div class="dx-field">
-                    <div class="dx-field-label">Opis:</div>
-                    <div class="dx-field-value">
-                        <div id="description"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="buttons">
-                <div id="cancel-btn"></div>
-                <div id="submit-btn"></div>
-            </div>
-
-        </div>
-
+    <div class="container">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Product Description</th>
+                    <th>Product Price</th>
+                    <th>Product Quantity</th>
+                </tr>
+            </thead>
+            <tbody id="inventoryInfoList">
+            </tbody>
+        </table>
     </div>
-
-
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
