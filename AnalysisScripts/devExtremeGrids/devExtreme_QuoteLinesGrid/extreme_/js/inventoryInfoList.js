@@ -44,7 +44,6 @@ $(() => {
         }
     });
 
-
     function api(name) {
 
         let settings = {};
