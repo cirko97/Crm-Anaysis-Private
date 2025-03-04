@@ -5857,25 +5857,9 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
           if (e.column.dataField === "extreme_customproductname") {
-            // Create an anchor element
-            const globalContext = Xrm.Utility.getGlobalContext();
-            globalContext.getCurrentAppUrl();
+           
+            inventoryInfo(e.data.productid);
 
-            console.log('CLIENT URL');
-            console.log(globalContext.getCurrentAppUrl());
-
-            const link = document.createElement('a');
-            link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=quotedetail&id=${e.data.quotedetailid}`;
-            link.target = "_blank";
-
-            // Append the anchor to the body (required for Firefox)
-            document.body.appendChild(link);
-
-            // Trigger a click event on the anchor
-            link.click();
-
-            // Remove the anchor from the body
-            document.body.removeChild(link);
           }
 
         },
@@ -6315,14 +6299,17 @@ async function setClientApiContext(Xrm, formContext) {
       }
 
       // Function to get Inventory Info and display it as pop-up dialog
-      function inventoryInfo(product) {
+      function inventoryInfo(productGuid) {
+        const globalContext = Xrm.Utility.getGlobalContext();
+
         const pageInput = {
           pageType: "webresource",
           webresourceName: "extreme_InventoryInfo.html",
           data: JSON.stringify({
             baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
+            baseUrlWithApp: globalContext.getCurrentAppUrl(),
             entityId: formContext.data.entity.getId().slice(1, -1),
-            product: product,
+            productGuid: productGuid,
           }),
         };
 
