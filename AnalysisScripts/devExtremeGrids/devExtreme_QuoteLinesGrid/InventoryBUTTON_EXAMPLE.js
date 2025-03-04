@@ -1,31 +1,26 @@
 async function inventoryInfo(product) {
     const pageInput = {
         pageType: "webresource",
-        webresourceName: "extreme_WonLostForm.html",
+        webresourceName: "extreme_InventoryInfo.html",
         data: JSON.stringify({
             baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
             entityId: formContext.data.entity.getId().slice(1, -1),
-            statusCodesArray: statusCodesArray,
-            setStatus: setStatusValue // ID of status "WON"
+            product: product,
         }),
     };
 
     const navigationOptions = {
         target: 2,
-        height: { value: 800, unit: "px" },
-        width: { value: 500, unit: "px" },
+        height: { value: 500, unit: "px" },
+        width: { value: 800, unit: "px" },
         position: 1,
-        title: "Zatvori priliku za poslovanje"
+        title: "Inventory Info for " + product.name,
     };
 
     Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
         function success() {
             // Run code on success
             console.log("Success");
-
-            // Refresh the form
-            formContext.data.refresh(true);
-
         },
         function error() {
             // Handle errors
