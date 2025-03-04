@@ -1,19 +1,4 @@
-async function inventoryInfo(formContext, setStatusValue) {
-    console.log(formContext);
-
-    let statusCodesArray = [];
-    const statusCodesDefs = await Xrm.Utility.getEntityMetadata('extreme_opportunity', ['statuscode']);
-    const objOfObjs = statusCodesDefs.Attributes._collection.statuscode.OptionSet;
-    const arrayOfObjs = Object.keys(objOfObjs).map(key => {
-      return objOfObjs[key];
-    });
-    arrayOfObjs.forEach(elm => {
-        statusCodesArray.push({
-            "id": elm.value,
-            "name": elm.text
-        })
-    });
-
+async function inventoryInfo(product) {
     const pageInput = {
         pageType: "webresource",
         webresourceName: "extreme_WonLostForm.html",
@@ -47,8 +32,4 @@ async function inventoryInfo(formContext, setStatusValue) {
             console.log("Error");
         }
     );
-}
-
-function enableRule(formContext) {
-    console.log(formContext);
 }
