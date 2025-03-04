@@ -51,28 +51,28 @@ $(() => {
 
         if (name == 'getToken') {
             settings = {
-                "url": "https://paws.telekom.si/api/Users/authwithtoken",
+                "url": pawsConfig['PAWS_AUTHENDPOINT'],
                 "method": "POST",
                 "timeout": 0,
                 "headers": {
                     "Content-Type": "application/json"
                 },
                 "data": JSON.stringify({
-                    "Username": "ANAL_PAWS",
-                    "Password": "pawsaa123!",
-                    "companyDB": "ANALYSISADRIA_TEST"
+                    "Username": pawsConfig['PAWS_username'],
+                    "Password": pawsConfig['PAWS_password'],
+                    "companyDB": pawsConfig['PAWS_companyDB']
                 }),
             };
         }
 
         if (name == 'getInventory') {
             settings = {
-                "url": "https://paws.telekom.si/api/Ident/retrieve",
+                "url": pawsConfig['PAWS_IDENTRETRIEVE'],
                 "method": "POST",
                 "timeout": 0,
                 "headers": {
                     "Content-Type": "application/json",
-                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIyMzAiLCJwYXdzL1VzZXJJZCI6IjIzMCIsInVuaXF1ZV9uYW1lIjoiQU5BTF9QQVdTIiwiQ29ublN0ciI6IkFRQUFBTkNNbmQ4QkZkRVJqSG9Bd0UvQ2wrc0JBQUFBOGo4WW9Lc0tjMEdzc3pvTjBBS215QUFBQUFBQ0FBQUFBQUFEWmdBQXdBQUFBQkFBQUFCUjEyTDdUMXV6Nld5ckZUUERQeDMxQUFBQUFBU0FBQUNnQUFBQUVBQUFBRmdhZnFkZlZudHY5em1KZXBDbmtLUUFBUUFBVkVMancvRWZPMTFXWUdBMTk0SmJBOFJLNm1BcmRUNE5hSWovTm9VSzhKQzZTYllSOVBlR1Q0dlFGY24zeUpQUzBRVlRpbW9GTmVnNTJqZFJheHpNbkhmR2xFZlY2TFVYMlN5VkcreWx3c0RCYkswOS9wSDNIcXAzQUZpUlhUR3p0TUJXRnh1MzF5akdCSk9CMDdmL0VaK252YjlTK1owSDNYVlNmVS8vL0lxckVXbmszNUlZT1VJYmpNWmhwaW1EdExlTVU0NkwweVgzSytQeXNWSDR6a3ZzZHovbXRkQWdPTHNDOEErdmFKR1IvaWY2aEpHWkNpQzloTDJTWnMxZEhUSTdBWDFLVmFnNVZ0eTVRRzMzQlpZS29neDlNUVdjbjhZME9WTGZET1NaRnFiVHF3b3lvVU1qMUFqS3JpZ1VHNVdYdFA0N2xneTRCUVVJQjlValNSUUFBQUM4TmtreUxJKys0QzlaNkZ0OUlhNTJUVE9OQUE9PSIsIklWcyI6IiIsIkR0RXhwIjoiMTQuIDAyLiAyMDI1IDA5OjI1OjAwIiwibmJmIjoxNzM5NTI0OTIwLCJleHAiOjE3Mzk1MjUxMDAsImlhdCI6MTczOTUyNDkyMH0.jHiv-E2-Qrp9gSb73iyr-1Wt2RuVQGHVkdD7l4Axc4M"
+                    "Authorization": "Bearer " + token.token
                 },
                 "data": JSON.stringify({
                     "start": 0,
@@ -118,6 +118,9 @@ $(() => {
             console.log(response);
 
             return response;
+        }).fail(function (jqXHR, textStatus, errorThrown) {
+            console.error('Error occurred: ' + textStatus, errorThrown);
+            console.error(jqXHR.responseText);
         });
 
     }
