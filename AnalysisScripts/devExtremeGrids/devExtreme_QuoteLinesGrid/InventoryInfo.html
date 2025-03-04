@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>DevExtreme Demo</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+
+    <script>
+
+        let queryParams;
+
+        function getQueryParams() {
+            const params = new URLSearchParams(location.search);
+            console.log(params);
+
+            const data = params.get('data'); // Change 'baseUrl' to 'data'
+            console.log(data);
+
+            if (data) {
+                return JSON.parse(decodeURIComponent(data));
+            }
+            return null;
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            queryParams = getQueryParams();
+            if (queryParams) {
+                // You can now use queryParams.baseUrl or any other data passed
+                console.log("Data found in query parameters.");
+            } else {
+                console.log("No data found in query parameters.");
+            }
+        });
+    </script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>window.jQuery || document.write(decodeURIComponent('%3Cscript src="js/jquery.min.js"%3E%3C/script%3E'))</script>
+    <link rel="stylesheet" type="text/css"
+        href="https://cdn3.devexpress.com/jslib/24.2.3/css/dx.fluent.blue.light.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="./extreme_/css/bootstrapmin.css" />
+    <script src="./extreme_/js/dxall.js"></script>
+    <script src="./extreme_/js/data.js"></script>
+    <link rel="stylesheet" type="text/css" href="./extreme_/css/stylesOppRibbon.css" />
+    <script src="./extreme_/js/WonLostOpportunity.js"></script>
+</head>
+
+<body class="dx-viewport">
+
+
+
+    <div class="demo-container">
+
+        <!-- Modal -->
+        <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="alertModalLabel">Popunite obavezna polja</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        Molim Vas popunite obavezna polja označena sa <span style="color: red;">*</span> (zvezdicom).
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">U redu</button>
+                        <!-- <button type="button" class="btn btn-primary">Save changes</button> -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-warning" role="alert" style="margin: 10px;">
+            Navedite sledeće informacije o tome zašto je ova mogućnost za poslovanje zatvorena.
+        </div>
+
+        <div class="form">
+
+            <div class="dx-fieldset">
+                <div class="dx-field">
+                    <div class="dx-field-label">Razlog statusa: <span style="color: red;">*</span></div>
+                    <div class="dx-field-value">
+                        <div id="lookup-status"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dx-fieldset">
+                <div class="dx-field">
+                    <div class="dx-field-label">Stvarni promet: <span style="color: red;">*</span></div>
+                    <div class="dx-field-value">
+                        <div id="currency"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dx-fieldset">
+                <div class="dx-field">
+                    <div class="dx-field-label">Datum zatvaranja: <span style="color: red;">*</span></div>
+                    <div class="dx-field-value">
+                        <div id="date"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dx-fieldset">
+                <div class="dx-field">
+                    <div class="dx-field-label">Konkurent:</div>
+                    <div class="dx-field-value">
+                        <div id="lookup-competitor"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dx-fieldset">
+                <div class="dx-field">
+                    <div class="dx-field-label">Opis:</div>
+                    <div class="dx-field-value">
+                        <div id="description"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <div id="cancel-btn"></div>
+                <div id="submit-btn"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    <script src="./extreme_/js/bootstrapbundlemin.js"></script>
+
+</body>
+
+</html>

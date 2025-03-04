@@ -1,0 +1,16 @@
+/* Komentar */
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  position: fixed;
+  bottom: 20px;
+  /* Adjust the value for desired padding */
+  right: 20px;
+  /* Adjust the value for desired padding */
+}
+
+.buttons>div {
+  margin-left: 10px;
+  /* Optional: space between buttons */
+}
