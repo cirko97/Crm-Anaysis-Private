@@ -1,18 +1,5 @@
 $(() => {
 
-    const token = api('getToken');
-    console.log("TOKEN CALL");
-    console.log(token);
-
-    const inventoryInfo = api('getInventory');
-    console.log("INVENTORY CALL");
-    console.log(inventoryInfo);
-
-
-    $('#ok-btn').on("click", function () {
-        window.close();
-    });
-
     let pawsConfig = {};
 
     $.ajax({
@@ -42,38 +29,32 @@ $(() => {
         error: function (xhr, textStatus, errorThrown) {
             console.log(xhr);
         }
-    });
+    }).done(function () {
 
-    function api(name) {
+        $.ajax({
+            type: "POST",
+            url: pawsConfig['PAWS_AUTHENDPOINT'],
+            async: true,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            success: function (data, textStatus, xhr) {
+                var results = data;
+                console.log(results);
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                console.log(xhr);
+            }
+        }).done(function () {
 
-        let settings = {};
-
-        if (name == 'getToken') {
-            settings = {
-                "url": pawsConfig['PAWS_AUTHENDPOINT'],
-                "method": "POST",
-                "timeout": 0,
-                "headers": {
+            $.ajax({
+                type: "POST",
+                url: pawsConfig['PAWS_IDENTRETRIEVE'],
+                async: true,
+                headers: {
                     "Content-Type": "application/json"
                 },
-                "data": JSON.stringify({
-                    "Username": pawsConfig['PAWS_username'],
-                    "Password": pawsConfig['PAWS_password'],
-                    "companyDB": pawsConfig['PAWS_companyDB']
-                }),
-            };
-        }
-
-        if (name == 'getInventory') {
-            settings = {
-                "url": pawsConfig['PAWS_IDENTRETRIEVE'],
-                "method": "POST",
-                "timeout": 0,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token.token
-                },
-                "data": JSON.stringify({
+                data: JSON.stringify({
                     "start": 0,
                     "length": 0,
                     "fieldsToReturn": "items.acIdent, max(items.acName) as acName, sum(tHE_Stock.anStock - tHE_Stock.anReserved) as anStock, max(items.anPrice) as anPrice, max(items.acUM) as acUM, max(items.acVATCode) as acVATCode, max(items.acCostDrv) as acCostDrv, max(acClassif) as acClassif, max(acClassif2) as acClassif2, max(acSetOfItem) as acSetOfItem, max(items.acSupplier) as acSupplier",
@@ -108,20 +89,22 @@ $(() => {
                     "WithSubSelects": 1,
                     "tempTables": []
                 }),
-            };
-        }
+                success: function (data, textStatus, xhr) {
+                    var results = data;
+                    console.log(results);
+                },
+                error: function (xhr, textStatus, errorThrown) {
+                    console.log(xhr);
+                }
+            })
 
 
-        $.ajax(settings).done(function (response) {
-            console.log('response');
-            console.log(response);
+            $('#ok-btn').on("click", function () {
+                window.close();
+            });
 
-            return response;
-        }).fail(function (jqXHR, textStatus, errorThrown) {
-            console.error('Error occurred: ' + textStatus, errorThrown);
-            console.error(jqXHR.responseText);
         });
 
-    }
+    });
 
 });
