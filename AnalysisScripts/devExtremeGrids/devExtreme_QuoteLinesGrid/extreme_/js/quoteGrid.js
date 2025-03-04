@@ -2689,7 +2689,7 @@ async function setClientApiContext(Xrm, formContext) {
                     document.body.removeChild(link);
                   }
 
-                  if (e.column.dataField === "extreme_customproductname") {
+                  if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
 
                     inventoryInfo(e.data.productid);
 
@@ -5840,7 +5840,7 @@ async function setClientApiContext(Xrm, formContext) {
             document.body.removeChild(link);
           }
 
-          if (e.column.dataField === "extreme_customproductname") {
+          if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
 
             inventoryInfo(e.data.productid);
 
@@ -6283,8 +6283,10 @@ async function setClientApiContext(Xrm, formContext) {
       }
 
       // Function to get Inventory Info and display it as pop-up dialog
-      function inventoryInfo(productGuid) {
+      async function inventoryInfo(productGuid) {
         const globalContext = Xrm.Utility.getGlobalContext();
+        const productName = Xrm.WebApi.retrieveRecord("product", productGuid, "?$select=name");
+
 
         const pageInput = {
           pageType: "webresource",
@@ -6294,6 +6296,7 @@ async function setClientApiContext(Xrm, formContext) {
             baseUrlWithApp: globalContext.getCurrentAppUrl(),
             entityId: formContext.data.entity.getId().slice(1, -1),
             productGuid: productGuid,
+            productName: productName.name,
           }),
         };
 
@@ -6302,7 +6305,7 @@ async function setClientApiContext(Xrm, formContext) {
           height: { value: 500, unit: "px" },
           width: { value: 800, unit: "px" },
           position: 1,
-          title: "Inventory Info for " + product.name,
+          title: "Inventory Info for " + productName.name,
         };
 
         Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
