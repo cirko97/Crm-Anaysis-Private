@@ -26,7 +26,7 @@ $(() => {
                 console.log("Workflow executed successfully.");
 
                 // Now retrieve the API response from the quotedetail record
-                var recordId = "dd003129-40de-ef11-8ee9-6045bd9b3522";  // Replace with dynamic ID
+                var recordId = queryParams.quoteDetailGuid;  // Replace with dynamic ID
                 return Xrm.WebApi.retrieveRecord("quotedetail", recordId, "?$select=extreme_apiresponse");
             }
         }
