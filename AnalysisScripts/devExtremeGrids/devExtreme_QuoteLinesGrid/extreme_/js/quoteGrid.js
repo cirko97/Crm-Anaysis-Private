@@ -2691,7 +2691,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                   if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
 
-                    inventoryInfo(e.data.productid);
+                    inventoryInfo(e.data.productid, e.data.quotedetailid);
 
                   }
 
@@ -5842,7 +5842,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
 
-            inventoryInfo(e.data.productid);
+            inventoryInfo(e.data.productid, e.data.quotedetailid);
 
           }
 
@@ -6283,7 +6283,7 @@ async function setClientApiContext(Xrm, formContext) {
       }
 
       // Function to get Inventory Info and display it as pop-up dialog
-      async function inventoryInfo(productGuid) {
+      async function inventoryInfo(productGuid, quoteDetailGuid) {
         const globalContext = Xrm.Utility.getGlobalContext();
         const productName = await Xrm.WebApi.retrieveRecord("product", productGuid, "?$select=name");
 
@@ -6295,6 +6295,7 @@ async function setClientApiContext(Xrm, formContext) {
             baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
             baseUrlWithApp: globalContext.getCurrentAppUrl(),
             entityId: formContext.data.entity.getId().slice(1, -1),
+            quoteDetailGuid: quoteDetailGuid,
             productGuid: productGuid,
             productName: productName.name,
           }),
