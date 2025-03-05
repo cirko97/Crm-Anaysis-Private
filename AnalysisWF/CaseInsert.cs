@@ -123,6 +123,7 @@ namespace AnalysisWF
         private string PrepareCaseData(Entity caseRecord, string pantheonDocType, IOrganizationService service)
         {
             var acDocType = pantheonDocType;
+            var acInternalNote = caseRecord.GetAttributeValue<string>("extreme_name") ?? "";
             var acCrmNO = caseRecord.GetAttributeValue<string>("extreme_casenumber");
             var anNoteClerk = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("ownerid"), "extreme_pantheonid", service);
             var anClerk = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("ownerid"), "extreme_pantheonid", service);
@@ -241,6 +242,7 @@ namespace AnalysisWF
                             acDelivery,
                             acStatement,
                             acNote,
+                            acInternalNote,
                             anNoteClerk,
                             anClerk,
                             acLinesJSON = lineItems

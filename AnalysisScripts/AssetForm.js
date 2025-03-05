@@ -20,6 +20,28 @@ var AssetForm = window.AssetForm || {};
             // Then move to Main Tab
             mainTab.setFocus();
         }
+
+        formContext.getAttribute("extreme_warrantystartdate").addOnChange(function () {
+            var warrantyStartDate = formContext.getAttribute("extreme_warrantystartdate").getValue();
+            if (warrantyStartDate) {
+            var warrantyEndDateVendor = formContext.getAttribute("extreme_warrantyenddatevendor").getValue();
+            var warrantyEndDate = formContext.getAttribute("extreme_warrantyend").getValue();
+
+            if (!warrantyEndDateVendor) {
+                var newEndDateVendor = new Date(warrantyStartDate);
+                newEndDateVendor.setFullYear(newEndDateVendor.getFullYear() + 1);
+                formContext.getAttribute("extreme_warrantyenddatevendor").setValue(newEndDateVendor);
+            }
+
+            if (!warrantyEndDate) {
+                var newEndDate = new Date(warrantyStartDate);
+                newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+                formContext.getAttribute("extreme_warrantyend").setValue(newEndDate);
+            }
+            }
+        });
+
+
     }
 
     // setDefaults = async function (formContext) {

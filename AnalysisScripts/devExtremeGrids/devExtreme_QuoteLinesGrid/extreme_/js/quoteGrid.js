@@ -8,7 +8,7 @@ let unitsArray = [];
 let currenciesArray = [];
 let areasArray = [];
 let techsArray = [];
-let vensSupsArray = [];
+// let vensSupsArray = [];
 let vatSettingsArray = [];
 let productTypesArray = [];
 let defaultMargin = 0;
@@ -168,7 +168,7 @@ async function setClientApiContext(Xrm, formContext) {
   await getCurrencies();
   await getAreas();
   await getTechs();
-  await getVensSups();
+  // await getVensSups();
   await getVatGroups();
   await getPriceLists();
   // await getProductsLookUp();
@@ -720,31 +720,31 @@ async function setClientApiContext(Xrm, formContext) {
   }
 
   // get vendors/suppliers
-  async function getVensSups() {
+  // async function getVensSups() {
 
-    vensSupsArray = [];
+  //   vensSupsArray = [];
 
-    await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name&$filter=(extreme_relationshiptypeext eq 424000000 or extreme_relationshiptypeext eq 424000003)").then(
-      function success(results) {
-        console.log(results);
-        for (var i = 0; i < results.entities.length; i++) {
-          var result = results.entities[i];
-          // Columns
-          var accountid = result["accountid"]; // Guid
-          var name = result["name"]; // Text
+  //   await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name&$filter=(extreme_relationshiptypeext eq 424000000 or extreme_relationshiptypeext eq 424000003)").then(
+  //     function success(results) {
+  //       console.log(results);
+  //       for (var i = 0; i < results.entities.length; i++) {
+  //         var result = results.entities[i];
+  //         // Columns
+  //         var accountid = result["accountid"]; // Guid
+  //         var name = result["name"]; // Text
 
-          vensSupsArray.push({
-            "id": accountid,
-            "name": name
-          });
+  //         vensSupsArray.push({
+  //           "id": accountid,
+  //           "name": name
+  //         });
 
-        }
-      },
-      function (error) {
-        console.log(error.message);
-      }
-    );
-  }
+  //       }
+  //     },
+  //     function (error) {
+  //       console.log(error.message);
+  //     }
+  //   );
+  // }
 
   // get vat groups
   async function getVatGroups() {
@@ -822,6 +822,21 @@ async function setClientApiContext(Xrm, formContext) {
       const quoteLinesData = new DevExpress.data.ArrayStore({
         key: 'quotedetailid',
         data: quoteLinesArray,
+      });
+
+      const vendorSupplierODataStore = new DevExpress.data.ODataStore({
+        // type: "odata",
+        version: 4,
+        filterToLower: false,
+        url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/accounts",
+        key: "accountid",
+        keyType: "Guid",
+        select: [
+          'accountid',
+          'name',
+          'extreme_paname30characters',
+          'extreme_relationshiptypeext'
+        ],
       });
 
       const productsODataStore = new DevExpress.data.ODataStore({
@@ -1125,7 +1140,7 @@ async function setClientApiContext(Xrm, formContext) {
                           paginate: true,
                           pageSize: 100,
                           loadMode: 'raw',
-                          filter: filterQuery,
+                          filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery,
                         }
                       },
                       displayExpr: 'productnumber',
@@ -2236,24 +2251,30 @@ async function setClientApiContext(Xrm, formContext) {
                   {
                     dataField: 'extreme_vendorsupplier',
                     caption: 'Vendor/Supplier',
+                    calculateDisplayValue: "name",
                     lookup: {
-                      dataSource(options) {
-                        return {
-                          store: {
-                            type: "array",
-                            data: vensSupsArray,
-                            key: "id"
-                          },
-                          paginate: true,
-                          pageSize: 20,
-                        }
+                      dataSource: {
+                        store: vendorSupplierODataStore,
+                        paginate: true,
+                        pageSize: 100,
+                        loadMode: 'raw',
+                        filter: [["extreme_relationshiptypeext", "=", 424000000], "or", ["extreme_relationshiptypeext", "=", 424000003]]
                       },
                       displayExpr: 'name',
-                      valueExpr: 'id'
+                      valueExpr: 'accountid'
                     },
                     editorOptions: {
                       acceptCustomValue: false,
                       searchEnabled: true,
+                      searchExpr: ["extreme_paname30characters", "name"],
+                      itemTemplate: function (data, index, container) {
+                        var row = $("<div>").addClass("row text-wrap");
+                        var containerFluid = $("<div>").addClass("container-fluid");
+                        $("<div>").addClass("col-4").text(data["extreme_paname30characters"]).appendTo(row);
+                        $("<div>").addClass("col-8").text(data["name"]).appendTo(row);
+                        row.appendTo(containerFluid);
+                        container.append(containerFluid);
+                      },
                       onOpened: function (e) {
                         heightAuto = false;
                         if (heightAuto === false) {
@@ -2262,6 +2283,7 @@ async function setClientApiContext(Xrm, formContext) {
                             wrControl.getObject().style.minHeight = "600px";
                           }
                         }
+                        e.component._popup.option('width', 400);
                       },
                       onClosed: function (e) {
                         heightAuto = true;
@@ -2648,13 +2670,13 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.column.dataField === "productid" && isGuid(e.data.productid) && e.data.productid) {
                     // Create an anchor element
                     const globalContext = Xrm.Utility.getGlobalContext();
-                    globalContext.getClientUrl();
+                    globalContext.getCurrentAppUrl();
 
                     console.log('CLIENT URL');
-                    console.log(globalContext.getClientUrl());
+                    console.log(globalContext.getCurrentAppUrl());
 
                     const link = document.createElement('a');
-                    link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=product&id=${e.data.productid}`;
+                    link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=product&id=${e.data.productid}`;
                     link.target = "_blank";
 
                     // Append the anchor to the body (required for Firefox)
@@ -2667,26 +2689,10 @@ async function setClientApiContext(Xrm, formContext) {
                     document.body.removeChild(link);
                   }
 
-                  if (e.column.dataField === "extreme_customproductname") {
-                    // Create an anchor element
-                    const globalContext = Xrm.Utility.getGlobalContext();
-                    globalContext.getClientUrl();
+                  if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
 
-                    console.log('CLIENT URL');
-                    console.log(globalContext.getClientUrl());
+                    inventoryInfo(e.data.productid);
 
-                    const link = document.createElement('a');
-                    link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=quotedetail&id=${e.data.quotedetailid}`;
-                    link.target = "_blank";
-
-                    // Append the anchor to the body (required for Firefox)
-                    document.body.appendChild(link);
-
-                    // Trigger a click event on the anchor
-                    link.click();
-
-                    // Remove the anchor from the body
-                    document.body.removeChild(link);
                   }
 
                 },
@@ -2735,7 +2741,7 @@ async function setClientApiContext(Xrm, formContext) {
                   paginate: true,
                   pageSize: 100,
                   loadMode: 'raw',
-                  filter: filterQuery,
+                  filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery,
                 }
               },
               displayExpr: 'productnumber',
@@ -3883,24 +3889,30 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'extreme_vendorsupplier',
             caption: 'Vendor/Supplier',
+            calculateDisplayValue: "name",
             lookup: {
-              dataSource(options) {
-                return {
-                  store: {
-                    type: "array",
-                    data: vensSupsArray,
-                    key: "id"
-                  },
-                  paginate: true,
-                  pageSize: 20,
-                }
+              dataSource: {
+                store: vendorSupplierODataStore,
+                paginate: true,
+                pageSize: 100,
+                loadMode: 'raw',
+                filter: [["extreme_relationshiptypeext", "=", 424000000], "or", ["extreme_relationshiptypeext", "=", 424000003]]
               },
               displayExpr: 'name',
-              valueExpr: 'id'
+              valueExpr: 'accountid'
             },
             editorOptions: {
               acceptCustomValue: false,
               searchEnabled: true,
+              searchExpr: ["extreme_paname30characters", "name"],
+              itemTemplate: function (data, index, container) {
+                var row = $("<div>").addClass("row text-wrap");
+                var containerFluid = $("<div>").addClass("container-fluid");
+                $("<div>").addClass("col-4").text(data["extreme_paname30characters"]).appendTo(row);
+                $("<div>").addClass("col-8").text(data["name"]).appendTo(row);
+                row.appendTo(containerFluid);
+                container.append(containerFluid);
+              },
               onOpened: function (e) {
                 heightAuto = false;
                 if (heightAuto === false) {
@@ -3909,6 +3921,7 @@ async function setClientApiContext(Xrm, formContext) {
                     wrControl.getObject().style.minHeight = "600px";
                   }
                 }
+                e.component._popup.option('width', 400);
               },
               onClosed: function (e) {
                 heightAuto = true;
@@ -3917,6 +3930,25 @@ async function setClientApiContext(Xrm, formContext) {
                 heightAuto = true;
               }
             },
+            // editorOptions: {
+            //   acceptCustomValue: false,
+            //   searchEnabled: true,
+            //   onOpened: function (e) {
+            //     heightAuto = false;
+            //     if (heightAuto === false) {
+            //       const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+            //       if (iframeCorrentHeight < 450) {
+            //         wrControl.getObject().style.minHeight = "600px";
+            //       }
+            //     }
+            //   },
+            //   onClosed: function (e) {
+            //     heightAuto = true;
+            //   },
+            //   onFocusOut: function (e) {
+            //     heightAuto = true;
+            //   }
+            // },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_vendorsupplier = value;
               checkClassifyRows();
@@ -4120,7 +4152,7 @@ async function setClientApiContext(Xrm, formContext) {
                       let filterQuery = null;
 
                       if (options.data) {
-                        options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                        options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                       }
 
                       return {
@@ -4129,7 +4161,7 @@ async function setClientApiContext(Xrm, formContext) {
                         paginate: true,
                         pageSize: 100,
                         loadMode: 'raw',
-                        filter: filterQuery
+                        filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                       }
                     },
                     displayExpr: 'productnumber',
@@ -4328,7 +4360,7 @@ async function setClientApiContext(Xrm, formContext) {
                       let filterQuery = null;
 
                       if (options.data) {
-                        options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                        options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                       }
 
                       return {
@@ -4337,7 +4369,7 @@ async function setClientApiContext(Xrm, formContext) {
                         paginate: true,
                         pageSize: 100,
                         loadMode: 'raw',
-                        filter: filterQuery
+                        filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                       }
                     },
                     displayExpr: 'productnumber',
@@ -5345,7 +5377,7 @@ async function setClientApiContext(Xrm, formContext) {
                   let filterQuery = null;
 
                   if (options.data) {
-                    options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                    options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                   }
 
                   return {
@@ -5354,7 +5386,7 @@ async function setClientApiContext(Xrm, formContext) {
                     paginate: true,
                     pageSize: 100,
                     loadMode: 'raw',
-                    filter: filterQuery
+                    filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                   }
                 },
                 displayExpr: 'productnumber',
@@ -5375,7 +5407,7 @@ async function setClientApiContext(Xrm, formContext) {
               let filterQuery = null;
 
               if (options.data) {
-                options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
               }
 
               return {
@@ -5384,7 +5416,7 @@ async function setClientApiContext(Xrm, formContext) {
                 paginate: true,
                 pageSize: 100,
                 loadMode: 'raw',
-                filter: filterQuery
+                filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
               }
             },
             displayExpr: 'productnumber',
@@ -5751,7 +5783,7 @@ async function setClientApiContext(Xrm, formContext) {
                 let filterQuery = null;
 
                 if (options.data) {
-                  options.data.extreme_isparentitem === true ? filterQuery = ['extreme_isparent', '=', true] : filterQuery = ['extreme_isparent', '<>', true];
+                  options.data.extreme_isparentitem === true ? filterQuery = [['extreme_isparent', '=', true], "and", ["statecode", "=", 0]] : filterQuery = [['extreme_isparent', '<>', true], "and", ["statecode", "=", 0]];
                 }
 
                 return {
@@ -5760,7 +5792,7 @@ async function setClientApiContext(Xrm, formContext) {
                   paginate: true,
                   pageSize: 100,
                   loadMode: 'raw',
-                  filter: filterQuery
+                  filter: filterQuery === null ? ["statecode", "=", 0] : filterQuery
                 }
               },
               displayExpr: 'productnumber',
@@ -5808,26 +5840,10 @@ async function setClientApiContext(Xrm, formContext) {
             document.body.removeChild(link);
           }
 
-          if (e.column.dataField === "extreme_customproductname") {
-            // Create an anchor element
-            const globalContext = Xrm.Utility.getGlobalContext();
-            globalContext.getCurrentAppUrl();
+          if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
 
-            console.log('CLIENT URL');
-            console.log(globalContext.getCurrentAppUrl());
+            inventoryInfo(e.data.productid);
 
-            const link = document.createElement('a');
-            link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=quotedetail&id=${e.data.quotedetailid}`;
-            link.target = "_blank";
-
-            // Append the anchor to the body (required for Firefox)
-            document.body.appendChild(link);
-
-            // Trigger a click event on the anchor
-            link.click();
-
-            // Remove the anchor from the body
-            document.body.removeChild(link);
           }
 
         },
@@ -6264,6 +6280,44 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
         });
+      }
+
+      // Function to get Inventory Info and display it as pop-up dialog
+      async function inventoryInfo(productGuid) {
+        const globalContext = Xrm.Utility.getGlobalContext();
+        const productName = await Xrm.WebApi.retrieveRecord("product", productGuid, "?$select=name");
+
+
+        const pageInput = {
+          pageType: "webresource",
+          webresourceName: "extreme_InventoryInfo.html",
+          data: JSON.stringify({
+            baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
+            baseUrlWithApp: globalContext.getCurrentAppUrl(),
+            entityId: formContext.data.entity.getId().slice(1, -1),
+            productGuid: productGuid,
+            productName: productName.name,
+          }),
+        };
+
+        const navigationOptions = {
+          target: 2,
+          height: { value: 500, unit: "px" },
+          width: { value: 800, unit: "px" },
+          position: 1,
+          title: "Inventory Info for " + productName.name,
+        };
+
+        Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
+          function success() {
+            // Run code on success
+            console.log("Success");
+          },
+          function error() {
+            // Handle errors
+            console.log("Error");
+          }
+        );
       }
 
     });

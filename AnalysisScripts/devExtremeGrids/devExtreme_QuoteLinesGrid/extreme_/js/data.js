@@ -170,3 +170,27 @@ const quoteLinesArray = [
     extreme_productPriceList: 'Premium'
   }
 ];
+
+
+const inventoryExample = [
+  {
+    inventory_name: 'HP-Laptop',
+    inventory_quantity: 100,
+  },
+  {
+    inventory_name: 'Dell-Laptop',
+    inventory_quantity: 200,
+  },
+  {
+    inventory_name: 'Lenovo-Laptop',
+    inventory_quantity: 150,
+  },
+  {
+    inventory_name: 'Acer-Laptop',
+    inventory_quantity: 300,
+  },
+  {
+    inventory_name: 'Asus-Laptop',
+    inventory_quantity: 250,
+  }
+]

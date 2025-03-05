@@ -159,6 +159,7 @@ var CaseRibbon = window.CaseRibbon || {};
 	this.ResolveCaseButton = function (formContext) {
 		const caseId = formContext.data.entity.getId().slice(1,-1);
 		var PAQuoteID = formContext.getAttribute("extreme_pantheonno").getValue();
+		var extreme_casereactivated = formContext.getAttribute("extreme_casereactivated").getValue();
 
 		if(PAQuoteID === null){
 			var confirmStrings = { text:"Are you sure you want to resolve this case?", title:"Case Resolution Prompt" };
@@ -189,7 +190,7 @@ var CaseRibbon = window.CaseRibbon || {};
 						}
 					}	
 				});	
-		} else {
+		} else if(PAQuoteID !== null && extreme_casereactivated === true){
 			var confirmStrings = { text:"THIS CASE IS ALREADY SYNCHRONIZED!!! \n\n Delete the synchronized document in Pantheon and then resolve. \n\n\n\n Are you sure you want to resolve this case?", title:"CASE ALREADY SYNCHRONIZED PROMPT" };
 			var confirmOptions = { height: 400, width: 600 };
 			Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(

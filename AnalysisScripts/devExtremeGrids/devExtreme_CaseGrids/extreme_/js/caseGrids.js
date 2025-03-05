@@ -26,6 +26,8 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
+  if (formContext.getAttribute('extreme_account').getValue() == null) return;
+
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
@@ -148,7 +150,7 @@ async function setClientApiContext(Xrm, formContext) {
     );
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline",
-      `?$select=extreme_caselineid,_extreme_asset_value,_extreme_case_value,extreme_name,_ownerid_value,_extreme_product_value,extreme_quantity,_extreme_unit_value
+      `?$select=extreme_caselineid,_extreme_caseasset_value,_extreme_asset_value,_extreme_case_value,extreme_name,_ownerid_value,_extreme_product_value,extreme_quantity,_extreme_unit_value
       &$expand=extreme_Product($select=producttypecode,name,productnumber)&$filter=_extreme_case_value eq ${caseId}`).then(
         function success(results) {
           console.log(results);
@@ -176,6 +178,9 @@ async function setClientApiContext(Xrm, formContext) {
             var extreme_unit = result["_extreme_unit_value"]; // Lookup
             var extreme_unit_formatted = result["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"];
             var extreme_unit_lookuplogicalname = result["_extreme_unit_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+            var extreme_caseasset = result["_extreme_caseasset_value"]; // Lookup
+            var extreme_caseasset_formatted = result["_extreme_caseasset_value@OData.Community.Display.V1.FormattedValue"];
+            var extreme_caseasset_lookuplogicalname = result["_extreme_caseasset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
             // Many To One Relationships
             if (result.hasOwnProperty("extreme_Product") && result["extreme_Product"] !== null) {
@@ -196,7 +201,8 @@ async function setClientApiContext(Xrm, formContext) {
               'extreme_quantity': extreme_quantity,
               'extreme_producttypecode': extreme_Product_producttypecode,
               'productname': extreme_Product_productnumber ? extreme_Product_productnumber + ' - ' + extreme_Product_name : extreme_Product_name,
-              'extreme_unit': extreme_unit
+              'extreme_unit': extreme_unit,
+              'extreme_caseasset': extreme_caseasset
             });
 
           }
@@ -427,6 +433,7 @@ async function setClientApiContext(Xrm, formContext) {
                 paginate: true,
                 pageSize: 100,
                 loadMode: 'raw',
+                filter: ["statecode", "=", 0]
               },
               displayExpr: 'name',
               valueExpr: 'productid'
@@ -763,21 +770,21 @@ async function setClientApiContext(Xrm, formContext) {
                 async function success(result) {
                   var newId = result.id;
 
-                  var recordNN = {};
-                  recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
-                  recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
+                  // var recordNN = {};
+                  // recordNN["extreme_CaseLine@odata.bind"] = `/extreme_caselines(${newCreateId})`; // Lookup
+                  // recordNN["extreme_CaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
 
-                  await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
-                    function success(result) {
-                      var newId = result.id;
-                      console.log(newId);
-                    },
-                    function (error) {
-                      console.log(error.message);
-                    }
-                  );
+                  // await Xrm.WebApi.createRecord("extreme_caseline_caseasset", recordNN).then(
+                  //   function success(result) {
+                  //     var newId = result.id;
+                  //     console.log(newId);
+                  //   },
+                  //   function (error) {
+                  //     console.log(error.message);
+                  //   }
+                  // );
 
-                  newCreatedCasseAssetId = result.id;
+                  newCreatedCasseAssetId = newId;
                   console.log(newId);
                 },
                 function (error) {
@@ -831,8 +838,6 @@ async function setClientApiContext(Xrm, formContext) {
 
             await Promise.all(promises);
 
-            // Refresh grid for case assets
-            await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           }
 
           // create N:N relationship
@@ -857,6 +862,9 @@ async function setClientApiContext(Xrm, formContext) {
                     console.log(error.message);
                   }
                 );
+
+                // Refresh grid for case assets
+                await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
               }
               else {
                 var recordNN = {};
@@ -872,6 +880,10 @@ async function setClientApiContext(Xrm, formContext) {
                     console.log(error.message);
                   }
                 );
+
+                // Refresh grid for case assets
+                await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+
               }
             },
             function (error) {

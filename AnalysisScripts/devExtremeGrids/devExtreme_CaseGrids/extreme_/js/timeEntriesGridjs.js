@@ -22,6 +22,8 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
+  if (formContext.getAttribute('extreme_account').getValue() == null) return;
+
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   if (
@@ -269,7 +271,15 @@ async function setClientApiContext(Xrm, formContext) {
               valueExpr: 'id'
             },
             width: 200,
-            validationRules: [{ type: 'required' }]
+            validationRules: [{
+              type: 'custom',
+              message: 'Asset is required',
+              validationCallback(params) {
+                // console.log("VALLIDAATION");
+                // console.log(params);
+                return !params.value || params.value == null || params.data.extreme_type !== 424000002 ? false : true;
+              }
+            }]
           },
           {
             dataField: 'scheduledstart',

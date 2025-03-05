@@ -40,6 +40,22 @@
                     var entityId = formContext.data.entity.getId();
                     var newId = null;
 
+                    var currency = formContext.getAttribute("extreme_newquotecurrency");
+
+                    if(currency.getValue() === null){
+                        var alertStrings = { confirmButtonLabel: "OK", text: "Please select a currency for a new quote.", title: "Missing Currency" };
+                        var alertOptions = { height: 120, width: 260 };
+                        Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+                            function (success) {
+                                console.log("Alert dialog closed");
+                            },
+                            function (error) {
+                                console.log(error.message);
+                            }
+                        );
+                        return;
+                    }
+
                     // Check if entityId is valid
                     if (!entityId) {
                         console.error("Nije pronadjen nijedan zapis ponude.");
@@ -171,7 +187,7 @@
                                 //create lines
                                 //retrieve desc is parent
                                 let originalQuoteDetails = []
-                                await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=sequencenumber,ispriceoverridden,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,extreme_supplierpriceperunit,baseamount,extreme_createasset,extreme_discount,_productid_value,extendedamount,extreme_fullpricewithdiscount,extreme_fullpd,extreme_isparentitem,manualdiscountamount,extreme_margin,quotedetailname,_extreme_parentquoteline_value,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_productdescription,extreme_customproductid,extreme_producttype,extreme_pd,quantity,extreme_supplierbaseamount,extreme_supplierdiscount,tax,extreme_tax,_uomid_value,_extreme_vatgroup_value,_extreme_vatsetting_value,extreme_uomid&$filter=_quoteid_value eq ${entityId}&$orderby=extreme_isparentitem desc`).then(
+                                await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=sequencenumber,isproductoverridden,ispriceoverridden,extreme_customproductname,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,extreme_supplierpriceperunit,baseamount,extreme_createasset,extreme_discount,_productid_value,extendedamount,extreme_fullpricewithdiscount,extreme_fullpd,extreme_isparentitem,manualdiscountamount,extreme_margin,quotedetailname,_extreme_parentquoteline_value,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_productdescription,extreme_customproductid,extreme_producttype,extreme_pd,quantity,extreme_supplierbaseamount,extreme_supplierdiscount,tax,extreme_tax,_uomid_value,_extreme_vatgroup_value,_extreme_vatsetting_value,extreme_uomid&$filter=_quoteid_value eq ${entityId}&$orderby=extreme_isparentitem desc`).then(
                                     function success(results) {
                                         console.log(results);
                                         for (var i = 0; i < results.entities.length; i++) {
@@ -180,6 +196,7 @@
                                             let quotedetail = {
                                                 sequencenumber: result["sequencenumber"],
                                                 ispriceoverridden: result["ispriceoverridden"],
+                                                isproductoverridden: result["isproductoverridden"],
                                                 extreme_technology: result["_extreme_technology_value"], // Lookup
                                                 extreme_technology_formatted: result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"],
                                                 extreme_technology_lookuplogicalname: result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
@@ -222,6 +239,7 @@
                                                 extreme_pricelistpriceperunit_formatted: result["extreme_pricelistpriceperunit@OData.Community.Display.V1.FormattedValue"],
                                                 extreme_productdescription: result["extreme_productdescription"], // Multiline Text
                                                 extreme_customproductid: result["extreme_customproductid"], // Text
+                                                extreme_customproductname: result["extreme_customproductname"], // Text
                                                 extreme_producttype: result["extreme_producttype"], // Choice
                                                 extreme_producttype_formatted: result["extreme_producttype@OData.Community.Display.V1.FormattedValue"],
                                                 extreme_pd: result["extreme_pd"], // Decimal
@@ -260,9 +278,15 @@
 
                                 // Step 1: Create all quotedetail records without parent linking
                                 for (const quotedetail of quotedetailArray) {
+
+                                    if(quotedetail.productid === null){
+                                        quotedetail.isproductoverridden = true;
+                                    }
+
                                     let newQuotedetail = {
                                         "sequencenumber": quotedetail.sequencenumber,
                                         "ispriceoverridden": quotedetail.ispriceoverridden,
+                                        "isproductoverridden": quotedetail.isproductoverridden,
                                         "baseamount": quotedetail.baseamount,
                                         "extreme_createasset": quotedetail.extreme_createasset,
                                         "extreme_discount": quotedetail.extreme_discount,
@@ -279,6 +303,7 @@
                                         "extreme_pricelistpriceperunit": quotedetail.extreme_pricelistpriceperunit,
                                         "extreme_productdescription": quotedetail.extreme_productdescription,
                                         "extreme_customproductid": quotedetail.extreme_customproductid,
+                                        "extreme_customproductname": quotedetail.extreme_customproductname,
                                         "extreme_producttype": quotedetail.extreme_producttype,
                                         "extreme_pd": quotedetail.extreme_pd,
                                         "quantity": quotedetail.quantity,
@@ -357,7 +382,7 @@
                                 var kurs = exchangeRates[`${currency.getValue()[0].name}`]
                                 
                                 let originalQuoteDetailsXR = []
-                                await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=sequencenumber,ispriceoverridden,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,extreme_supplierpriceperunit,baseamount,extreme_createasset,extreme_discount,_productid_value,extendedamount,extreme_fullpricewithdiscount,extreme_fullpd,extreme_isparentitem,manualdiscountamount,extreme_margin,quotedetailname,_extreme_parentquoteline_value,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_productdescription,extreme_customproductid,extreme_producttype,extreme_pd,quantity,extreme_supplierbaseamount,extreme_supplierdiscount,tax,extreme_tax,_uomid_value,_extreme_vatgroup_value,_extreme_vatsetting_value,extreme_uomid&$filter=_quoteid_value eq ${entityId}&$orderby=extreme_isparentitem desc`).then(
+                                await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=sequencenumber,isproductoverridden,extreme_customproductname,ispriceoverridden,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,extreme_supplierpriceperunit,baseamount,extreme_createasset,extreme_discount,_productid_value,extendedamount,extreme_fullpricewithdiscount,extreme_fullpd,extreme_isparentitem,manualdiscountamount,extreme_margin,quotedetailname,_extreme_parentquoteline_value,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_productdescription,extreme_customproductid,extreme_producttype,extreme_pd,quantity,extreme_supplierbaseamount,extreme_supplierdiscount,tax,extreme_tax,_uomid_value,_extreme_vatgroup_value,_extreme_vatsetting_value,extreme_uomid&$filter=_quoteid_value eq ${entityId}&$orderby=extreme_isparentitem desc`).then(
                                     function success(results) {
                                         console.log(results);
                                         for (var i = 0; i < results.entities.length; i++) {
@@ -366,6 +391,7 @@
                                             let quotedetail = {
                                                 sequencenumber: result["sequencenumber"],
                                                 ispriceoverridden: result["ispriceoverridden"],
+                                                isproductoverridden: result["isproductoverridden"],
                                                 extreme_technology: result["_extreme_technology_value"], // Lookup
                                                 extreme_technology_formatted: result["_extreme_technology_value@OData.Community.Display.V1.FormattedValue"],
                                                 extreme_technology_lookuplogicalname: result["_extreme_technology_value@Microsoft.Dynamics.CRM.lookuplogicalname"],
@@ -408,6 +434,7 @@
                                                 extreme_pricelistpriceperunit_formatted: result["extreme_pricelistpriceperunit@OData.Community.Display.V1.FormattedValue"],
                                                 extreme_productdescription: result["extreme_productdescription"], // Multiline Text
                                                 extreme_customproductid: result["extreme_customproductid"], // Text
+                                                extreme_customproductname: result["extreme_customproductname"], // Text
                                                 extreme_producttype: result["extreme_producttype"], // Choice
                                                 extreme_producttype_formatted: result["extreme_producttype@OData.Community.Display.V1.FormattedValue"],
                                                 extreme_pd: result["extreme_pd"], // Decimal
@@ -456,9 +483,14 @@
                                     const newTax = newFullpricewithdiscount - (newFullpricewithdiscount * (1 - quotedetail.extreme_tax / 100));
                                     const newExtendedAmount = newTax + newFullpricewithdiscount;
 
+                                    if(quotedetail.productid  === null){
+                                        quotedetail.isproductoverridden = true;
+                                    }
+
                                     let newQuotedetail = {
                                         "sequencenumber": quotedetail.sequencenumber,
                                         "ispriceoverridden": quotedetail.ispriceoverridden,
+                                        "isproductoverridden": quotedetail.isproductoverridden,
                                         "extreme_createasset": quotedetail.extreme_createasset,
                                         "extreme_discount": quotedetail.extreme_discount,
                                         "extreme_isparentitem": quotedetail.extreme_isparentitem,
@@ -481,6 +513,7 @@
                                         "extreme_pricelistpriceperunit": quotedetail.extreme_pricelistpriceperunit,
                                         "extreme_productdescription": quotedetail.extreme_productdescription,
                                         "extreme_customproductid": quotedetail.extreme_customproductid,
+                                        "extreme_customproductname": quotedetail.extreme_customproductname,
                                         "extreme_producttype": quotedetail.extreme_producttype,
                                         "quantity": quotedetail.quantity,
                                         "extreme_supplierdiscount": quotedetail.extreme_supplierdiscount,
