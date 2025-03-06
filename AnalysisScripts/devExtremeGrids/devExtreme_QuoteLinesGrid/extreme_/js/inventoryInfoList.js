@@ -21,7 +21,7 @@ $(async () => {
     await parent.Xrm.WebApi.execute(executeWorkflowRequest).then(
         function success(response) {
             if (response.ok) {
-                console.log("Workflow executed successfully.");
+                // console.log("Workflow executed successfully.");
 
                 // Now retrieve the API response from the quotedetail record
                 var recordId = queryParams.quoteDetailGuid;  // Replace with dynamic ID
@@ -30,20 +30,20 @@ $(async () => {
         }
     ).then(function (retrievedRecord) {
         if (retrievedRecord && retrievedRecord.extreme_apiresponse) {
-            console.log("API Response:", retrievedRecord.extreme_apiresponse);
+            // console.log("API Response:", retrievedRecord.extreme_apiresponse);
 
             const apiResponse = JSON.parse(retrievedRecord.extreme_apiresponse);
-            console.log(apiResponse[0]["tHE_Stock"]);
+            // console.log(apiResponse[0]["tHE_Stock"]);
 
-            if (apiResponse[0]["tHE_Stock"].length === 0 || apiResponse[0]["tHE_Stock"] === null || apiResponse[0]["tHE_Stock"] === undefined) {
-                console.log("No stock found for this item.");
+            if (apiResponse[0]["tHE_Stock"] === null || apiResponse[0]["tHE_Stock"] === undefined) {
+                // console.log("No stock found for this item.");
             }
             else {
-                console.log("Stock found for this item.");
+                // console.log("Stock found for this item.");
 
                 for (let i = 0; i < apiResponse[0]["tHE_Stock"].length; i++) {
                     const stockItem = apiResponse[0]["tHE_Stock"][i];
-                    console.log(stockItem);
+                    // console.log(stockItem);
 
                     // Add stock item to the table
                     $("#inventoryInfoList").append(`
@@ -58,10 +58,15 @@ $(async () => {
 
             }
         } else {
-            console.log("No API response found on record.");
+            // console.log("No API response found on record.");
         }
     }).catch(function (error) {
         console.log("Error:", error.message);
+        Xrm.Navigation.openErrorDialog({
+            details: error,
+            errorCode: 400,
+            message: error.message
+        });
     });
 
     $("#loadingOverlay").hide();
