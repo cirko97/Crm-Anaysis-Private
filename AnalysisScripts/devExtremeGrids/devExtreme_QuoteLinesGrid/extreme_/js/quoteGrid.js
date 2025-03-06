@@ -5941,9 +5941,13 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
           if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
-
             inventoryInfo(e.data.productid, e.data.quotedetailid);
-
+          }
+          else if (e.column.dataField === "extreme_customproductname" && !isGuid(e.data.productid)) {
+            Xrm.Navigation.openAlertDialog({
+              title: "Warning",
+              text: "You cannot call the inventory information for a custom product."
+            });
           }
 
         },

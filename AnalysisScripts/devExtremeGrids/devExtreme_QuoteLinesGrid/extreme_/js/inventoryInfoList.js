@@ -37,6 +37,14 @@ $(async () => {
 
             if (apiResponse[0]["tHE_Stock"] === null || apiResponse[0]["tHE_Stock"] === undefined) {
                 // console.log("No stock found for this item.");
+
+                $("#inventoryInfoList").append(`
+                    <tr>
+                        <td>No data</td>
+                        <td>/</td>
+                        <td>/</td>
+                    </tr>
+                `);
             }
             else {
                 // console.log("Stock found for this item.");
