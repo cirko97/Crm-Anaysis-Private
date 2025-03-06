@@ -1,6 +1,6 @@
 var EmailRibbon = window.EmailRibbon || {};
 (function () {
-	this.ReplyQuoteButton = function (formContext, reportType) {
+	this.ReplyQuoteButton = function (formContext, reportType = "detailed") {
 
 		var isDetailed = reportType == "detailed" ? true : false;
 		var confirmStrings = { text: `This action will create a draft of an email with ${reportType} case printout attached. \nAre you sure you want to continue?`, title: "Send Case Printout" };
