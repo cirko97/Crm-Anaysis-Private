@@ -6285,7 +6285,7 @@ async function setClientApiContext(Xrm, formContext) {
       // Function to get Inventory Info and display it as pop-up dialog
       async function inventoryInfo(productGuid, quoteDetailGuid) {
         const globalContext = Xrm.Utility.getGlobalContext();
-        const productName = await Xrm.WebApi.retrieveRecord("product", productGuid, "?$select=name");
+        const productName = await Xrm.WebApi.retrieveRecord("product", productGuid, "?$select=name,productnumber");
 
 
         const pageInput = {
@@ -6306,7 +6306,7 @@ async function setClientApiContext(Xrm, formContext) {
           height: { value: 500, unit: "px" },
           width: { value: 800, unit: "px" },
           position: 1,
-          title: "Inventory Info for " + productName.name,
+          title: productName.productnumber + " | " + productName.name,
         };
 
         Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
