@@ -1,28 +1,30 @@
-
 ReplyQuoteButton = function (formContext, reportType = "detailed") {
-
     var isDetailed = reportType == "detailed`" ? true : false;
-    var confirmStrings = { text: `This action will create a draft of an email with ${reportType} case printout attached. \nAre you sure you want to continue?`, title: "Send Case Printout" };
+    var confirmStrings = {
+
+        title: "Reply with Quote",
+
+        text: `This action will create a draft of an email with ${reportType} quote printout attached.
+
+                Are you sure you want to continue?`,
+
+    };
     var confirmOptions = { height: 300, width: 450 };
     Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
         async function (success) {
             if (success.confirmed)
-                await EmailRibbon.CreatePrintoutEmail(formContext, isDetailed);
+                await CreatePrintoutEmail(formContext, isDetailed);
         });
 }
 ReplyQuoteEnableRule = function (formContext) {
-    var statuscode = formContext.getAttribute("statuscode").getValue();
-    if (statuscode == 1 || statuscode == 934670002 || statuscode == 934670003) { //only if Scheduled, resolved and resolved & signed Case
-        return false;
-    }
     return true;
 }
 CreatePrintoutEmail = async function (formContext, isDetailed) {
     //getReport
     Xrm.Utility.showProgressIndicator("Generating printout...");
-    var caseId = formContext.data.entity.getId().slice(1, -1);
-    var reportName = isDetailed == true ? 'Analysis+Service+Detail' : 'Analysis+Service';
-    var queryReportName = isDetailed == true ? 'Analysis Service Detail' : 'Analysis Service';
+    var quoteId = formContext.data.entity.getId().slice(1, -1);
+    var reportName = isDetailed == true ? 'Analysis+Quote+Detail' : 'Analysis+Quote';
+    var queryReportName = isDetailed == true ? 'Analysis Quote Detail' : 'Analysis Quote';
     var report = await Xrm.WebApi.retrieveMultipleRecords("report", `?$select=reportid,filename,name&$filter=name eq '${queryReportName}'`).then(
         function success(results) {
             return results.entities[0];
@@ -34,18 +36,26 @@ CreatePrintoutEmail = async function (formContext, isDetailed) {
     var reportid = report["reportid"];
     var filename = report["filename"];
 
-    var arrReportSession = executeReport(caseId, reportid, reportName, formContext);
+    var arrReportSession = executeReport(quoteId, reportid, reportName, formContext);
 
     var blobData = await convertResponseToPDF(arrReportSession); //3. Convert the response in base 64 string i.e. PDF.
 
     Xrm.Utility.showProgressIndicator("Creating email...");
 
-    var brojServisnogNaloga = formContext.getAttribute("extreme_casenumber").getValue();
-    var emailId = await createCaseEmail(caseId, brojServisnogNaloga, formContext);
+    var brojPonude = formContext.getAttribute("quotenumber").getValue();
+    var revBroj = formContext.getAttribute("revisionnumber").getValue();
+    var puniBrojPonude = "";
+    if (revBroj > 0) {
+        puniBrojPonude = brojPonude + "/" + revBroj;
+    } else {
+        puniBrojPonude = brojPonude;
+    }
+
+    var emailId = await createEmail(quoteId, brojPonude, formContext);
 
     Xrm.Utility.showProgressIndicator("Creating attachment...");
 
-    await attachFileToDraftEmail(blobData, emailId, `${brojServisnogNaloga}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
+    await attachFileToDraftEmail(blobData, emailId, `${brojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
 
     Xrm.Utility.closeProgressIndicator();
 
@@ -129,7 +139,7 @@ const convertResponseToPDF = async function (arrResponseSession) {
         }
     });
 };
-const executeReport = function (caseId, reportGuid, reportName, formContext) {
+const executeReport = function (quoteId, reportGuid, reportName, formContext) {
 
     var globalContext = Xrm.Utility.getGlobalContext();
     var pth = globalContext.getClientUrl() + "/CRMReports/rsviewer/reportviewer.aspx";
@@ -140,9 +150,9 @@ const executeReport = function (caseId, reportGuid, reportName, formContext) {
     var queryDecoded = `id={${reportGuid}}&uniquename=${globalContext.organizationSettings.uniqueName}` +
         `&iscustomreport=true&reportnameonsrs=&signatureid=&reporttypecode=1&reportName=${reportName}` +
         `&isScheduledReport=false&CRM_Filter=` +
-        `<ReportFilter><ReportEntity+paramname="CRM_Filteredextreme_Case"+displayname="Cases"+donotconvert="1">` +
+        `<ReportFilter><ReportEntity+paramname="CRM_quote"+displayname="Quotes"+donotconvert="1">` +
         `<fetch+version="1.0"+output-format="xml-platform"+mapping="logical"+distinct="false">` +
-        `<entity+name="extreme_case"><all-attributes/><filter+type="and"><condition+attribute="extreme_caseid"+operator="eq"+uitype="extreme_case"+value="${caseId}"/>` +
+        `<entity+name="quote"><all-attributes/><filter+type="and"><condition+attribute="quoteid"+operator="eq"+uitype="quote"+value="${quoteId}"/>` +
         `</filter></entity></fetch></ReportEntity></ReportFilter>`
 
     var retrieveEntityReq = new XMLHttpRequest();
@@ -200,7 +210,7 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
         }
     });
 };
-const createCaseEmail = async function (caseId, caseNo, formContext) {
+const createEmail = async function (quoteId, quoteNumber, formContext) {
     var emailActivityParties = [];
     //
     // Retrieve current user details for the sender
@@ -214,8 +224,8 @@ const createCaseEmail = async function (caseId, caseNo, formContext) {
     });
 
     // Retrieve primary contact or account for the To recipient
-    const contact = formContext.getAttribute("extreme_contact");
-    const account = formContext.getAttribute("extreme_account");
+    const contact = formContext.getAttribute("extreme_primarycontact");
+    const account = formContext.getAttribute("customerid");
 
     if (contact && contact.getValue() !== null) {
         const contactId = contact.getValue()[0].id;
@@ -257,18 +267,24 @@ const createCaseEmail = async function (caseId, caseNo, formContext) {
 
     // Prepare the email record
     var record = {
-        "regardingobjectid_extreme_case_email@odata.bind": `/extreme_cases(${caseId})`, // Regarding field
-        "subject": `Servisni izveštaj ${caseNo} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
+        "regardingobjectid_quote_email@odata.bind": `/quotes(${quoteId})`, // Regarding field
+        "subject": `PONUDA ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
         "description": `
             Poštovani,<br><br>
 
-            U prilogu je servisni izveštaj. Molim Vas za potpis.<br><br>
+            u prilogu Vam dostavljamo našu prodajnu ponudu pripremljenu u skladu sa Vašim zahtevima.<br><br>
 
-            Srdačan pozdrav,<br>
-            <b>${currentUserName}</b><br>
-            Analysis d.o.o, Japanska 4, 11070 Beograd<br>
-            +381 11 318 64 46 / info@analysis.rs<br>
-            https://www.analysis.rs/
+            <b>Detalji ponude uključuju:</b><br>
+            - Opis proizvoda/usluga<br>
+            - Količine i cene<br>
+            - Rok isporuke<br>
+            - Načini plaćanja<br><br>
+
+            Ukoliko imate dodatna pitanja ili želite da razjasnimo bilo koji deo ponude, slobodno nas kontaktirajte.<br>
+            Stojimo Vam na raspolaganju za dalje korake i saradnju.<br><br>
+
+            Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
+
         `,
         "email_activity_parties": emailActivityParties
     };
@@ -283,56 +299,3 @@ const createCaseEmail = async function (caseId, caseNo, formContext) {
         return null;
     }
 };
-
-const readConfigurationValue = async function (key) {
-    // eslint-disable-next-line no-undef
-    var value = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", `?$select=extreme_value&$filter=extreme_key eq '${key}'&$top=1`).then(
-        function success(results) {
-            return results.entities[0]["extreme_value"];
-        },
-        function (error) {
-            console.log(error.message);
-        }
-    );
-    return value;
-}
-const isSysAdminRole = function () {
-    var flag = false;
-    var userRoles = Xrm.Utility.getGlobalContext().userSettings;
-    if (Object.keys(userRoles.roles._collection).length > 0) {
-        for (var rolidcollection in userRoles.roles._collection) {
-            var currentUserRoles = Xrm.Utility.getGlobalContext().userSettings.roles._collection[rolidcollection].name;
-            if (currentUserRoles.toLowerCase() == "system administrator") {
-                flag = true;
-                break;
-            }
-        }
-    }
-    return flag;
-}
-const isServiceManager = function () {
-    var flag = false;
-    var userRoles = Xrm.Utility.getGlobalContext().userSettings;
-    if (Object.keys(userRoles.roles._collection).length > 0) {
-        for (var rolidcollection in userRoles.roles._collection) {
-            var currentUserRoles = Xrm.Utility.getGlobalContext().userSettings.roles._collection[rolidcollection].name;
-            if (currentUserRoles.toLowerCase() == "analysis - customer service manager") {
-                flag = true;
-                break;
-            }
-        }
-    }
-    return flag;
-}
-const getRole = function (roleName) {
-    var userRoles = Xrm.Utility.getGlobalContext().userSettings.roles;
-    var hasRole = false;
-
-    userRoles.forEach(function (role) {
-        if (role.name.toLowerCase() === roleName.toLowerCase()) {
-            hasRole = true;
-        }
-    });
-
-    return hasRole;
-}
