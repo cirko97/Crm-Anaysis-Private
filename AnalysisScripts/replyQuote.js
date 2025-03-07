@@ -321,7 +321,8 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
 
     // Create the email record
     try {
-        const newId = await Xrm.WebApi.createRecord("email", record).then(async result => {
+        let newId = null;
+        newId = await Xrm.WebApi.createRecord("email", record).then(async result => {
 
             const newEmailInfo = await Xrm.WebApi.retrieveRecord("email", `${result.id}`, "?$select=description");
 
@@ -340,6 +341,7 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
             console.log("Email created successfully with ID:", result.id);
             return result.id;
         });
+        return newId;
     } catch (error) {
         console.error("Error creating email record: ", error.message);
         return null;
