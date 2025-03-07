@@ -16,13 +16,24 @@ ReplyQuoteButton = function (formContext, reportType = "detailed") {
                 await CreatePrintoutEmail(formContext, isDetailed);
         });
 }
-ReplyQuoteEnableRule = function (formContext) {
-    return true;
+ReplyQuoteEnableRule = async function (formContext) {
+    if (formContext.getAttribute("regardingobjectid").getValue() !== null) {
+        const stateCodeQuote = await Xrm.WebApi.retrieveRecord("quote", `${formContext.getAttribute("regardingobjectid").getValue()[0].id.slice(1, -1)}`, "?$select=statecode");
+        if (stateCodeQuote.statecode === 1) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    else {
+        return false;
+    }
 }
 CreatePrintoutEmail = async function (formContext, isDetailed) {
     //getReport
     Xrm.Utility.showProgressIndicator("Generating printout...");
-    var quoteId = formContext.data.entity.getId().slice(1, -1);
+    var quoteId = formContext.getAttribute("regardingobjectid").getValue()[0].id.slice(1, -1);
     var reportName = isDetailed == true ? 'Analysis+Quote+Detail' : 'Analysis+Quote';
     var queryReportName = isDetailed == true ? 'Analysis Quote Detail' : 'Analysis Quote';
     var report = await Xrm.WebApi.retrieveMultipleRecords("report", `?$select=reportid,filename,name&$filter=name eq '${queryReportName}'`).then(
@@ -42,8 +53,9 @@ CreatePrintoutEmail = async function (formContext, isDetailed) {
 
     Xrm.Utility.showProgressIndicator("Creating email...");
 
-    var brojPonude = formContext.getAttribute("quotenumber").getValue();
-    var revBroj = formContext.getAttribute("revisionnumber").getValue();
+    const quoteInfo = await Xrm.WebApi.retrieveRecord("quote", `${formContext.getAttribute("regardingobjectid").getValue()[0].id.slice(1, -1)}`, "?$select=quotenumber,revisionnumber");
+    var brojPonude = quoteInfo.quotenumber;
+    var revBroj = quoteInfo.revisionnumber;
     var puniBrojPonude = "";
     if (revBroj > 0) {
         puniBrojPonude = brojPonude + "/" + revBroj;
@@ -223,52 +235,69 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
         "participationtypemask": 1 // Sender
     });
 
-    // Retrieve primary contact or account for the To recipient
-    const contact = formContext.getAttribute("extreme_primarycontact");
-    const account = formContext.getAttribute("customerid");
+    // Retrieve primary contact or account for the To & CC recipients
+    const from = formContext.getAttribute("from").getValue();
+    const to = formContext.getAttribute("to").getValue();
+    const cc = formContext.getAttribute("cc").getValue();
+    const bcc = formContext.getAttribute("bcc").getValue();
 
-    if (contact && contact.getValue() !== null) {
-        const contactId = contact.getValue()[0].id;
-        const contactName = contact.getValue()[0].name;
+    console.log(from);
+    console.log(to);
+    console.log(cc);
+    console.log(bcc);
+    console.log(formContext.getAttribute("description").getValue());
 
-        let contactEmail = null;
-        try {
-            contactEmail = await Xrm.WebApi.retrieveRecord("contact", contactId, "?$select=emailaddress1")
-                .then(result => result["emailaddress1"]);
-        } catch (error) {
-            console.error("Error fetching contact email: ", error.message);
-        }
-
-        if (contactEmail) {
+    // Collect all parties
+    if (from) {
+        from.forEach(obj => {
             emailActivityParties.push({
-                "partyid_contact@odata.bind": `/contacts(${contactId.slice(1, -1)})`,
+                [`partyid_${obj.entityType}@odata.bind`]: `/${obj.entityType}s(${obj.id.slice(1, -1)})`,
                 "participationtypemask": 2 // To recipient
             });
-        }
-    } else if (account && account.getValue() !== null) {
-        const accountId = account.getValue()[0].id;
-        const accountName = account.getValue()[0].name;
-
-        let accountEmail = null;
-        try {
-            accountEmail = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=emailaddress1")
-                .then(result => result["emailaddress1"]);
-        } catch (error) {
-            console.error("Error fetching account email: ", error.message);
-        }
-
-        if (accountEmail) {
-            emailActivityParties.push({
-                "partyid_account@odata.bind": `/accounts(${accountId.slice(1, -1)})`,
-                "participationtypemask": 2 // To recipient
-            });
-        }
+        });
     }
+    if (cc) {
+        cc.forEach(obj => {
+            emailActivityParties.push({
+                [`partyid_${obj.entityType}@odata.bind`]: `/${obj.entityType}s(${obj.id.slice(1, -1)})`,
+                "participationtypemask": 3 // CC recipient
+            });
+        });
+    }
+    if (bcc) {
+        bcc.forEach(obj => {
+            emailActivityParties.push({
+                [`partyid_${obj.entityType}@odata.bind`]: `/${obj.entityType}s(${obj.id.slice(1, -1)})`,
+                "participationtypemask": 3 // BCC recipient
+            });
+        });
+    }
+
+    const emailInfo = await Xrm.WebApi.retrieveRecord("email", `${formContext.data.entity.getId().slice(1, -1)}`, "?$select=baseconversationindexhash,description");
+    const fromInfo = await Xrm.WebApi.retrieveRecord(`${from[0].entityType}`, `${from[0].id.slice(1, -1)}`, `?$select=${from[0].entityType == 'systemuser' ? 'internalemailaddress' : 'emailaddress1'}`);
+    const toInfo = await Xrm.WebApi.retrieveRecord(`${to[0].entityType}`, `${to[0].id.slice(1, -1)}`, `?$select=${to[0].entityType == 'systemuser' ? 'internalemailaddress' : 'emailaddress1'}`);
+    const ccInfo = await Xrm.WebApi.retrieveRecord(`${cc[0].entityType}`, `${cc[0].id.slice(1, -1)}`, `?$select=${cc[0].entityType == 'systemuser' ? 'internalemailaddress' : 'emailaddress1'}`);
+    // const bccInfo = await Xrm.WebApi.retrieveRecord(`${bcc[0].entityType}`, `${bcc[0].id.slice(1, -1)}`, `?$select=${bcc[0].entityType == 'systemuser' ? 'internalemailaddress' : 'emailaddress1'}`);
+    const descriptionForReply = `
+        <div style="direction:ltr"><br /><br /><br />
+            <div dir="ltr" id="replyfwdmessage">
+                <font face="Tahoma, Verdana, Arial" size="2">------------------- Original Message
+                    -------------------<br><b>From:</b> ${from[0].name} &lt;${from[0].entityType == 'systemuser' ? fromInfo.internalemailaddress : fromInfo.emailaddress1}&gt;;
+                    <br><b>Received:</b> Fri Dec 27 2024 12:25:05 GMT+0100 (Central European Standard Time)<br><b>To:</b>
+                    ${to[0].name} &lt;${to[0].entityType == 'systemuser' ? toInfo.internalemailaddress : toInfo.emailaddress1}&gt;; <br><b>Cc:</b> ${cc[0].name}
+                    &lt;${cc[0].entityType == 'systemuser' ? ccInfo.internalemailaddress : ccInfo.emailaddress1}&gt;; Snezana Vukadinovic &lt;snezana.vukadinovic@analysis.rs&gt;;
+                    <br><b>Subject:</b> Zahtev za ponudu
+                </font><br><br>
+                ${emailInfo.description}
+            </div>
+        </div>
+    `
+    console.log(descriptionForReply);
 
     // Prepare the email record
     var record = {
         "regardingobjectid_quote_email@odata.bind": `/quotes(${quoteId})`, // Regarding field
-        "subject": `PONUDA ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
+        "subject": `PONUDA ${quoteNumber} - ACC NAME`, // Subject
         "description": `
             Poštovani,<br><br>
 
@@ -286,14 +315,31 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
             Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
 
         `,
-        "email_activity_parties": emailActivityParties
+        "email_activity_parties": emailActivityParties,
+        "baseconversationindexhash": emailInfo.baseconversationindexhash
     };
 
     // Create the email record
     try {
-        const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
-        console.log("Email created successfully with ID:", newId);
-        return newId;
+        const newId = await Xrm.WebApi.createRecord("email", record).then(async result => {
+
+            const newEmailInfo = await Xrm.WebApi.retrieveRecord("email", `${result.id}`, "?$select=description");
+
+            var record = {};
+            record.description = newEmailInfo.description + descriptionForReply; // Multiline Text
+
+            await Xrm.WebApi.updateRecord("email", `${result.id}`, record).then(
+                function success(result) {
+                    var updatedId = result.id;
+                    console.log(updatedId);
+                },
+                function (error) {
+                    console.log(error.message);
+                }
+            );
+            console.log("Email created successfully with ID:", result.id);
+            return result.id;
+        });
     } catch (error) {
         console.error("Error creating email record: ", error.message);
         return null;
