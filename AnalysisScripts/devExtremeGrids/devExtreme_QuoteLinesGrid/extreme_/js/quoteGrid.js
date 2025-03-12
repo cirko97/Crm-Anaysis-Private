@@ -597,27 +597,14 @@ async function setClientApiContext(Xrm, formContext) {
           var transactioncurrencyid_formatted = result["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"];
           var transactioncurrencyid_lookuplogicalname = result["_transactioncurrencyid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
-          // Many To One Relationships
-          let statuscode = 0;
-          if (result.hasOwnProperty("pricelevelid") && result["pricelevelid"] !== null) {
-            var pricelevelid_extreme_defaultsalesmargin = result["pricelevelid"]["extreme_defaultsalesmargin"]; // Decimal
-            var pricelevelid_extreme_defaultsalesmargin_formatted = result["pricelevelid"]["extreme_defaultsalesmargin@OData.Community.Display.V1.FormattedValue"];
-            var pricelevelid_statecode = result["pricelevelid"]["statecode"]; // State
-            var pricelevelid_statecode_formatted = result["pricelevelid"]["statecode@OData.Community.Display.V1.FormattedValue"];
-
-            statuscode = pricelevelid_statecode;
-          }
-
-          if (statuscode === 100001) {
-            priceListsArray.push({
-              "id": pricelevelid,
-              "name": pricelevelid_formatted,
-              "amount": amount,
-              "amount_num": amount_num,
-              "currency_code": transactioncurrencyid_formatted,
-              "productid": productid,
-            });
-          }
+          priceListsArray.push({
+            "id": pricelevelid,
+            "name": pricelevelid_formatted,
+            "amount": amount,
+            "amount_num": amount_num,
+            "currency_code": transactioncurrencyid_formatted,
+            "productid": productid,
+          });
 
 
         }
@@ -2991,7 +2978,7 @@ async function setClientApiContext(Xrm, formContext) {
               // console.log(priceListItemInfo);
 
               const priceListMargin = priceListItemInfo.length !== 0 && priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin;
-              const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : null;
+              const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : 0;
               const priceListItemAmountFormatted = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
               const priceListItemCurrency = priceListItemInfo.length !== 0 ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
 
