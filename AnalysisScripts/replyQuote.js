@@ -3120,14 +3120,9 @@ var Activities;
                 return null;
             }
         }
-        EmailCommands.replyall = async function (form, quote = null) {
-
-            console.log("PARAMETERS");
-            console.log(form);
-
-            quote = await EmailCommands.getQuote(form)
-
-            console.log(quote);
+        EmailCommands.replyWithQuoteMenu = (form) => { };
+        EmailCommands.replyall = async function (form, detailed = false) {
+            const quote = await EmailCommands.getQuote(form)
 
             if (quote !== null) {
                 var confirmStrings = {
@@ -3145,7 +3140,7 @@ var Activities;
                             var currentEmailId = EmailCommands.getCurrentEmailIdFromForm(form);
                             EmailCommands.toggleProgressIndicator();
                             EmailCommands.SaveEmailAndExecute(form, telemetryItem, function () {
-                                EmailCommands.createMail(currentEmailId, Activities.EmailAction.ReplyAll, subjectPrefix, telemetryItem, "replyAll", EmailCommands.handleNavigationFromFormCallback, quote, form);
+                                EmailCommands.createMail(currentEmailId, Activities.EmailAction.ReplyAll, subjectPrefix, telemetryItem, "replyAll", EmailCommands.handleNavigationFromFormCallback, quote, form, detailed);
                             }, function (error, telemetryItem) {
                                 Activities.ClientApi.dialogActionFailedCallback(error, telemetryItem);
                                 EmailCommands.toggleProgressIndicator(false);
@@ -3159,7 +3154,7 @@ var Activities;
                 var currentEmailId = EmailCommands.getCurrentEmailIdFromForm(form);
                 EmailCommands.toggleProgressIndicator();
                 EmailCommands.SaveEmailAndExecute(form, telemetryItem, function () {
-                    EmailCommands.createMail(currentEmailId, Activities.EmailAction.ReplyAll, subjectPrefix, telemetryItem, "replyAll", EmailCommands.handleNavigationFromFormCallback, quote, form);
+                    EmailCommands.createMail(currentEmailId, Activities.EmailAction.ReplyAll, subjectPrefix, telemetryItem, "replyAll", EmailCommands.handleNavigationFromFormCallback, quote, form, detailed);
                 }, function (error, telemetryItem) {
                     Activities.ClientApi.dialogActionFailedCallback(error, telemetryItem);
                     EmailCommands.toggleProgressIndicator(false);
@@ -3272,7 +3267,7 @@ var Activities;
             }
             return false;
         };
-        EmailCommands.createMail = function (emailId, emailAction, subjectPrefix, telemetryItem, componentName, handleNavigationCallback, Quote = null, Form = null) {
+        EmailCommands.createMail = function (emailId, emailAction, subjectPrefix, telemetryItem, componentName, handleNavigationCallback, Quote = null, Form = null, detailed = false) {
             var optionsString = "?$select=statecode,statuscode,subject,directioncode,ownerid,actualdurationminutes,prioritycode,scheduledend,parentactivityid,description,isemailfollowed,baseconversationindexhash&$expand=email_activity_parties";
             if (Xrm.Internal.isUci() &&
                 !Activities.ClientApi.IsOffline() &&
@@ -3280,7 +3275,7 @@ var Activities;
                 optionsString =
                     "?$select=statecode,statuscode,subject,directioncode,ownerid,actualdurationminutes,prioritycode,scheduledend,parentactivityid,description,safedescription,actualend,isemailfollowed,baseconversationindexhash&$expand=email_activity_parties";
             Xrm.WebApi.online.retrieveRecord(Activities.Constants.EntityNames.Email, emailId, optionsString).then(function (retrievedEmail) {
-                EmailCommands.createFromRetrievedEmail(emailId, retrievedEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form);
+                EmailCommands.createFromRetrievedEmail(emailId, retrievedEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed);
             }, function (error) {
                 Activities.ClientApi.dialogActionFailedCallback(error, telemetryItem);
                 EmailCommands.toggleProgressIndicator(false);
@@ -3298,7 +3293,7 @@ var Activities;
                 }
             }
         };
-        EmailCommands.createFromRetrievedEmail = function (currentEmailId, retrievedEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form) {
+        EmailCommands.createFromRetrievedEmail = function (currentEmailId, retrievedEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed) {
             var parentActivityId = Activities.Common.Util.convertGuidToString(currentEmailId);
             var newEmail = (_a = {},
                 _a["statecode"] = Activities.EmailState.Open,
@@ -3324,10 +3319,10 @@ var Activities;
             if (Activities.Common.Util.isFCBEnabled(Activities.Constants.FCBConstant.FCB_CopyActualEndDateInEmail, null)) {
                 newEmail["actualend"] = retrievedEmail["actualend"];
             }
-            EmailCommands.updatePartiesAndDescription(currentEmailId, retrievedEmail, newEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form);
+            EmailCommands.updatePartiesAndDescription(currentEmailId, retrievedEmail, newEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed);
             var _a;
         };
-        EmailCommands.updatePartiesAndDescription = function (currentEmailId, retrievedEmail, newEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form) {
+        EmailCommands.updatePartiesAndDescription = function (currentEmailId, retrievedEmail, newEmail, emailAction, subjectPrefix, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed) {
             return __awaiter(this, void 0, void 0, function () {
                 var retrievedActivityParties, newActivityParties, fromActivityParties, toActivityParties, ccActivityParties, entitySetNames, entitySetNamePromises, shouldAddRelatedParties, i, retrievedActivityParty, participationTypeMask, lookuplogicalname, retrievedDescription;
                 return __generator(this, function (_a) {
@@ -3404,11 +3399,11 @@ var Activities;
                                     for (var i = 0; i < values.length; i++) {
                                         entitySetNames[values[i].LogicalName] = values[i].EntitySetName;
                                     }
-                                    EmailCommands.bindPartiesAndCreateEmail(currentEmailId, newEmail, emailAction, newActivityParties, entitySetNames, telemetryItem, handleNavigationCallback, componentName, Quote, Form);
+                                    EmailCommands.bindPartiesAndCreateEmail(currentEmailId, newEmail, emailAction, newActivityParties, entitySetNames, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed);
                                 });
                             }
                             else {
-                                EmailCommands.bindPartiesAndCreateEmail(currentEmailId, newEmail, emailAction, newActivityParties, entitySetNames, telemetryItem, handleNavigationCallback, componentName, Quote, Form);
+                                EmailCommands.bindPartiesAndCreateEmail(currentEmailId, newEmail, emailAction, newActivityParties, entitySetNames, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed);
                             }
                             return [2 /*return*/];
                     }
@@ -3472,7 +3467,7 @@ var Activities;
             };
             return entitySetNameMap;
         };
-        EmailCommands.bindPartiesAndCreateEmail = function (currentEmailId, email, emailAction, emailActivityPartyList, entitySetNames, telemetryItem, handleNavigationCallback, componentName, Quote, Form) {
+        EmailCommands.bindPartiesAndCreateEmail = function (currentEmailId, email, emailAction, emailActivityPartyList, entitySetNames, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed) {
             var toParties = emailActivityPartyList.filter(function (emailActivityParty) {
                 return emailActivityParty["participationtypemask"] == Activities.EmailParticipationTypeMask.ToRecepient;
             });
@@ -3513,7 +3508,7 @@ var Activities;
                     email["email_activity_parties"].push(newActivityParty);
                 }
             }
-            EmailCommands.createEmailRecord(currentEmailId, email, emailAction, telemetryItem, handleNavigationCallback, componentName, Quote, Form);
+            EmailCommands.createEmailRecord(currentEmailId, email, emailAction, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed);
         };
         EmailCommands.updateActivityParty = function (retrievedParty, skipSenderInToField) {
             var retrievedPartyId = retrievedParty["_partyid_value"];
@@ -3631,7 +3626,7 @@ var Activities;
             }
             return data.toString();
         };
-        EmailCommands.createEmailRecord = function (currentEmailId, newEmail, emailAction, telemetryItem, handleNavigationCallback, componentName, Quote, Form) {
+        EmailCommands.createEmailRecord = function (currentEmailId, newEmail, emailAction, telemetryItem, handleNavigationCallback, componentName, Quote, Form, detailed) {
             var signatureDiv = '<br/><br/><br/><div id="newsignature" style="display: none;"></div>';
             var shouldRemoveUpdateFromReplyForwardEmail = Activities.Common.Util.isFCB_RemoveUpdateFromReplyForwardEmailEnabled();
             if (shouldRemoveUpdateFromReplyForwardEmail) {
@@ -3904,7 +3899,6 @@ var Activities;
                     };
                     const CreatePrintoutEmail = async function (formContext, isDetailed) {
                         //getReport
-                        Xrm.Utility.showProgressIndicator("Generating printout...");
                         var quoteId = Quote;
                         var reportName = isDetailed == true ? 'Analysis+Quote+Detail' : 'Analysis+Quote';
                         var queryReportName = isDetailed == true ? 'Analysis Quote Detail' : 'Analysis Quote';
@@ -3923,8 +3917,6 @@ var Activities;
 
                         var blobData = await convertResponseToPDF(arrReportSession); //3. Convert the response in base 64 string i.e. PDF.
 
-                        Xrm.Utility.showProgressIndicator("Creating email...");
-
                         const quoteInfo = await Xrm.WebApi.retrieveRecord("quote", `${formContext.getAttribute("regardingobjectid").getValue()[0].id.slice(1, -1)}`, "?$select=quotenumber,revisionnumber");
                         var brojPonude = quoteInfo.quotenumber;
                         var revBroj = quoteInfo.revisionnumber;
@@ -3936,15 +3928,9 @@ var Activities;
                         }
 
                         var emailId = lookupValue.id;
-
-                        Xrm.Utility.showProgressIndicator("Creating attachment...");
-
                         await attachFileToDraftEmail(blobData, emailId, `${brojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
-
-                        Xrm.Utility.closeProgressIndicator();
-
                     }
-                    CreatePrintoutEmail(Form, true);
+                    CreatePrintoutEmail(Form, detailed);
                 }
             }, function (error) {
                 Activities.ClientApi.dialogActionFailedCallback(error, telemetryItem);
