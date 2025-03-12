@@ -578,7 +578,7 @@ async function setClientApiContext(Xrm, formContext) {
     // console.log('filterForPriceListsQuery');
     // console.log(filterForPriceListsQuery);
 
-    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})&$expand=pricelevelid($select=extreme_defaultsalesmargin,statecode)`}`).then(
       function success(results) {
         // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -598,19 +598,27 @@ async function setClientApiContext(Xrm, formContext) {
           var transactioncurrencyid_lookuplogicalname = result["_transactioncurrencyid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
           // Many To One Relationships
+          let statecode = 0;
           if (result.hasOwnProperty("pricelevelid") && result["pricelevelid"] !== null) {
             var pricelevelid_extreme_defaultsalesmargin = result["pricelevelid"]["extreme_defaultsalesmargin"]; // Decimal
             var pricelevelid_extreme_defaultsalesmargin_formatted = result["pricelevelid"]["extreme_defaultsalesmargin@OData.Community.Display.V1.FormattedValue"];
+            var pricelevelid_statecode = result["pricelevelid"]["statecode"]; // State
+            var pricelevelid_statecode_formatted = result["pricelevelid"]["statecode@OData.Community.Display.V1.FormattedValue"];
+
+            statecode = pricelevelid_statecode;
           }
 
-          priceListsArray.push({
-            "id": pricelevelid,
-            "name": pricelevelid_formatted,
-            "amount": amount,
-            "amount_num": amount_num,
-            "currency_code": transactioncurrencyid_formatted,
-            "productid": productid,
-          });
+          if (statecode === 100001) {
+            priceListsArray.push({
+              "id": pricelevelid,
+              "name": pricelevelid_formatted,
+              "amount": amount,
+              "amount_num": amount_num,
+              "currency_code": transactioncurrencyid_formatted,
+              "productid": productid,
+            });
+          }
+
 
         }
       },
@@ -2940,7 +2948,29 @@ async function setClientApiContext(Xrm, formContext) {
               const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
               if (productInfo._pricelevelid_value) {
                 if (value !== null && isGuid(value)) {
-                  priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
+                  const priceListInfo = await Xrm.WebApi.retrieveRecord("pricelevel", `${productInfo._pricelevelid_value}`, "?$select=enddate,statuscode");
+
+                  if (new Date(priceListInfo.enddate) > new Date() && priceListInfo.statuscode === 100001) {
+                    priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
+                  }
+                  else {
+                    var alertStrings = {
+                      confirmButtonLabel: "OK",
+                      text: "Price list for this product expired or is no longer active.",
+                      title: "Price list"
+                    };
+                    var alertOptions = { height: 120, width: 260 };
+                    Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+                      function (success) {
+                        // console.log("Alert dialog closed");
+                      },
+                      function (error) {
+                        console.log(error.message);
+                      }
+                    );
+
+                    priceListItemInfo = [];
+                  }
                 }
               }
               if (value !== null && isGuid(value)) {
@@ -2988,10 +3018,10 @@ async function setClientApiContext(Xrm, formContext) {
               newData.extreme_customproductname = productInfo.name;
               if (productInfo._defaultuomid_value !== null) newData.uomid = productInfo._defaultuomid_value;
               if (productInfo._pricelevelid_value && !isAddingSet) {
-                newData.extreme_pricelist = productInfo._pricelevelid_value;
-                newData.extreme_pricelistpriceperunit = priceListItemAmount;
-                newData.extreme_pricelistcurrency = priceListItemCurrency;
-                if (quoteCurrencySymbol !== priceListItemCurrency) {
+                if (priceListItemInfo.length > 0) newData.extreme_pricelist = productInfo._pricelevelid_value;
+                if (priceListItemInfo.length > 0) newData.extreme_pricelistpriceperunit = priceListItemAmount;
+                if (priceListItemInfo.length > 0) newData.extreme_pricelistcurrency = priceListItemCurrency;
+                if (quoteCurrencySymbol !== priceListItemCurrency && priceListItemInfo.length > 0) {
                   newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                   supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                 } else {
