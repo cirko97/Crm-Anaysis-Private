@@ -3634,7 +3634,7 @@ var Activities;
                     "<div style=\"direction:" + Activities.Common.Util.getDirection() + "\">" +
                     signatureDiv + (_a = ["</div>"], _a.raw = ["</div>"], newEmail["description"](_a));
             }
-            Xrm.WebApi.online.createRecord(Activities.Constants.EntityNames.Email, newEmail).then(function (lookupValue) {
+            Xrm.WebApi.online.createRecord(Activities.Constants.EntityNames.Email, newEmail).then(async function (lookupValue) {
                 var addSignaturePromise;
                 if (shouldRemoveUpdateFromReplyForwardEmail) {
                     addSignaturePromise = Promise.resolve(lookupValue);
@@ -3930,7 +3930,7 @@ var Activities;
                         var emailId = lookupValue.id;
                         await attachFileToDraftEmail(blobData, emailId, `${brojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
                     }
-                    CreatePrintoutEmail(Form, detailed);
+                    await CreatePrintoutEmail(Form, detailed);
                 }
             }, function (error) {
                 Activities.ClientApi.dialogActionFailedCallback(error, telemetryItem);
