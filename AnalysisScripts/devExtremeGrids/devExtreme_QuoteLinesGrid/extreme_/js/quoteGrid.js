@@ -578,7 +578,7 @@ async function setClientApiContext(Xrm, formContext) {
     // console.log('filterForPriceListsQuery');
     // console.log(filterForPriceListsQuery);
 
-    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})&$expand=pricelevelid($select=extreme_defaultsalesmargin,statecode)`}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})&$expand=pricelevelid($select=extreme_defaultsalesmargin,statuscode)`}`).then(
       function success(results) {
         // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
@@ -598,17 +598,17 @@ async function setClientApiContext(Xrm, formContext) {
           var transactioncurrencyid_lookuplogicalname = result["_transactioncurrencyid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
           // Many To One Relationships
-          let statecode = 0;
+          let statuscode = 0;
           if (result.hasOwnProperty("pricelevelid") && result["pricelevelid"] !== null) {
             var pricelevelid_extreme_defaultsalesmargin = result["pricelevelid"]["extreme_defaultsalesmargin"]; // Decimal
             var pricelevelid_extreme_defaultsalesmargin_formatted = result["pricelevelid"]["extreme_defaultsalesmargin@OData.Community.Display.V1.FormattedValue"];
             var pricelevelid_statecode = result["pricelevelid"]["statecode"]; // State
             var pricelevelid_statecode_formatted = result["pricelevelid"]["statecode@OData.Community.Display.V1.FormattedValue"];
 
-            statecode = pricelevelid_statecode;
+            statuscode = pricelevelid_statecode;
           }
 
-          if (statecode === 100001) {
+          if (statuscode === 100001) {
             priceListsArray.push({
               "id": pricelevelid,
               "name": pricelevelid_formatted,
