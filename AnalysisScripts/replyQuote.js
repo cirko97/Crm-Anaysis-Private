@@ -3122,7 +3122,19 @@ var Activities;
         }
         EmailCommands.replyWithQuoteMenu = (form) => { };
         EmailCommands.replyall = async function (form, detailed = false) {
-            const quote = await EmailCommands.getQuote(form)
+            var telemetryItem = new TelemetryLogger.TelemetryItem(Activities.Constants.EntityNames.Email, Activities.Constants.TelemetryConstant.EventReplyAll);
+            var subjectPrefix = Activities.ClientApi.getResourceString("Email_Prefix_Reply");
+            var currentEmailId = EmailCommands.getCurrentEmailIdFromForm(form);
+            EmailCommands.toggleProgressIndicator();
+            EmailCommands.SaveEmailAndExecute(form, telemetryItem, function () {
+                EmailCommands.createMail(currentEmailId, Activities.EmailAction.ReplyAll, subjectPrefix, telemetryItem, "replyAll", EmailCommands.handleNavigationFromFormCallback, null, form, detailed);
+            }, function (error, telemetryItem) {
+                Activities.ClientApi.dialogActionFailedCallback(error, telemetryItem);
+                EmailCommands.toggleProgressIndicator(false);
+            });
+        };
+        EmailCommands.replyallQuote = async function (form, detailed = false) {
+            const quote = await EmailCommands.getQuote(form);
 
             if (quote !== null) {
                 var confirmStrings = {
