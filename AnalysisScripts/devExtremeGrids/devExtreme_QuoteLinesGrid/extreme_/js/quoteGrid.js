@@ -574,16 +574,17 @@ async function setClientApiContext(Xrm, formContext) {
 
   async function getPriceLists() {
 
+    let skipTokenExists = true;
+    let skipToken = '';
     priceListsArray = [];
-    // console.log('filterForPriceListsQuery');
-    // console.log(filterForPriceListsQuery);
 
-    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})&$expand=pricelevelid($select=extreme_defaultsalesmargin,statuscode)`}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value&$expand=pricelevelid($select=enddate,statuscode)${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})`}`).then(
       function success(results) {
+        results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
         // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
-          // Columnsd
+          // Columns
           var productpricelevelid = result["productpricelevelid"]; // Guid
           var amount = result["amount@OData.Community.Display.V1.FormattedValue"]; // Currency
           var amount_num = result["amount"]; // Currency
@@ -597,17 +598,34 @@ async function setClientApiContext(Xrm, formContext) {
           var transactioncurrencyid_formatted = result["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"];
           var transactioncurrencyid_lookuplogicalname = result["_transactioncurrencyid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
-          priceListsArray.push({
-            "id": pricelevelid,
-            "name": pricelevelid_formatted,
-            "amount": amount,
-            "amount_num": amount_num,
-            "currency_code": transactioncurrencyid_formatted,
-            "productid": productid,
-          });
+          // Many To One Relationships
+          if (result.hasOwnProperty("pricelevelid") && result["pricelevelid"] !== null) {
+            var pricelevelid_enddate = result["pricelevelid"]["enddate"]; // Date Time
+            var pricelevelid_enddate_formatted = result["pricelevelid"]["enddate@OData.Community.Display.V1.FormattedValue"];
+            var pricelevelid_statuscode = result["pricelevelid"]["statuscode"]; // Status
+            var pricelevelid_statuscode_formatted = result["pricelevelid"]["statuscode@OData.Community.Display.V1.FormattedValue"];
 
+            priceListsArray.push({
+              "id": pricelevelid,
+              "name": pricelevelid_formatted,
+              "amount": amount,
+              "amount_num": amount_num,
+              "currency_code": transactioncurrencyid_formatted,
+              "productid": productid,
+              "statuscode": pricelevelid_statuscode
+            });
+
+          }
 
         }
+
+        if (skipToken === '') {
+          skipTokenExists = false;
+        };
+
+        console.log('priceListsArray');
+        console.log(priceListsArray);
+
       },
       function (error) {
         Xrm.Navigation.openErrorDialog({
@@ -2126,8 +2144,10 @@ async function setClientApiContext(Xrm, formContext) {
                       itemTemplate: function (data, index, container) {
                         var containerFluid = $("<div>").addClass("container-fluid");
                         var row = $("<div>").addClass("row text-wrap");
-                        $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
-                        $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
+                        if (data["statuscode"] === 100001) {
+                          $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
+                          $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
+                        }
                         row.appendTo(containerFluid);
                         container.append(containerFluid);
                       },
@@ -2937,7 +2957,7 @@ async function setClientApiContext(Xrm, formContext) {
                 if (value !== null && isGuid(value)) {
                   const priceListInfo = await Xrm.WebApi.retrieveRecord("pricelevel", `${productInfo._pricelevelid_value}`, "?$select=enddate,statuscode");
 
-                  if (new Date(priceListInfo.enddate) > new Date() && priceListInfo.statuscode === 100001) {
+                  if ((new Date(priceListInfo.enddate) > new Date() || priceListInfo.enddate === null) && priceListInfo.statuscode === 100001) {
                     priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
                   }
                   else {
@@ -3795,8 +3815,10 @@ async function setClientApiContext(Xrm, formContext) {
               itemTemplate: function (data, index, container) {
                 var containerFluid = $("<div>").addClass("container-fluid");
                 var row = $("<div>").addClass("row text-wrap");
-                $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
-                $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
+                if (data["statuscode"] === 100001) {
+                  $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
+                  $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
+                }
                 row.appendTo(containerFluid);
                 container.append(containerFluid);
               },
