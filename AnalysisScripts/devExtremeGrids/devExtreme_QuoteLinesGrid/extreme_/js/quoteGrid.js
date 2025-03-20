@@ -623,9 +623,6 @@ async function setClientApiContext(Xrm, formContext) {
           skipTokenExists = false;
         };
 
-        console.log('priceListsArray');
-        console.log(priceListsArray);
-
       },
       function (error) {
         Xrm.Navigation.openErrorDialog({
@@ -2126,11 +2123,7 @@ async function setClientApiContext(Xrm, formContext) {
                           },
                           paginate: true,
                           pageSize: 20,
-                          filter: options.data ? ['productid', '=', options.data.productid] : null,
-                          postProcess: function (data) {
-                            // data.unshift({ name: "Price list", amount: "Price", disabled: true });
-                            return data;
-                          }
+                          filter: options.data ? [['productid', '=', options.data.productid], "and", ['statuscode', '=', 100001]] : null,
                         }
                       },
                       displayExpr: 'name',
@@ -2144,10 +2137,8 @@ async function setClientApiContext(Xrm, formContext) {
                       itemTemplate: function (data, index, container) {
                         var containerFluid = $("<div>").addClass("container-fluid");
                         var row = $("<div>").addClass("row text-wrap");
-                        if (data["statuscode"] === 100001) {
-                          $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
-                          $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
-                        }
+                        $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
+                        $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
                         row.appendTo(containerFluid);
                         container.append(containerFluid);
                       },
@@ -3797,7 +3788,7 @@ async function setClientApiContext(Xrm, formContext) {
                   },
                   paginate: true,
                   pageSize: 20,
-                  filter: options.data ? ['productid', '=', options.data.productid] : null,
+                  filter: options.data ? [['productid', '=', options.data.productid], "and", ['statuscode', '=', 100001]] : null,
                   postProcess: function (data) {
                     // data.unshift({ name: "Price list", amount: "Price", disabled: true });
                     return data;
@@ -3815,10 +3806,8 @@ async function setClientApiContext(Xrm, formContext) {
               itemTemplate: function (data, index, container) {
                 var containerFluid = $("<div>").addClass("container-fluid");
                 var row = $("<div>").addClass("row text-wrap");
-                if (data["statuscode"] === 100001) {
-                  $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
-                  $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
-                }
+                $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
+                $("<div>").addClass("col-6").text(data["amount"]).appendTo(row);
                 row.appendTo(containerFluid);
                 container.append(containerFluid);
               },
