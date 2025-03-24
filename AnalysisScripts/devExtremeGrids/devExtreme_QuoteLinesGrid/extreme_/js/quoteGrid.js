@@ -1,30 +1,29 @@
+// VARS
+let quoteLinesArray = [];
+let productsArray = [];
+let customProductsArray = [];
+let customUnitsArray = [];
+let filterForPriceListsQuery = '';
+let priceListsArray = [];
+let unitsArray = [];
+let currenciesArray = [];
+let areasArray = [];
+let techsArray = [];
+// let vensSupsArray = [];
+let vatSettingsArray = [];
+let productTypesArray = [];
+let defaultMargin = 0;
+let newCreateId = '';
+let newCreatedProductId = '';
+let newIdForCustomProducts = 100001;
+let newIdForCustomUnits = 200001;
+let heightAuto = true;
+let isAddingSet = null;
+let isDraftStatus = true;
+let classifyNeededRows = 0;
+let selectedDescriptionItem = null;
+
 async function setClientApiContext(Xrm, formContext) {
-
-  // VARS
-  let quoteLinesArray = [];
-  let productsArray = [];
-  let customProductsArray = [];
-  let customUnitsArray = [];
-  let filterForPriceListsQuery = '';
-  let priceListsArray = [];
-  let unitsArray = [];
-  let currenciesArray = [];
-  let areasArray = [];
-  let techsArray = [];
-  // let vensSupsArray = [];
-  let vatSettingsArray = [];
-  let productTypesArray = [];
-  let defaultMargin = 0;
-  let newCreateId = '';
-  let newCreatedProductId = '';
-  let newIdForCustomProducts = 100001;
-  let newIdForCustomUnits = 200001;
-  let heightAuto = true;
-  let isAddingSet = null;
-  let isDraftStatus = true;
-  let classifyNeededRows = 0;
-  let selectedDescriptionItem = null;
-
 
   // Optionally set Xrm and formContext as global variables on the page.
   window.Xrm = Xrm;
