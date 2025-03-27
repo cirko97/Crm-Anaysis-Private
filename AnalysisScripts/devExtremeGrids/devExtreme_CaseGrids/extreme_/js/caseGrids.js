@@ -8,6 +8,8 @@ let oneAssetId = undefined;
 let timeEntryTypesArray = [];
 let isEditable = true;
 let heightAuto = true;
+let importingFromQuote = null;
+let importingFromQuoteNumOfItems = [];
 var treeList, searchTimer, focusedRowKey;
 
 // Add hours to Date method
@@ -589,22 +591,89 @@ async function setClientApiContext(Xrm, formContext) {
               location: 'before',
               name: 'addRowButton',
               showText: 'always'
+            },
+            {
+              location: 'before',
+              locateInMenu: "auto",
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
+            {
+              location: 'after',
+              widget: 'dxButton',
+              options: {
+                text: 'Import lines from Quote',
+                icon: 'copy',
+                disabled: false,
+                onClick() {
+                  //define data for lookupOptions
+                  var lookupOptions =
+                  {
+                    defaultEntityType: "quote",
+                    entityTypes: ["quote"],
+                    allowMultiSelect: false,
+                    defaultViewId: "47ea12e0-fcb6-ef11-b8e8-7c1e5270c843",
+                    viewIds: ["47ea12e0-fcb6-ef11-b8e8-7c1e5270c843"],
+                    searchText: "",
+                    filters: [{ filterXml: `<filter type="and"><condition attribute="customerid" operator="eq" value="${formContext.getAttribute("extreme_account").getValue()[0].id.slice(1, -1)}" /></filter>`, entityLogicalName: "account" }]
+                  };
+
+                  Xrm.Utility.lookupObjects(lookupOptions).then(
+                    async function (success) {
+                      if (success.length === 0) return;
+                      const selectedQuoteId = success[0].id.slice(1, -1);
+                      var confirmStrings = { text: `You are about to copy all products from selected Quote("${success[0].name}") to this Case`, title: "Are you sure?" };
+                      var confirmOptions = { height: 200, width: 450 };
+                      await Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+                        async function (success) {
+                          if (success.confirmed) {
+                            try {
+                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
+                              console.log(results);
+                              for (var i = 0; i < results.entities.length; i++) {
+                                var result = results.entities[i];
+                                if (result.hasOwnProperty("productid") && result["productid"] !== null) {
+                                  var productid_productid = result["productid"]["productid"];
+                                  var productid_defaultuomid = result["productid"]["_defaultuomid_value"];
+                                  var productid_name = result["productid"]["name"];
+                                  var productid_productnumber = result["productid"]["productnumber"];
+                                  var productid_producttypecode = result["productid"]["producttypecode"];
+
+                                  importingFromQuote = {
+                                    extreme_product: productid_productid,
+                                    extreme_name: productid_productnumber ? productid_productnumber + ' - ' + productid_name : productid_name,
+                                    extreme_quantity: 1,
+                                    extreme_type: productid_producttypecode,
+                                    extreme_unit: productid_defaultuomid,
+                                  };
+
+                                  importingFromQuoteNumOfItems.push(importingFromQuote);
+                                }
+                              }
+
+                              const item = importingFromQuoteNumOfItems.pop();
+                              importingFromQuote = item;
+                              dataGrid.addRow();
+
+                            } catch (error) {
+                              console.error("Error retrieving quote details:", error);
+                            }
+                          } else {
+                            return;
+                          }
+                        }).catch(error => {
+                          console.error("Error in confirmation dialog:", error);
+                        });
+                    }).catch(error => {
+                      console.error("Error in lookupObjects:", error);
+                    });
+
+                },
+              },
             }
-            // {
-            //   location: 'after',
-            //   widget: 'dxButton',
-            //   options: {
-            //     text: 'Delete Selected Records',
-            //     icon: 'trash',
-            //     disabled: true,
-            //     onClick() {
-            //       dataGrid.getSelectedRowKeys().forEach((key) => {
-            //         employeesStore.remove(key);
-            //       });
-            //       dataGrid.refresh();
-            //     },
-            //   },
-            // }
           ],
         },
         onSelectionChanged(data) {
@@ -624,16 +693,27 @@ async function setClientApiContext(Xrm, formContext) {
           // console.log(e);
         },
         onInitNewRow: async (e) => {
-          // console.log('InitNewRow');
-          // console.log(e);
-          e.data.extreme_quantity = 1;
-          e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
-          e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
-          // console.log('oneAssetId');
-          // console.log(oneAssetId);
-          if (oneAssetId !== undefined && oneAssetId !== 'none' && typeof (oneAssetId) === 'string') {
-            e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
-            e.data.extreme_assetType = assetsArray.find(item => item.id === oneAssetId).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === oneAssetId).extreme_parentasset ? 'Component' : 'Regular';
+
+          if (importingFromQuote !== null) {
+            e.data.extreme_product = importingFromQuote.extreme_product;
+            e.data.extreme_name = importingFromQuote.extreme_name;
+            e.data.extreme_quantity = importingFromQuote.extreme_quantity;
+            e.data.extreme_producttypecode = importingFromQuote.extreme_type;
+            e.data.extreme_unit = importingFromQuote.extreme_unit;
+            e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
+          }
+          else {
+            // console.log('InitNewRow');
+            // console.log(e);
+            e.data.extreme_quantity = 1;
+            e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
+            e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
+            // console.log('oneAssetId');
+            // console.log(oneAssetId);
+            if (oneAssetId !== undefined && oneAssetId !== 'none' && typeof (oneAssetId) === 'string') {
+              e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
+              e.data.extreme_assetType = assetsArray.find(item => item.id === oneAssetId).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === oneAssetId).extreme_parentasset ? 'Component' : 'Regular';
+            }
           }
         },
         onRowInserting: async (e) => {
@@ -974,9 +1054,22 @@ async function setClientApiContext(Xrm, formContext) {
           // proveriti time entrije dodavanje
           setTimeout(async () => {
             await this.setClientApiContext(Xrm, formContext);
-
             Xrm.Utility.closeProgressIndicator();
+            console.log(importingFromQuoteNumOfItems);
           }, 1000);
+
+          setTimeout(() => {
+            if (importingFromQuoteNumOfItems.length > 0) {
+              console.log(importingFromQuoteNumOfItems);
+              const item = importingFromQuoteNumOfItems.pop();
+              importingFromQuote = item;
+              dataGrid.addRow();
+              console.log(importingFromQuoteNumOfItems);
+            }
+            else {
+              importingFromQuote = null;
+            }
+          }, 2000);
         },
         onRowUpdating: async (e) => {
 
