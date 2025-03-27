@@ -544,7 +544,8 @@ async function setClientApiContext(Xrm, formContext) {
               valueExpr: 'id'
             },
             width: 80,
-            validationRules: [{ type: 'required' }]
+            allowEditing: false,
+            // validationRules: [{ type: 'required' }]
           },
           {
             dataField: 'owner',
@@ -963,6 +964,8 @@ async function setClientApiContext(Xrm, formContext) {
             // Xrm.Utility.closeProgressIndicator();
 
           }
+
+          await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
