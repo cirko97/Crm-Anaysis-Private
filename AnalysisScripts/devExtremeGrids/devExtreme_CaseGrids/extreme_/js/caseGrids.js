@@ -1590,8 +1590,8 @@ async function setClientApiContext(Xrm, formContext) {
           return item.name;
         },
         onInput: function (e) {
-          console.log('onInput');
-          console.log(e);
+          // console.log('onInput');
+          // console.log(e);
 
           let ddbInstance = e.component;
           if (!ddbInstance.option("opened")) ddbInstance.open();
