@@ -1534,19 +1534,19 @@ async function setClientApiContext(Xrm, formContext) {
       }).dxDataGrid('instance');
     });
 
-    const assetsStore = new DevExpress.data.DataSource({
-      onLoadError: function (error) {
-        Xrm.Navigation.openErrorDialog({
-          details: error,
-          errorCode: 400,
-          message: error.message
-        });
-      },
-      store: new DevExpress.data.ArrayStore({
-        key: 'id',
-        data: assetsArray,
-      })
-    });
+    // const assetsStore = new DevExpress.data.DataSource({
+    //   onLoadError: function (error) {
+    //     Xrm.Navigation.openErrorDialog({
+    //       details: error,
+    //       errorCode: 400,
+    //       message: error.message
+    //     });
+    //   },
+    //   store: new DevExpress.data.ArrayStore({
+    //     key: 'id',
+    //     data: assetsArray,
+    //   })
+    // });
 
     // Lookup drowpdown template dxDropDownBox editor
     function dropDownBoxEditorTemplate(cellElement, cellInfo) {
@@ -1562,9 +1562,11 @@ async function setClientApiContext(Xrm, formContext) {
           // console.log(e);
 
           if (!e.value || !assetsArray.find(item => item.id === e.value)) {
+            // console.log("RETURNED");
             return;
           }
           else {
+            // console.log("NOT RETURNED");
             cellInfo.setValue(e.value);
             e.component.option("value", e.value);
             e.component.close();
@@ -1583,13 +1585,13 @@ async function setClientApiContext(Xrm, formContext) {
         width: '100%',
         keyExpr: "id",
         valueExpr: "id",
-        dataSource: assetsStore,
+        dataSource: assetsArray,
         displayExpr: function (item) {
           return item.name;
         },
         onInput: function (e) {
-          // console.log('onInput');
-          // console.log(e);
+          console.log('onInput');
+          console.log(e);
 
           let ddbInstance = e.component;
           if (!ddbInstance.option("opened")) ddbInstance.open();
@@ -1633,7 +1635,7 @@ async function setClientApiContext(Xrm, formContext) {
         contentTemplate: function (e, container) {
           let ddbInstance = e.component;
           let treeListContainer = $("<div>").dxTreeList({
-            dataSource: assetsStore,
+            dataSource: assetsArray,
             keyExpr: "id",
             parentIdExpr: "extreme_parentasset",
             columnAutoWidth: true,
