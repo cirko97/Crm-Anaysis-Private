@@ -654,9 +654,11 @@ async function setClientApiContext(Xrm, formContext) {
                                 }
                               }
 
-                              const item = importingFromQuoteNumOfItems.pop();
-                              importingFromQuote = item;
-                              dataGrid.addRow();
+                              if (importingFromQuoteNumOfItems.length > 0) {
+                                const item = importingFromQuoteNumOfItems.pop();
+                                importingFromQuote = item;
+                                dataGrid.addRow();
+                              }
 
                             } catch (error) {
                               console.error("Error retrieving quote details:", error);
@@ -695,12 +697,23 @@ async function setClientApiContext(Xrm, formContext) {
         onInitNewRow: async (e) => {
 
           if (importingFromQuote !== null) {
+            e.data.extreme_asset = importingFromQuote.extreme_asset;
+            e.data.extreme_assetType = importingFromQuote.extreme_assetType;
+
             e.data.extreme_product = importingFromQuote.extreme_product;
             e.data.extreme_name = importingFromQuote.extreme_name;
             e.data.extreme_quantity = importingFromQuote.extreme_quantity;
             e.data.extreme_producttypecode = importingFromQuote.extreme_type;
             e.data.extreme_unit = importingFromQuote.extreme_unit;
             e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
+
+            if (e.data.extreme_asset !== undefined || e.data.extreme_asset !== null) {
+              setTimeout(() => {
+                // console.log('extreme_asset: ', e.data.extreme_asset);
+                // console.log("Saving DataGrid...");
+                dataGrid.saveEditData();
+              }, 300);
+            }
           }
           else {
             // console.log('InitNewRow');
@@ -1055,16 +1068,18 @@ async function setClientApiContext(Xrm, formContext) {
           setTimeout(async () => {
             await this.setClientApiContext(Xrm, formContext);
             Xrm.Utility.closeProgressIndicator();
-            console.log(importingFromQuoteNumOfItems);
+            // console.log(importingFromQuoteNumOfItems);
           }, 1000);
 
           setTimeout(() => {
             if (importingFromQuoteNumOfItems.length > 0) {
-              console.log(importingFromQuoteNumOfItems);
+              // console.log(importingFromQuoteNumOfItems);
               const item = importingFromQuoteNumOfItems.pop();
               importingFromQuote = item;
+              importingFromQuote.extreme_asset = e.data.extreme_asset;
+              importingFromQuote.extreme_assetType = e.data.extreme_assetType;
               dataGrid.addRow();
-              console.log(importingFromQuoteNumOfItems);
+              // console.log(importingFromQuoteNumOfItems);
             }
             else {
               importingFromQuote = null;
