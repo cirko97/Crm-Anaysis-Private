@@ -631,10 +631,11 @@ async function setClientApiContext(Xrm, formContext) {
                         async function (success) {
                           if (success.confirmed) {
                             try {
-                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
+                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
                               console.log(results);
                               for (var i = 0; i < results.entities.length; i++) {
                                 var result = results.entities[i];
+                                var quantity = result["quantity"]; // Decimal
                                 if (result.hasOwnProperty("productid") && result["productid"] !== null) {
                                   var productid_productid = result["productid"]["productid"];
                                   var productid_defaultuomid = result["productid"]["_defaultuomid_value"];
@@ -645,7 +646,7 @@ async function setClientApiContext(Xrm, formContext) {
                                   importingFromQuote = {
                                     extreme_product: productid_productid,
                                     extreme_name: productid_productnumber ? productid_productnumber + ' - ' + productid_name : productid_name,
-                                    extreme_quantity: 1,
+                                    extreme_quantity: quantity,
                                     extreme_type: productid_producttypecode,
                                     extreme_unit: productid_defaultuomid,
                                   };
