@@ -631,12 +631,13 @@ async function setClientApiContext(Xrm, formContext) {
                         async function (success) {
                           if (success.confirmed) {
                             try {
-                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
+                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,extreme_isparentitem,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
                               console.log(results);
                               for (var i = 0; i < results.entities.length; i++) {
                                 var result = results.entities[i];
                                 var quantity = result["quantity"]; // Decimal
-                                if (result.hasOwnProperty("productid") && result["productid"] !== null) {
+                                var extreme_isparentitem = result["extreme_isparentitem"]; // Boolean
+                                if (result.hasOwnProperty("productid") && result["productid"] !== null && (extreme_isparentitem === false || extreme_isparentitem === null)) {
                                   var productid_productid = result["productid"]["productid"];
                                   var productid_defaultuomid = result["productid"]["_defaultuomid_value"];
                                   var productid_name = result["productid"]["name"];
