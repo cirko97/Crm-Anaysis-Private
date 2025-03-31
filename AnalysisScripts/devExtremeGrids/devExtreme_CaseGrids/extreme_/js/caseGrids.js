@@ -1149,6 +1149,54 @@ async function setClientApiContext(Xrm, formContext) {
                   async function success(result) {
                     var newId = result.id;
                     newCreatedCasseAssetId = result.id;
+
+                    // Create all child assets of the parent
+                    const childPromises = assetsArray.filter(item => item.extreme_parentasset === assetToCreate).map(async elm => {
+                      var childRecord = {};
+                      childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                      childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
+                      childRecord.extreme_isparent = false; // Boolean
+                      childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
+                      const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                      dateNow.setHours(0, 0, 0, 0);
+                      const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                      if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                        const startDate = new Date(warranty.extreme_warrantystartdate);
+                        const endDate = new Date(warranty.extreme_warrantyend);
+
+                        // console.log("DATES!!!");
+                        // console.log(startDate);
+                        // console.log(endDate);
+                        // console.log(dateNow);
+
+                        if (dateNow >= startDate && dateNow <= endDate) {
+                          childRecord.extreme_warranty = true;
+                        }
+                        else {
+                          childRecord.extreme_warranty = false;
+                        }
+                      }
+                      else {
+                        childRecord.extreme_warranty = false;
+                      }
+
+                      return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
+                        async function success(result) {
+                          var newIdChild = result.id;
+                          // console.log(newIdChild);
+                        },
+                        function (error) {
+                          Xrm.Navigation.openErrorDialog({
+                            details: error,
+                            errorCode: 400,
+                            message: error.message
+                          });
+                        }
+                      );
+                    });
+
+                    promises.push(...childPromises);
+
                     // console.log(newId);
                   },
                   function (error) {
@@ -1159,53 +1207,6 @@ async function setClientApiContext(Xrm, formContext) {
                     });
                   }
                 );
-
-                // Create all child assets of the parent
-                const childPromises = assetsArray.filter(item => item.extreme_parentasset === assetToCreate).map(async elm => {
-                  var childRecord = {};
-                  childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-                  childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
-                  childRecord.extreme_isparent = false; // Boolean
-                  childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
-                  const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                  dateNow.setHours(0, 0, 0, 0);
-                  const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
-                  if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
-                    const startDate = new Date(warranty.extreme_warrantystartdate);
-                    const endDate = new Date(warranty.extreme_warrantyend);
-
-                    // console.log("DATES!!!");
-                    // console.log(startDate);
-                    // console.log(endDate);
-                    // console.log(dateNow);
-
-                    if (dateNow >= startDate && dateNow <= endDate) {
-                      childRecord.extreme_warranty = true;
-                    }
-                    else {
-                      childRecord.extreme_warranty = false;
-                    }
-                  }
-                  else {
-                    childRecord.extreme_warranty = false;
-                  }
-
-                  return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
-                    async function success(result) {
-                      var newIdChild = result.id;
-                      // console.log(newIdChild);
-                    },
-                    function (error) {
-                      Xrm.Navigation.openErrorDialog({
-                        details: error,
-                        errorCode: 400,
-                        message: error.message
-                      });
-                    }
-                  );
-                });
-
-                promises.push(...childPromises);
               } else {
                 // Create the selected asset
                 var record = {};
@@ -1239,6 +1240,54 @@ async function setClientApiContext(Xrm, formContext) {
                   async function success(result) {
                     var newId = result.id;
                     newCreatedCasseAssetId = result.id;
+
+                    // Create all child assets of the selected asset
+                    const childPromises = assetsArray.filter(item => item.extreme_parentasset === e.newData.extreme_asset).map(async elm => {
+                      var childRecord = {};
+                      childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
+                      childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
+                      childRecord.extreme_isparent = false; // Boolean
+                      childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newId})`; // Lookup
+                      const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
+                      dateNow.setHours(0, 0, 0, 0);
+                      const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
+                      if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
+                        const startDate = new Date(warranty.extreme_warrantystartdate);
+                        const endDate = new Date(warranty.extreme_warrantyend);
+
+                        // console.log("DATES!!!");
+                        // console.log(startDate);
+                        // console.log(endDate);
+                        // console.log(dateNow);
+
+                        if (dateNow >= startDate && dateNow <= endDate) {
+                          childRecord.extreme_warranty = true;
+                        }
+                        else {
+                          childRecord.extreme_warranty = false;
+                        }
+                      }
+                      else {
+                        childRecord.extreme_warranty = false;
+                      }
+
+                      return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
+                        async function success(result) {
+                          var newIdChild = result.id;
+                          // console.log(newIdChild);
+                        },
+                        function (error) {
+                          Xrm.Navigation.openErrorDialog({
+                            details: error,
+                            errorCode: 400,
+                            message: error.message
+                          });
+                        }
+                      );
+                    });
+
+                    promises.push(...childPromises);
+
                     // console.log(newId);
                   },
                   function (error) {
@@ -1249,53 +1298,6 @@ async function setClientApiContext(Xrm, formContext) {
                     });
                   }
                 );
-
-                // Create all child assets of the selected asset
-                const childPromises = assetsArray.filter(item => item.extreme_parentasset === e.newData.extreme_asset).map(async elm => {
-                  var childRecord = {};
-                  childRecord["extreme_Case@odata.bind"] = `/extreme_cases(${caseIdForm})`; // Lookup
-                  childRecord["extreme_Asset@odata.bind"] = `/extreme_assets(${elm.id})`; // Lookup
-                  childRecord.extreme_isparent = false; // Boolean
-                  childRecord["extreme_ParentCaseAsset@odata.bind"] = `/extreme_caseassets(${newCreatedCasseAssetId})`; // Lookup
-                  const dateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Belgrade" }));
-                  dateNow.setHours(0, 0, 0, 0);
-                  const warranty = await Xrm.WebApi.retrieveRecord("extreme_asset", `${elm.id}`, "?$select=extreme_warrantyend,extreme_warrantystartdate");
-                  if (warranty.extreme_warrantystartdate && warranty.extreme_warrantyend) {
-                    const startDate = new Date(warranty.extreme_warrantystartdate);
-                    const endDate = new Date(warranty.extreme_warrantyend);
-
-                    // console.log("DATES!!!");
-                    // console.log(startDate);
-                    // console.log(endDate);
-                    // console.log(dateNow);
-
-                    if (dateNow >= startDate && dateNow <= endDate) {
-                      childRecord.extreme_warranty = true;
-                    }
-                    else {
-                      childRecord.extreme_warranty = false;
-                    }
-                  }
-                  else {
-                    childRecord.extreme_warranty = false;
-                  }
-
-                  return Xrm.WebApi.createRecord("extreme_caseasset", childRecord).then(
-                    async function success(result) {
-                      var newIdChild = result.id;
-                      // console.log(newIdChild);
-                    },
-                    function (error) {
-                      Xrm.Navigation.openErrorDialog({
-                        details: error,
-                        errorCode: 400,
-                        message: error.message
-                      });
-                    }
-                  );
-                });
-
-                promises.push(...childPromises);
               }
             }
           }
