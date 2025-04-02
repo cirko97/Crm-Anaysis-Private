@@ -612,13 +612,14 @@ async function setClientApiContext(Xrm, formContext) {
                   //define data for lookupOptions
                   var lookupOptions =
                   {
-                    defaultEntityType: "quote",
+                    //defaultEntityType: "quote",
                     entityTypes: ["quote"],
-                    allowMultiSelect: false,
-                    defaultViewId: "47ea12e0-fcb6-ef11-b8e8-7c1e5270c843",
-                    viewIds: ["47ea12e0-fcb6-ef11-b8e8-7c1e5270c843"],
-                    searchText: "",
-                    filters: [{ filterXml: `<filter type="and"><condition attribute="customerid" operator="eq" value="${formContext.getAttribute("extreme_account").getValue()[0].id.slice(1, -1)}" /></filter>`, entityLogicalName: "account" }]
+                    //allowMultiSelect: false,
+                    disableMru: true,
+                    //defaultViewId: "47ea12e0-fcb6-ef11-b8e8-7c1e5270c843",
+                    //viewIds: ["47ea12e0-fcb6-ef11-b8e8-7c1e5270c843"],
+                    //searchText: "",
+                    filters: [{filterXml: "<filter type='and'><condition attribute='customerid' operator='eq' value='" + formContext.getAttribute("extreme_account").getValue()[0].id + "' /></filter>", entityLogicalName: "quote"}]
                   };
 
                   Xrm.Utility.lookupObjects(lookupOptions).then(
