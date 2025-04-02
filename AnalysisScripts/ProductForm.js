@@ -17,7 +17,11 @@ var ProductForm = window.ProductForm || {};
                 // Get Nav. Item
                 var navItem = formContext.ui.navigation.items.get("navSPDocuments");
                 // First set focus on Nav. Item to open related tab
-                navItem.setFocus();
+                if (navItem) {
+                    navItem.setFocus();
+                } else {
+                    console.error("Navigation item 'navSPDocuments' not found.");
+                }
                 // get Main tab (replace it with your tab name)
                 var mainTab =  formContext.ui.tabs.get("product_details");
                 // Then move to Main Tab
