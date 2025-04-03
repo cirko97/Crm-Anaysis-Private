@@ -632,11 +632,13 @@ async function setClientApiContext(Xrm, formContext) {
                         async function (success) {
                           if (success.confirmed) {
                             try {
-                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,extreme_isparentitem,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
+                              // TO DO: OrderBy Sequence number, reverse becouse of pop() method
+                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,extreme_customproductname,extreme_isparentitem,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
                               console.log(results);
                               for (var i = 0; i < results.entities.length; i++) {
                                 var result = results.entities[i];
                                 var quantity = result["quantity"]; // Decimal
+                                var extreme_customproductname = result["extreme_customproductname"]; // Text
                                 var extreme_isparentitem = result["extreme_isparentitem"]; // Boolean
                                 if (result.hasOwnProperty("productid") && result["productid"] !== null && (extreme_isparentitem === false || extreme_isparentitem === null)) {
                                   var productid_productid = result["productid"]["productid"];
@@ -647,7 +649,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                                   importingFromQuote = {
                                     extreme_product: productid_productid,
-                                    extreme_name: productid_productnumber ? productid_productnumber + ' - ' + productid_name : productid_name,
+                                    extreme_name: extreme_customproductname,
                                     extreme_quantity: quantity,
                                     extreme_type: productid_producttypecode,
                                     extreme_unit: productid_defaultuomid,
