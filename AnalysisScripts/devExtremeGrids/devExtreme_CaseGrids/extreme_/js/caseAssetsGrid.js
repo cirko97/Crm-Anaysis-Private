@@ -494,13 +494,13 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.column.dataField === "extreme_productid" || e.column.dataField === "extreme_name") {
                     // Create an anchor element
                     const globalContext = Xrm.Utility.getGlobalContext();
-                    globalContext.getClientUrl();
+                    globalContext.getCurrentAppUrl();
 
                     // console.log('CLIENT URL');
-                    // console.log(globalContext.getClientUrl());
+                    // console.log(globalContext.getCurrentAppUrl());
 
                     const link = document.createElement('a');
-                    link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+                    link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
                     link.target = "_blank";
 
                     // Append the anchor to the body (required for Firefox)
@@ -1156,13 +1156,13 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.column.dataField === "extreme_productid" || e.column.dataField === "extreme_name") {
             // Create an anchor element
             const globalContext = Xrm.Utility.getGlobalContext();
-            globalContext.getClientUrl();
+            globalContext.getCurrentAppUrl();
 
             // console.log('CLIENT URL');
-            // console.log(globalContext.getClientUrl());
+            // console.log(globalContext.getCurrentAppUrl());
 
             const link = document.createElement('a');
-            link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+            link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
             link.target = "_blank";
 
             // Append the anchor to the body (required for Firefox)
