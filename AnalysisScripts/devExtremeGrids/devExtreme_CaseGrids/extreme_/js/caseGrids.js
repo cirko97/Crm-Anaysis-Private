@@ -633,10 +633,11 @@ async function setClientApiContext(Xrm, formContext) {
                           if (success.confirmed) {
                             try {
                               // TO DO: OrderBy Sequence number, reverse becouse of pop() method
-                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,extreme_customproductname,extreme_isparentitem,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
+                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,sequencenumber,extreme_customproductname,extreme_isparentitem,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
                               console.log(results);
                               for (var i = 0; i < results.entities.length; i++) {
                                 var result = results.entities[i];
+                                var sequencenumber = result["sequencenumber"]; // Whole Number
                                 var quantity = result["quantity"]; // Decimal
                                 var extreme_customproductname = result["extreme_customproductname"]; // Text
                                 var extreme_isparentitem = result["extreme_isparentitem"]; // Boolean
@@ -648,6 +649,7 @@ async function setClientApiContext(Xrm, formContext) {
                                   var productid_producttypecode = result["productid"]["producttypecode"];
 
                                   importingFromQuote = {
+                                    sequencenumber: sequencenumber,
                                     extreme_product: productid_productid,
                                     extreme_name: extreme_customproductname,
                                     extreme_quantity: quantity,
@@ -660,6 +662,8 @@ async function setClientApiContext(Xrm, formContext) {
                               }
 
                               if (importingFromQuoteNumOfItems.length > 0) {
+                                importingFromQuote.sort((a, b) => b.sequencenumber - a.sequencenumber);
+
                                 const item = importingFromQuoteNumOfItems.pop();
                                 importingFromQuote = item;
                                 dataGrid.addRow();
