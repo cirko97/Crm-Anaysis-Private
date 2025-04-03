@@ -662,7 +662,7 @@ async function setClientApiContext(Xrm, formContext) {
                               }
 
                               if (importingFromQuoteNumOfItems.length > 0) {
-                                importingFromQuote.sort((a, b) => b.sequencenumber - a.sequencenumber);
+                                importingFromQuoteNumOfItems.sort((a, b) => b.sequencenumber - a.sequencenumber);
 
                                 const item = importingFromQuoteNumOfItems.pop();
                                 importingFromQuote = item;
