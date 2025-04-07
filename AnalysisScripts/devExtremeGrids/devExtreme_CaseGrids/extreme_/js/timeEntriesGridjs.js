@@ -5,6 +5,8 @@ let timeEntryTypesArray = [];
 let newCreateId;
 let isEditable = true;
 let heightAuto = true;
+let isImportingFromQuote = false;
+let caseImportInfo = null;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -40,8 +42,8 @@ async function setClientApiContext(Xrm, formContext) {
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
 
-  const caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
-  const isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+  caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+  isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
 
   const timeEntryTypes = await Xrm.Utility.getEntityMetadata('extreme_timeentry', ['extreme_type']).then(
     result => result.Attributes._collection.extreme_type.OptionSet,
@@ -278,9 +280,9 @@ async function setClientApiContext(Xrm, formContext) {
               type: 'custom',
               message: 'Asset is required',
               validationCallback(params) {
-                // // console.log("VALLIDAATION");
-                // // console.log(params);
-                return !params.value || params.value == null || params.data.extreme_type !== 424000002 ? false : true;
+                // console.log("VALLIDAATION");
+                // console.log(params);
+                return !params.value || params.value == null || (params.data.extreme_type !== 424000002 && params.data.extreme_type !== 424000003) ? false : true;
               }
             }]
           },
@@ -507,6 +509,8 @@ async function setClientApiContext(Xrm, formContext) {
                 e.component.refresh(true);
                 e.event.preventDefault();
 
+                caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+                isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
                 if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
               },
@@ -587,7 +591,7 @@ async function setClientApiContext(Xrm, formContext) {
           // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
           if (e.row.data.extreme_caseline) {
             if (e.dataField == "owner") e.editorOptions.disabled = true;
-            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = true;
+            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = e.row.data.extreme_type === 424000003 ? false : true;
             if (e.dataField == "extreme_asset") e.editorOptions.disabled = true;
           }
 
@@ -735,6 +739,8 @@ async function setClientApiContext(Xrm, formContext) {
 
           if (newAssetCreated === true) await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
+          caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+          isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
           if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
           // }, 1000);
@@ -808,6 +814,9 @@ async function setClientApiContext(Xrm, formContext) {
 
           await getTimeEntries(caseIdForm);
           dataGrid.refresh();
+
+          caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+          isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
           if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
         },

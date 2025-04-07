@@ -5,6 +5,9 @@ let preventiveCycleTypesArray = [];
 let newCreateId;
 let isEditable = true;
 let heightAuto = true;
+let caseImportInfo = null;
+let isImportingFromQuote = false;
+
 
 // Add hours to Date method
 Date.prototype.addMinutes = function (h) {
@@ -51,8 +54,8 @@ async function setClientApiContext(Xrm, formContext) {
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
 
-  const caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
-  const isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+  caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+  isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
 
 
   await getCaseAssets(caseIdForm);
