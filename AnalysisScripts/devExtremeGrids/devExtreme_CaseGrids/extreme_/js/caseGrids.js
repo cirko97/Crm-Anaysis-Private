@@ -635,10 +635,9 @@ async function setClientApiContext(Xrm, formContext) {
                         async function (success) {
                           if (success.confirmed) {
                             try {
-                              await Xrm.WebApi.updateRecord("extreme_case", `${caseIdForm}`, { extreme_importingfromquote: true });
                               // TO DO: OrderBy Sequence number, reverse becouse of pop() method
                               const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,sequencenumber,extreme_customproductname,extreme_isparentitem,quantity&$expand=productid($select=productid,extreme_commutetimeentry,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
-                              console.log(results);
+                              // console.log(results);
                               for (var i = 0; i < results.entities.length; i++) {
                                 var result = results.entities[i];
                                 var sequencenumber = result["sequencenumber"]; // Whole Number
@@ -747,6 +746,7 @@ async function setClientApiContext(Xrm, formContext) {
         onRowInserting: async (e) => {
 
           Xrm.Utility.showProgressIndicator('Creating... Please wait...');
+          if (importingFromQuote !== null) await Xrm.WebApi.updateRecord("extreme_case", `${caseIdForm}`, { extreme_importingfromquote: true });
 
           // console.log('RowInserting');
           // console.log(e);
@@ -1084,7 +1084,7 @@ async function setClientApiContext(Xrm, formContext) {
           // proveriti time entrije dodavanje
           setTimeout(async () => {
             await this.setClientApiContext(Xrm, formContext);
-            if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+            if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
             // console.log(importingFromQuoteNumOfItems);
           }, 1000);
 
@@ -1102,7 +1102,7 @@ async function setClientApiContext(Xrm, formContext) {
               await Xrm.WebApi.updateRecord("extreme_case", `${caseIdForm}`, { extreme_importingfromquote: false });
               importingFromQuote = null;
               await this.setClientApiContext(Xrm, formContext);
-              if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+              if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
             }
           }, 2000);
         },
@@ -1444,7 +1444,7 @@ async function setClientApiContext(Xrm, formContext) {
           setTimeout(async () => {
             await this.setClientApiContext(Xrm, formContext);
 
-            if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+            if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
           }, 1000);
 
         },
@@ -1550,7 +1550,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
-          if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+          if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
         },
         onRowRemoved: (e) => {
           // console.log('RowRemoved');
@@ -1792,7 +1792,7 @@ async function setClientApiContext(Xrm, formContext) {
 
   // Xrm.Utility.closeProgressIndicator();
 
-  formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseLines");
+  formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseLines", caseIdForm);
 
 }
 

@@ -507,7 +507,7 @@ async function setClientApiContext(Xrm, formContext) {
                 e.component.refresh(true);
                 e.event.preventDefault();
 
-                if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+                if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
               },
             }],
@@ -735,7 +735,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           if (newAssetCreated === true) await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
-          if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+          if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
           // }, 1000);
 
@@ -808,7 +808,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           await getTimeEntries(caseIdForm);
           dataGrid.refresh();
-          if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+          if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
         },
         onRowRemoved: (e) => {
@@ -880,7 +880,7 @@ async function setClientApiContext(Xrm, formContext) {
 
   // Xrm.Utility.closeProgressIndicator();
 
-  setWebResourceLoaded('WebResource_timeEntries');
+  setWebResourceLoaded('WebResource_timeEntries', caseIdForm);
 
 }
 
@@ -988,7 +988,7 @@ let timeEntriesLoaded = false;
 let caseLinesLoaded = false;
 let caseAssetsLoaded = false;
 
-function setWebResourceLoaded(resourceName) {
+function setWebResourceLoaded(resourceName, caseId) {
   if (resourceName === 'WebResource_timeEntries') {
     timeEntriesLoaded = true;
   } else if (resourceName === 'WebResource_caseLines') {
@@ -996,12 +996,15 @@ function setWebResourceLoaded(resourceName) {
   } else if (resourceName === 'WebResource_caseAssets') {
     caseAssetsLoaded = true;
   }
-  checkIfAllWebResourcesLoaded();
+  checkIfAllWebResourcesLoaded(caseId);
 }
 
-function checkIfAllWebResourcesLoaded() {
+async function checkIfAllWebResourcesLoaded(caseId) {
   if (timeEntriesLoaded && caseLinesLoaded && caseAssetsLoaded) {
-    if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
+    const caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseId}`, "?$select=extreme_importingfromquote");
+    const isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+
+    if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
   }
 }
 
