@@ -42,6 +42,9 @@ async function setClientApiContext(Xrm, formContext) {
   const taxPercentOfAccount = await Xrm.WebApi.retrieveRecord("account", `${replaceCurlyBrackets(formContext.getAttribute('customerid').getValue()[0].id, '')}`, "?$select=extreme_tax");
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate");
 
+  const roundInfo = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'salesAmountRounding'");
+  const ROUNDING_PRICE_PER_UNIT_CONFIG = roundInfo.entities[0]["extreme_value"];
+
   await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=statecode").then(
     function success(result) {
       // // console.log(result);
@@ -5326,24 +5329,28 @@ async function setClientApiContext(Xrm, formContext) {
 
                         if (priceListMargin !== null &&
                           supplierPricePerUnit !== null) {
-                          const supplierDiscount = 0;
-                          const discount = 0;
-                          quantity = 1;
-                          supplierBaseAmount = supplierPricePerUnit * 1;
-                          PPU = Math.ceil(priceListMargin * supplierPricePerUnit);
-                          const pricePerUnit = Math.ceil(priceListMargin * supplierPricePerUnit);
-                          baseAmount = Math.ceil(priceListMargin * supplierPricePerUnit) * 1;
-                          fullPriceWithDiscount = ((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1;
-                          discountAmount = (1 * (Math.ceil(priceListMargin * supplierPricePerUnit))) - (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
-                          taxAmount = ((((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
-                          extendedAmount = (((((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1)) + (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
-                          const supplierDiscountAmount = supplierPricePerUnit * (supplierDiscount / 100);
-                          const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
-                          const customDiscountAmount = pricePerUnit * (discount / 100);
-                          const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                          const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                          pd = pdPerUnit;
-                          fullPD = pdPerUnit * 1;
+
+                          // TO DO: Odraditi recalc funkciju ovde umesto ovoga dole ispod
+
+                          const recalcResult = recalculateAmounts({
+                            quantity: 1,
+                            supplierPricePerUnit: supplierPricePerUnit,
+                            supplierDiscount: 0,
+                            margin: priceListMargin,
+                            discount: 0,
+                            TaxPercent: 0
+                          });
+
+                          quantity = recalcResult.quantity;
+                          supplierBaseAmount = recalcResult.supplierBaseAmount;
+                          PPU = recalcResult.pricePerUnit;
+                          baseAmount = recalcResult.baseAmount;
+                          fullPriceWithDiscount = recalcResult.fullPriceWithDiscount;
+                          discountAmount = recalcResult.customDiscountAmount;
+                          taxAmount = recalcResult.tax;
+                          extendedAmount = recalcResult.extendedAmount;
+                          pd = recalcResult.pdPerUnit;
+                          fullPD = recalcResult.fullPd;
                         }
 
                         // console.log(area,
@@ -6063,7 +6070,12 @@ async function setClientApiContext(Xrm, formContext) {
 
         // Calculate pricePerUnit if not provided
         if (pricePerUnit === null) {
-          pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
+          if (ROUNDING_PRICE_PER_UNIT_CONFIG === "true") {
+            pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
+          }
+          else {
+            pricePerUnit = parseFloat((margin * supplierPricePerUnit).toFixed(4));
+          }
         } else {
           // Calculate new margin based on supplierBaseAmount
           margin = pricePerUnit / supplierPricePerUnit;

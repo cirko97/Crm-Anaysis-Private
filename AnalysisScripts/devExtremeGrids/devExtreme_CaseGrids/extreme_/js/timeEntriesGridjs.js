@@ -567,7 +567,7 @@ async function setClientApiContext(Xrm, formContext) {
             if (e.row.data.extreme_type === 424000000) e.editorOptions.disabled = true;
             e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 200); }
           }
-          if (e.dataField == 'extreme_comuteinkm' && e.row.data.extreme_type !== 424000002) {
+          if (e.dataField == 'extreme_comuteinkm' && e.row.data.extreme_type !== 424000002 && e.row.data.extreme_type !== 424000003) {
             e.editorOptions.disabled = true;
           }
           // else {
