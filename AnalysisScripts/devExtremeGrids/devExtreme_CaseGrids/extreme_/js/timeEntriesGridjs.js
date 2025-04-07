@@ -346,7 +346,7 @@ async function setClientApiContext(Xrm, formContext) {
                 postProcess: function (data) {
                   // modify items. Here, all IDs divisible by 2 are disabled
                   let newData = data.map((x) => {
-                    if (x.value === 424000000) {
+                    if (x.value === 424000000 || x.value === 424000003) {
                       x.disabled = true;
                     }
 
@@ -564,7 +564,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (e.dataField == "extreme_asset") e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 400); };
           if (e.dataField == "scheduledend") e.editorOptions.disabled = true;
           if (e.dataField == "extreme_type") {
-            if (e.row.data.extreme_type === 424000000) e.editorOptions.disabled = true;
+            if (e.row.data.extreme_type === 424000000 || e.row.data.extreme_type === 424000003) e.editorOptions.disabled = true;
             e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 200); }
           }
           if (e.dataField == 'extreme_comuteinkm' && e.row.data.extreme_type !== 424000002 && e.row.data.extreme_type !== 424000003) {
