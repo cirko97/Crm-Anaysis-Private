@@ -1062,14 +1062,16 @@ async function setClientApiContext(Xrm, formContext) {
 
             const productCommuteTimeEntry = await Xrm.WebApi.retrieveRecord("product", `${e.data.extreme_product}`, "?$select=extreme_commutetimeentry");
 
-            await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
-              e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, productCommuteTimeEntry.extreme_commutetimeentry == true ? timeEntryTypesArray.find(item => item.value == 424000003).value : timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
-            );
+            setTimeout(async () => {
+              await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
+                e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, productCommuteTimeEntry.extreme_commutetimeentry == true ? timeEntryTypesArray.find(item => item.value == 424000003).value : timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
+              );
+            }, 500);
 
             // Refresh grid for time entries
             setTimeout(async () => {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1000);
+            }, 1500);
 
             // Xrm.Utility.closeProgressIndicator();
 
