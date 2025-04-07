@@ -46,6 +46,9 @@ async function setClientApiContext(Xrm, formContext) {
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
 
+  const caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+  const isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+
 
   const timeEntryTypes = await Xrm.Utility.getEntityMetadata('extreme_timeentry', ['extreme_type']).then(
     result => result.Attributes._collection.extreme_type.OptionSet,
@@ -619,7 +622,7 @@ async function setClientApiContext(Xrm, formContext) {
                     //defaultViewId: "47ea12e0-fcb6-ef11-b8e8-7c1e5270c843",
                     //viewIds: ["47ea12e0-fcb6-ef11-b8e8-7c1e5270c843"],
                     //searchText: "",
-                    filters: [{filterXml: "<filter type='and'><condition attribute='customerid' operator='eq' value='" + formContext.getAttribute("extreme_account").getValue()[0].id + "' /></filter>", entityLogicalName: "quote"}]
+                    filters: [{ filterXml: "<filter type='and'><condition attribute='customerid' operator='eq' value='" + formContext.getAttribute("extreme_account").getValue()[0].id + "' /></filter>", entityLogicalName: "quote" }]
                   };
 
                   Xrm.Utility.lookupObjects(lookupOptions).then(
@@ -632,8 +635,9 @@ async function setClientApiContext(Xrm, formContext) {
                         async function (success) {
                           if (success.confirmed) {
                             try {
+                              await Xrm.WebApi.updateRecord("extreme_case", `${caseIdForm}`, { extreme_importingfromquote: true });
                               // TO DO: OrderBy Sequence number, reverse becouse of pop() method
-                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,sequencenumber,extreme_customproductname,extreme_isparentitem,quantity&$expand=productid($select=productid,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
+                              const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quotedetailid,sequencenumber,extreme_customproductname,extreme_isparentitem,quantity&$expand=productid($select=productid,extreme_commutetimeentry,_defaultuomid_value,name,productnumber,producttypecode)&$filter=_quoteid_value eq ${selectedQuoteId}`);
                               console.log(results);
                               for (var i = 0; i < results.entities.length; i++) {
                                 var result = results.entities[i];
@@ -647,6 +651,7 @@ async function setClientApiContext(Xrm, formContext) {
                                   var productid_name = result["productid"]["name"];
                                   var productid_productnumber = result["productid"]["productnumber"];
                                   var productid_producttypecode = result["productid"]["producttypecode"];
+                                  var productid_extreme_commutetimeentry = result["productid"]["extreme_commutetimeentry"]; // Boolean
 
                                   importingFromQuote = {
                                     sequencenumber: sequencenumber,
@@ -655,6 +660,7 @@ async function setClientApiContext(Xrm, formContext) {
                                     extreme_quantity: quantity,
                                     extreme_type: productid_producttypecode,
                                     extreme_unit: productid_defaultuomid,
+                                    extreme_commutetimeentry: productid_extreme_commutetimeentry,
                                   };
 
                                   importingFromQuoteNumOfItems.push(importingFromQuote);
@@ -1054,8 +1060,10 @@ async function setClientApiContext(Xrm, formContext) {
             // console.log(e.data.extreme_quantity);
             // console.log(timeSpent);
 
+            const productCommuteTimeEntry = await Xrm.WebApi.retrieveRecord("product", `${e.data.extreme_product}`, "?$select=extreme_commutetimeentry");
+
             await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
-              e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
+              e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, productCommuteTimeEntry.extreme_commutetimeentry == true ? timeEntryTypesArray.find(item => item.value == 424000003).value : timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
             );
 
             // Refresh grid for time entries
@@ -1076,11 +1084,11 @@ async function setClientApiContext(Xrm, formContext) {
           // proveriti time entrije dodavanje
           setTimeout(async () => {
             await this.setClientApiContext(Xrm, formContext);
-            Xrm.Utility.closeProgressIndicator();
+            if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
             // console.log(importingFromQuoteNumOfItems);
           }, 1000);
 
-          setTimeout(() => {
+          setTimeout(async () => {
             if (importingFromQuoteNumOfItems.length > 0) {
               // console.log(importingFromQuoteNumOfItems);
               const item = importingFromQuoteNumOfItems.pop();
@@ -1091,7 +1099,10 @@ async function setClientApiContext(Xrm, formContext) {
               // console.log(importingFromQuoteNumOfItems);
             }
             else {
+              await Xrm.WebApi.updateRecord("extreme_case", `${caseIdForm}`, { extreme_importingfromquote: false });
               importingFromQuote = null;
+              await this.setClientApiContext(Xrm, formContext);
+              if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
             }
           }, 2000);
         },
@@ -1433,7 +1444,7 @@ async function setClientApiContext(Xrm, formContext) {
           setTimeout(async () => {
             await this.setClientApiContext(Xrm, formContext);
 
-            Xrm.Utility.closeProgressIndicator();
+            if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
           }, 1000);
 
         },
@@ -1539,7 +1550,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           await getCaseLines(caseIdForm);
           dataGrid.refresh();
-          Xrm.Utility.closeProgressIndicator();
+          if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
         },
         onRowRemoved: (e) => {
           // console.log('RowRemoved');

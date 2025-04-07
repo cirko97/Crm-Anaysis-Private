@@ -50,9 +50,12 @@ async function setClientApiContext(Xrm, formContext) {
   const caseIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
+
+  const caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+  const isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+
+
   await getCaseAssets(caseIdForm);
-
-
   initDataGrid(caseIdForm, userId);
 
 

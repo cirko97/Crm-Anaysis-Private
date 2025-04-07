@@ -40,6 +40,9 @@ async function setClientApiContext(Xrm, formContext) {
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
 
+  const caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+  const isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+
   const timeEntryTypes = await Xrm.Utility.getEntityMetadata('extreme_timeentry', ['extreme_type']).then(
     result => result.Attributes._collection.extreme_type.OptionSet,
     error => console.log(error)
@@ -504,7 +507,7 @@ async function setClientApiContext(Xrm, formContext) {
                 e.component.refresh(true);
                 e.event.preventDefault();
 
-                Xrm.Utility.closeProgressIndicator();
+                if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
 
               },
             }],
@@ -732,7 +735,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           if (newAssetCreated === true) await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
-          Xrm.Utility.closeProgressIndicator();
+          if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
 
           // }, 1000);
 
@@ -805,7 +808,7 @@ async function setClientApiContext(Xrm, formContext) {
 
           await getTimeEntries(caseIdForm);
           dataGrid.refresh();
-          Xrm.Utility.closeProgressIndicator();
+          if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
 
         },
         onRowRemoved: (e) => {
@@ -998,7 +1001,7 @@ function setWebResourceLoaded(resourceName) {
 
 function checkIfAllWebResourcesLoaded() {
   if (timeEntriesLoaded && caseLinesLoaded && caseAssetsLoaded) {
-    Xrm.Utility.closeProgressIndicator();
+    if (isImportingFromQuote == false) Xrm.Utility.closeProgressIndicator();
   }
 }
 
