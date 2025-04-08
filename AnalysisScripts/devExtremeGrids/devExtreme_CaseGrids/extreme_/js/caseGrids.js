@@ -792,6 +792,7 @@ async function setClientApiContext(Xrm, formContext) {
           // console.log('newCreatedId: ', newCreateId);
 
           Xrm.Utility.showProgressIndicator('Creating... Please wait...');
+          const promises = [];
 
           if (
             (oneAssetId !== undefined && oneAssetId.indexOf(e.data.extreme_asset) === -1) ||
@@ -805,7 +806,6 @@ async function setClientApiContext(Xrm, formContext) {
 
             let newCreatedCasseAssetId = '';
             let assetToCreate = e.data.extreme_asset;
-            const promises = [];
 
             // Check if the asset has a parent asset
             if (assetsArray.find(item => item.id === e.data.extreme_asset).extreme_parentasset) {
@@ -1011,7 +1011,7 @@ async function setClientApiContext(Xrm, formContext) {
               promises.push(...childPromises);
             }
 
-            await Promise.all(promises);
+
 
           }
 
@@ -1021,7 +1021,7 @@ async function setClientApiContext(Xrm, formContext) {
 
             let description = null;
             let highestScheduledEnd = null;
-            await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
+            const timeEntriesPromise = await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=description,scheduledend&$filter=_regardingobjectid_value eq ${caseIdForm}&$orderby=scheduledend desc&$top=1`).then(
               function success(results) {
                 // console.log(results);
 
@@ -1044,6 +1044,8 @@ async function setClientApiContext(Xrm, formContext) {
               }
             );
 
+            promises.push(timeEntriesPromise);
+
             const dateFrom = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             const dateTo = highestScheduledEnd === null ? new Date(formContext.getAttribute("extreme_scheduledstart").getValue()) : new Date(highestScheduledEnd);
             let timeSpent;
@@ -1062,20 +1064,22 @@ async function setClientApiContext(Xrm, formContext) {
 
             const productCommuteTimeEntry = await Xrm.WebApi.retrieveRecord("product", `${e.data.extreme_product}`, "?$select=extreme_commutetimeentry");
 
-            setTimeout(async () => {
-              await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
-                e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, productCommuteTimeEntry.extreme_commutetimeentry == true ? timeEntryTypesArray.find(item => item.value == 424000003).value : timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
-              );
-            }, 500);
+            const createTimeEntriePromise = await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.createTimeEntry(
+              e.data.extreme_asset, caseIdForm, caseLinesData._array[caseLinesData._array.length - 1].extreme_caselineid, e.data.owner, e.data.ownername, description, dateFrom, dateTo, productCommuteTimeEntry.extreme_commutetimeentry == true ? timeEntryTypesArray.find(item => item.value == 424000003).value : timeEntryTypesArray.find(item => item.value == 424000000).value, timeSpent, false
+            );
+
+            promises.push(createTimeEntriePromise);
 
             // Refresh grid for time entries
             setTimeout(async () => {
               await formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-            }, 1500);
+            }, 1000);
 
             // Xrm.Utility.closeProgressIndicator();
 
           }
+
+          await Promise.all(promises);
 
           await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 

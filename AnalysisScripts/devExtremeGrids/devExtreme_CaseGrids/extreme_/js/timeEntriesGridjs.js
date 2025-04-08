@@ -590,8 +590,11 @@ async function setClientApiContext(Xrm, formContext) {
           // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
           // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
           if (e.row.data.extreme_caseline) {
+            const caseLineInfo = await Xrm.WebApi.retrieveRecord("extreme_caseline", `${e.row.data.extreme_caseline}`, "?$select=_extreme_unit_value");
+            const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"] === "PAK" ? true : false;
+
             if (e.dataField == "owner") e.editorOptions.disabled = true;
-            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = e.row.data.extreme_type === 424000003 ? false : true;
+            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = e.row.data.extreme_type === 424000003 || isPAK ? false : true;
             if (e.dataField == "extreme_asset") e.editorOptions.disabled = true;
           }
 
