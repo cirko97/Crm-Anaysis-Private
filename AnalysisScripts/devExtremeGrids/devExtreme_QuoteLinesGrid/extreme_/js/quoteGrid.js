@@ -1,3 +1,4 @@
+// VARS
 let quoteLinesArray = [];
 let productsArray = [];
 let customProductsArray = [];
@@ -23,6 +24,7 @@ let classifyNeededRows = 0;
 let selectedDescriptionItem = null;
 
 async function setClientApiContext(Xrm, formContext) {
+
   // Optionally set Xrm and formContext as global variables on the page.
   window.Xrm = Xrm;
   window._formContext = formContext;
@@ -40,9 +42,12 @@ async function setClientApiContext(Xrm, formContext) {
   const taxPercentOfAccount = await Xrm.WebApi.retrieveRecord("account", `${replaceCurlyBrackets(formContext.getAttribute('customerid').getValue()[0].id, '')}`, "?$select=extreme_tax");
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate");
 
+  const roundInfo = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'salesAmountRounding'");
+  const ROUNDING_PRICE_PER_UNIT_CONFIG = roundInfo.entities[0]["extreme_value"];
+
   await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=statecode").then(
     function success(result) {
-      console.log(result);
+      // // console.log(result);
       // Columns
       var quoteid = result["quoteid"]; // Guid
       var statecode = result["statecode"]; // State
@@ -52,7 +57,11 @@ async function setClientApiContext(Xrm, formContext) {
 
     },
     function (error) {
-      console.log(error.message);
+      Xrm.Navigation.openErrorDialog({
+        details: error,
+        errorCode: 400,
+        message: error.message
+      });
     }
   );
 
@@ -68,10 +77,14 @@ async function setClientApiContext(Xrm, formContext) {
     await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record).then(
       function success(result) {
         var updatedId = result.id;
-        console.log(updatedId);
+        // // console.log(updatedId);
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
   });
@@ -82,7 +95,7 @@ async function setClientApiContext(Xrm, formContext) {
   if (replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '') !== null) {
     await Xrm.WebApi.retrieveRecord("transactioncurrency", `${replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '')}`, "?$select=isocurrencycode,currencysymbol").then(
       function success(result) {
-        console.log(result);
+        // // console.log(result);
         // Columns
         var transactioncurrencyid = result["transactioncurrencyid"]; // Guid
         var isocurrencycode = result["isocurrencycode"]; // Text
@@ -93,7 +106,11 @@ async function setClientApiContext(Xrm, formContext) {
 
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
   }
@@ -101,18 +118,22 @@ async function setClientApiContext(Xrm, formContext) {
 
   await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_key,extreme_value&$filter=extreme_key eq 'QUOTE_MARGIN'").then(
     function success(results) {
-      console.log(results);
+      // console.log(results);
       defaultMargin = parseFloat(results.entities[0]["extreme_value"]); // Text
     },
     function (error) {
-      console.log(error.message);
+      Xrm.Navigation.openErrorDialog({
+        details: error,
+        errorCode: 400,
+        message: error.message
+      });
     }
   );
 
   if (replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '') !== null) {
     await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", `?$select=extreme_value,extreme_key&$filter=extreme_key eq '${quoteCurrency}'`).then(
       async function success(results) {
-        console.log(results);
+        // console.log(results);
         var result = results.entities[0];
         // Columns
         var extreme_configurationid = result["extreme_configurationid"]; // Guid
@@ -143,21 +164,29 @@ async function setClientApiContext(Xrm, formContext) {
           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record).then(
             function success(result) {
               var updatedId = result.id;
-              console.log(updatedId);
+              // console.log(updatedId);
             },
             function (error) {
-              console.log(error.message);
+              Xrm.Navigation.openErrorDialog({
+                details: error,
+                errorCode: 400,
+                message: error.message
+              });
             }
           );
         }
 
 
-        console.log('jsonForConverting');
-        console.log(jsonForConverting);
+        // console.log('jsonForConverting');
+        // console.log(jsonForConverting);
 
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
   }
@@ -168,12 +197,9 @@ async function setClientApiContext(Xrm, formContext) {
   await getCurrencies();
   await getAreas();
   await getTechs();
-  // await getVensSups();
   await getVatGroups();
-  await getPriceLists();
-  // await getProductsLookUp();
   await getQuoteProducts(quoteIdForm);
-
+  await getPriceLists();
 
   DevExpress.localization.locale("de");
 
@@ -182,13 +208,13 @@ async function setClientApiContext(Xrm, formContext) {
   // Set title for grid inside header
   const quoteLinesDisplayName = await Xrm.Utility.getEntityMetadata('quotedetail').then(
     result => result._displayName,
-    error => console.log(error)
+    error => Xrm.Navigation.openErrorDialog({ details: error, errorCode: 400, message: error.message })
   );
   // setTimeout(() => {
   //   const toolbarBefore = Xrm.Page.getControl("WebResource_quoteLines").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
-  //   console.log('dx toolbar before: ', toolbarBefore);
+  //   // console.log('dx toolbar before: ', toolbarBefore);
   //   toolbarBefore.innerHTML = `<span style='font-weight: 500; position: absolute; width: 100px; bottom: 30%; left: 0;'>${quoteLinesDisplayName}</span>`;
-  //   console.log(formContext.data.entity);
+  //   // console.log(formContext.data.entity);
   // }, 1000); // Adjust the timeout as needed
 
 
@@ -205,7 +231,7 @@ async function setClientApiContext(Xrm, formContext) {
       return objOfObjs[key];
     });
 
-    console.log(arrayOfObjs);
+    // console.log(arrayOfObjs);
 
     arrayOfObjs.forEach(elm => {
       productTypesArray.push({
@@ -214,8 +240,8 @@ async function setClientApiContext(Xrm, formContext) {
       });
     })
 
-    console.log('PRODUCT TYPES ARRAY');
-    console.log(productTypesArray)
+    // console.log('PRODUCT TYPES ARRAY');
+    // console.log(productTypesArray)
   }
 
   // Data from DV - Xrm Web Api
@@ -228,7 +254,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_extreme_vatsetting_value,_extreme_vatgroup_value,extreme_producttype,extreme_createasset,_extreme_area_value,_extreme_technology_value,_extreme_vendorsupplier_value,manualdiscountamount,extreme_isparentitem,_extreme_parentquoteline_value,extreme_supplierbaseamount,extreme_supplierpriceperunit,quotedetailid,baseamount,extreme_tax,extendedamount,extreme_discount,_productid_value,_uomid_value,extreme_fullpd,extreme_fullprice,extreme_fullpricewithdiscount,extreme_fullpricerounded,extreme_margin,extreme_customproductname,extreme_pd,_extreme_pricelist_value,extreme_pricelistcurrency,priceperunit,extreme_pricelistpriceperunit,extreme_pricewithdiscount,extreme_customproductid,quantity,extreme_supplierdiscount,tax,isproductoverridden,extreme_productdescription,extreme_uomid,sequencenumber&$expand=productid($select=productnumber)&$filter=_quoteid_value eq ${quoteId}`).then(
       async function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
 
@@ -247,7 +273,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (extreme_isparentitem === true) {
             await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${quotedetailid}`).then(
               function success(results) {
-                console.log(results);
+                // console.log(results);
                 for (var i = 0; i < results.entities.length; i++) {
                   var result = results.entities[i];
                   // Columns
@@ -276,7 +302,11 @@ async function setClientApiContext(Xrm, formContext) {
                 avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
               },
               function (error) {
-                console.log(error.message);
+                Xrm.Navigation.openErrorDialog({
+                  details: error,
+                  errorCode: 400,
+                  message: error.message
+                });
               }
             );
           }
@@ -453,8 +483,8 @@ async function setClientApiContext(Xrm, formContext) {
 
         }
 
-        console.log('QuoteLinesWithGoodProductId');
-        console.log(quoteLinesArray.filter((item) => isGuid(item.productid)));
+        // console.log('QuoteLinesWithGoodProductId');
+        // console.log(quoteLinesArray.filter((item) => isGuid(item.productid)));
         const productIdsForFilter = quoteLinesArray.filter((item) => isGuid(item.productid));
         if (productIdsForFilter.length === 1) {
           filterForPriceListsQuery = `productid/productid eq ${quoteLinesArray.find((item) => isGuid(item.productid)).productid}`;
@@ -469,85 +499,94 @@ async function setClientApiContext(Xrm, formContext) {
             }
           }
         }
-        console.log(filterForPriceListsQuery);
 
-        console.log(customProductsArray);
-        console.log(customUnitsArray);
+        // console.log('productIdsForFilter');
+        // console.log(productIdsForFilter);
+        // console.log('filterForPriceListsQuery');
+        // console.log(filterForPriceListsQuery);
 
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
 
   }
 
-  async function getProductsLookUp() {
+  // async function getProductsLookUp() {
 
-    let skipTokenExists = true;
-    let skipToken = '';
-    productsArray = [];
+  //   let skipTokenExists = true;
+  //   let skipToken = '';
+  //   productsArray = [];
 
-    while (skipTokenExists) {
-      await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,extreme_isparent,producttypecode,_pricelevelid_value,_defaultuomid_value,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
-        async function success(results) {
-          console.log(results);
-          results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
+  //   while (skipTokenExists) {
+  //     await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,extreme_isparent,producttypecode,_pricelevelid_value,_defaultuomid_value,name,productnumber${skipToken !== '' ? '&$skiptoken=' + skipToken : ''}`).then(
+  //       async function success(results) {
+  //         // console.log(results);
+  //         results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
 
-          console.log("SKIPTOKEN HERE!!!!");
-          console.log(skipToken);
-          for (var i = 0; i < results.entities.length; i++) {
-            var result = results.entities[i];
-            // Columns
-            var productid = result["productid"]; // Guid
-            var name = result["name"]; // Text
-            var productnumber = result["productnumber"]; // Text
-            var defaultuomid = result["_defaultuomid_value"]; // Lookup
-            var defaultuomid_formatted = result["_defaultuomid_value@OData.Community.Display.V1.FormattedValue"];
-            var defaultuomid_lookuplogicalname = result["_defaultuomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-            var pricelevelid = result["_pricelevelid_value"]; // Lookup
-            var pricelevelid_formatted = result["_pricelevelid_value@OData.Community.Display.V1.FormattedValue"];
-            var pricelevelid_lookuplogicalname = result["_pricelevelid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-            var producttypecode = result["producttypecode"]; // Choice
-            var extreme_isparent = result["extreme_isparent"]; // Boolean
+  //         // console.log("SKIPTOKEN HERE!!!!");
+  //         // console.log(skipToken);
+  //         for (var i = 0; i < results.entities.length; i++) {
+  //           var result = results.entities[i];
+  //           // Columns
+  //           var productid = result["productid"]; // Guid
+  //           var name = result["name"]; // Text
+  //           var productnumber = result["productnumber"]; // Text
+  //           var defaultuomid = result["_defaultuomid_value"]; // Lookup
+  //           var defaultuomid_formatted = result["_defaultuomid_value@OData.Community.Display.V1.FormattedValue"];
+  //           var defaultuomid_lookuplogicalname = result["_defaultuomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+  //           var pricelevelid = result["_pricelevelid_value"]; // Lookup
+  //           var pricelevelid_formatted = result["_pricelevelid_value@OData.Community.Display.V1.FormattedValue"];
+  //           var pricelevelid_lookuplogicalname = result["_pricelevelid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+  //           var producttypecode = result["producttypecode"]; // Choice
+  //           var extreme_isparent = result["extreme_isparent"]; // Boolean
 
-            // const priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${pricelevelid} and _productid_value eq ${productid})`);
+  //           // const priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${pricelevelid} and _productid_value eq ${productid})`);
 
-            productsArray.push({
-              "id": productid,
-              "name": productnumber ? productnumber + ' - ' + name : name,
-              "productName": name,
-              "productId": productnumber,
-              "productDefaultUnit": defaultuomid,
-              "pricelevelid": pricelevelid,
-              "producttypecode": producttypecode,
-              "extreme_isparent": extreme_isparent
-            });
-          }
-          if (skipToken === '') {
-            skipTokenExists = false;
-          }
-          console.log(productsArray);
-        },
-        function (error) {
-          console.log(error.message);
-        }
-      );
-    }
-  }
+  //           productsArray.push({
+  //             "id": productid,
+  //             "name": productnumber ? productnumber + ' - ' + name : name,
+  //             "productName": name,
+  //             "productId": productnumber,
+  //             "productDefaultUnit": defaultuomid,
+  //             "pricelevelid": pricelevelid,
+  //             "producttypecode": producttypecode,
+  //             "extreme_isparent": extreme_isparent
+  //           });
+  //         }
+  //         if (skipToken === '') {
+  //           skipTokenExists = false;
+  //         }
+  //         // console.log(productsArray);
+  //       },
+  //       function (error) {
+  //         Xrm.Navigation.openErrorDialog({
+  //           details: error,
+  //           errorCode: 400,
+  //           message: error.message
+  //         });
+  //       }
+  //     );
+  //   }
+  // }
 
   async function getPriceLists() {
 
     priceListsArray = [];
-    console.log('filterForPriceListsQuery');
-    console.log(filterForPriceListsQuery);
 
-    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value,_pricelevelid_value,_productid_value&$expand=pricelevelid($select=enddate,statuscode)${filterForPriceListsQuery === '' ? '' : `&$filter=(${filterForPriceListsQuery})`}`).then(
       function success(results) {
-        console.log(results);
+
+        // results.nextLink ? skipToken = results.nextLink.split('$skiptoken=')[1] : skipToken = ''
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
-          // Columnsd
+          // Columns
           var productpricelevelid = result["productpricelevelid"]; // Guid
           var amount = result["amount@OData.Community.Display.V1.FormattedValue"]; // Currency
           var amount_num = result["amount"]; // Currency
@@ -563,29 +602,42 @@ async function setClientApiContext(Xrm, formContext) {
 
           // Many To One Relationships
           if (result.hasOwnProperty("pricelevelid") && result["pricelevelid"] !== null) {
-            var pricelevelid_extreme_defaultsalesmargin = result["pricelevelid"]["extreme_defaultsalesmargin"]; // Decimal
-            var pricelevelid_extreme_defaultsalesmargin_formatted = result["pricelevelid"]["extreme_defaultsalesmargin@OData.Community.Display.V1.FormattedValue"];
+            var pricelevelid_enddate = result["pricelevelid"]["enddate"]; // Date Time
+            var pricelevelid_enddate_formatted = result["pricelevelid"]["enddate@OData.Community.Display.V1.FormattedValue"];
+            var pricelevelid_statuscode = result["pricelevelid"]["statuscode"]; // Status
+            var pricelevelid_statuscode_formatted = result["pricelevelid"]["statuscode@OData.Community.Display.V1.FormattedValue"];
+
+            priceListsArray.push({
+              "id": pricelevelid,
+              "name": pricelevelid_formatted,
+              "amount": amount,
+              "amount_num": amount_num,
+              "currency_code": transactioncurrencyid_formatted,
+              "productid": productid,
+              "statuscode": pricelevelid_statuscode
+            });
+
           }
 
-          priceListsArray.push({
-            "id": pricelevelid,
-            "name": pricelevelid_formatted,
-            "amount": amount,
-            "amount_num": amount_num,
-            "currency_code": transactioncurrencyid_formatted,
-            "productid": productid,
-          });
-
         }
+
+        // console.log('priceListsArray');
+        // console.log(priceListsArray);
+
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
+
     );
 
     // await Xrm.WebApi.retrieveMultipleRecords("pricelevel", "?$select=pricelevelid,name").then(
     //   function success(results) {
-    //     console.log(results);
+    //     // console.log(results);
     //     for (var i = 0; i < results.entities.length; i++) {
     //       var result = results.entities[i];
     //       // Columns
@@ -600,7 +652,11 @@ async function setClientApiContext(Xrm, formContext) {
     //     }
     //   },
     //   function (error) {
-    //     console.log(error.message);
+    //     Xrm.Navigation.openErrorDialog({
+    //   details: error,
+    //     errorCode: 400,
+    //       message: error.message
+    // });
     //   }
     // );
   }
@@ -611,7 +667,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("uom", "?$select=uomid,name").then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -626,7 +682,11 @@ async function setClientApiContext(Xrm, formContext) {
         }
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
   }
@@ -637,7 +697,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("transactioncurrency", "?$select=transactioncurrencyid,isocurrencycode,currencyname,currencyprecision,currencysymbol").then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -660,7 +720,11 @@ async function setClientApiContext(Xrm, formContext) {
         }
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
   }
@@ -672,7 +736,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_area", "?$select=extreme_areaid,extreme_name").then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -687,7 +751,11 @@ async function setClientApiContext(Xrm, formContext) {
         }
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
   }
@@ -699,7 +767,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_technology", "?$select=extreme_technologyid,extreme_name").then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -714,37 +782,14 @@ async function setClientApiContext(Xrm, formContext) {
         }
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
   }
-
-  // get vendors/suppliers
-  // async function getVensSups() {
-
-  //   vensSupsArray = [];
-
-  //   await Xrm.WebApi.retrieveMultipleRecords("account", "?$select=accountid,name&$filter=(extreme_relationshiptypeext eq 424000000 or extreme_relationshiptypeext eq 424000003)").then(
-  //     function success(results) {
-  //       console.log(results);
-  //       for (var i = 0; i < results.entities.length; i++) {
-  //         var result = results.entities[i];
-  //         // Columns
-  //         var accountid = result["accountid"]; // Guid
-  //         var name = result["name"]; // Text
-
-  //         vensSupsArray.push({
-  //           "id": accountid,
-  //           "name": name
-  //         });
-
-  //       }
-  //     },
-  //     function (error) {
-  //       console.log(error.message);
-  //     }
-  //   );
-  // }
 
   // get vat groups
   async function getVatGroups() {
@@ -753,7 +798,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", "?$select=extreme_vatsettingid,extreme_producttype&$expand=extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)").then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -783,13 +828,17 @@ async function setClientApiContext(Xrm, formContext) {
         }
       },
       function (error) {
-        console.log(error.message);
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
       }
     );
 
     // await Xrm.WebApi.retrieveMultipleRecords("extreme_vatgroup", "?$select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat").then(
     //   function success(results) {
-    //     console.log(results);
+    //     // console.log(results);
     //     for (var i = 0; i < results.entities.length; i++) {
     //       var result = results.entities[i];
     //       // Columns
@@ -810,7 +859,11 @@ async function setClientApiContext(Xrm, formContext) {
     //     }
     //   },
     //   function (error) {
-    //     console.log(error.message);
+    //     Xrm.Navigation.openErrorDialog({
+    //   details: error,
+    //     errorCode: 400,
+    //       message: error.message
+    // });
     //   }
     // );
 
@@ -954,8 +1007,8 @@ async function setClientApiContext(Xrm, formContext) {
           allowDropInsideItem: false,
           showDragIcons: true,
           async onReorder(e) {
-            console.log("reodrering e");
-            console.log(e);
+            // console.log("reodrering e");
+            // console.log(e);
 
             if (!isDraftStatus) {
               Xrm.Navigation.openAlertDialog({ confirmButtonLabel: "Close", text: "Grid is in read-only mode.", title: "Cannot do that" });
@@ -990,9 +1043,9 @@ async function setClientApiContext(Xrm, formContext) {
           enabled: true,
           async template(container, options) {
             const productsData = options.data;
-            console.log('productsData');
-            console.log(productsData);
-            console.log(productsData.sequencenumber);
+            // console.log('productsData');
+            // console.log(productsData);
+            // console.log(productsData.sequencenumber);
 
             // container.css('padding', '0 0 10px 10px');
             container.css('background', '#e5edfe');
@@ -1071,8 +1124,8 @@ async function setClientApiContext(Xrm, formContext) {
                   allowDropInsideItem: false,
                   showDragIcons: true,
                   async onReorder(e) {
-                    console.log("reodrering e");
-                    console.log(e);
+                    // console.log("reodrering e");
+                    // console.log(e);
 
                     if (!isDraftStatus) {
                       Xrm.Navigation.openAlertDialog({ confirmButtonLabel: "Close", text: "Grid is in read-only mode.", title: "Cannot do that" });
@@ -1080,7 +1133,7 @@ async function setClientApiContext(Xrm, formContext) {
                     }
 
                     if (e.fromData === e.toData) {
-                      console.log('inside the same child - reordering');
+                      // console.log('inside the same child - reordering');
                     }
 
                     const visibleRows = e.component.getVisibleRows();
@@ -1194,6 +1247,47 @@ async function setClientApiContext(Xrm, formContext) {
                     // editCellTemplate: dropDownBoxEditorTemplateProducts,
                     setCellValue: async function (newData, value, currentRowData) {
 
+                      if (typeof (value) === 'number' && currentRowData.extreme_isparentitem !== true) {
+                        newData.productid = value;
+
+                        const recalcResult = recalculateAmounts({
+
+                          quantity: 1,
+                          supplierPricePerUnit: 0,
+                          supplierDiscount: 0,
+                          margin: defaultMargin,
+                          discount: 0,
+                          TaxPercent: 0
+
+                        });
+
+                        newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+
+                        newData.extreme_margin = recalcResult.margin;
+                        newData.quantity = recalcResult.quantity;
+                        newData.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                        newData.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        newData.priceperunit = recalcResult.pricePerUnit;
+                        newData.baseamount = recalcResult.baseAmount;
+                        newData.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                        newData.tax = recalcResult.tax;
+                        newData.extendedamount = recalcResult.extendedAmount;
+                        newData.extreme_pd = recalcResult.pdPerUnit;
+                        newData.extreme_fullpd = recalcResult.fullPd;
+                        newData.extreme_discount = recalcResult.discountPercentage;
+                        newData.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage
+
+                        return;
+                      }
+                      else if (typeof (value) === 'number' && currentRowData.extreme_isparentitem === true) {
+                        newData.productid = value;
+                        newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+                        newData.quantity = 1;
+
+                        return;
+                      }
+
                       // Product types
                       let productType = null;
                       let defaultVatSetting = null;
@@ -1218,7 +1312,29 @@ async function setClientApiContext(Xrm, formContext) {
                       const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
                       if (productInfo._pricelevelid_value) {
                         if (value !== null && isGuid(value)) {
-                          priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
+                          const priceListInfo = await Xrm.WebApi.retrieveRecord("pricelevel", `${productInfo._pricelevelid_value}`, "?$select=enddate,statuscode");
+
+                          if ((new Date(priceListInfo.enddate) > new Date() || priceListInfo.enddate === null) && priceListInfo.statuscode === 100001) {
+                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})`);
+                          }
+                          else {
+                            var alertStrings = {
+                              confirmButtonLabel: "OK",
+                              text: "Price list for this product expired or is no longer active.",
+                              title: "Price list"
+                            };
+                            var alertOptions = { height: 120, width: 260 };
+                            Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+                              function (success) {
+                                // console.log("Alert dialog closed");
+                              },
+                              function (error) {
+                                console.log(error.message);
+                              }
+                            );
+
+                            priceListItemInfo = [];
+                          }
                         }
                       }
                       if (value !== null && isGuid(value)) {
@@ -1235,25 +1351,25 @@ async function setClientApiContext(Xrm, formContext) {
                       // set create asset to false
                       newData.extreme_createasset = false;
 
-                      console.log('priceListItemInfo');
-                      console.log(priceListItemInfo);
+                      // console.log('priceListItemInfo');
+                      // console.log(priceListItemInfo);
 
-                      const priceListMargin = priceListItemInfo.length !== 0 && priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin;
-                      const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : null;
-                      const priceListItemAmountFormatted = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
-                      const priceListItemCurrency = priceListItemInfo.length !== 0 ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
+                      const priceListMargin = priceListItemInfo.entities ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] !== null ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin : currentRowData.extreme_margin;
+                      const priceListItemAmount = priceListItemInfo.entities ? priceListItemInfo.entities[0].amount : 0;
+                      const priceListItemAmountFormatted = priceListItemInfo.entities ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
+                      const priceListItemCurrency = priceListItemInfo.entities ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
 
-                      console.log('SET CELL VALUES');
-                      console.log(priceListItemAmount);
-                      console.log(priceListItemCurrency);
-                      console.log(productInfo._pricelevelid_value);
+                      // console.log('SET CELL VALUES');
+                      // console.log(priceListItemAmount);
+                      // console.log(priceListItemCurrency);
+                      // console.log(productInfo._pricelevelid_value);
 
-                      console.log('newData: ');
-                      console.log(newData);
-                      console.log('value: ');
-                      console.log(value);
-                      console.log('currentRowDataa: ');
-                      console.log(currentRowData);
+                      // console.log('newData: ');
+                      // console.log(newData);
+                      // console.log('value: ');
+                      // console.log(value);
+                      // console.log('currentRowDataa: ');
+                      // console.log(currentRowData);
                       newData.productid = value;
                       if (!isAddingSet) {
                         newData.extreme_tax = defaultVatSetting === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatSetting).vat
@@ -1266,10 +1382,10 @@ async function setClientApiContext(Xrm, formContext) {
                       newData.extreme_customproductname = productInfo.name;
                       if (productInfo._defaultuomid_value !== null) newData.uomid = productInfo._defaultuomid_value;
                       if (productInfo._pricelevelid_value && !isAddingSet) {
-                        newData.extreme_pricelist = productInfo._pricelevelid_value;
-                        newData.extreme_pricelistpriceperunit = priceListItemAmount;
-                        newData.extreme_pricelistcurrency = priceListItemCurrency;
-                        if (quoteCurrencySymbol !== priceListItemCurrency) {
+                        if (priceListItemInfo.entities) newData.extreme_pricelist = productInfo._pricelevelid_value;
+                        if (priceListItemInfo.entities) newData.extreme_pricelistpriceperunit = priceListItemAmount;
+                        if (priceListItemInfo.entities) newData.extreme_pricelistcurrency = priceListItemCurrency;
+                        if (quoteCurrencySymbol !== priceListItemCurrency && priceListItemInfo.entities) {
                           newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                           supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                         } else {
@@ -1283,11 +1399,11 @@ async function setClientApiContext(Xrm, formContext) {
                         currentRowData.extreme_supplierdiscount !== null &&
                         currentRowData.extreme_discount !== null &&
                         !isAddingSet) {
-                        console.log("NEW DATA FROM SELECTING PRODUCT");
-                        console.log(currentRowData.extreme_margin);
-                        console.log(supplierPricePerUnit);
-                        console.log(currentRowData.extreme_discount);
-                        console.log(1);
+                        // console.log("NEW DATA FROM SELECTING PRODUCT");
+                        // console.log(currentRowData.extreme_margin);
+                        // console.log(supplierPricePerUnit);
+                        // console.log(currentRowData.extreme_discount);
+                        // console.log(1);
 
                         const recalcResult = recalculateAmounts({
 
@@ -1318,7 +1434,7 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     customizeText: function (cellInfo) {
                       if (cellInfo.valueText) {
-                        // console.log(productsStore._array.find((item) => item.name === cellInfo.valueText))
+                        // // console.log(productsStore._array.find((item) => item.name === cellInfo.valueText))
                         return cellInfo.valueText;
                         // return productsStore._array.find((item) => item.name === cellInfo.valueText)["productId"]
                       }
@@ -1360,8 +1476,8 @@ async function setClientApiContext(Xrm, formContext) {
                     width: 44,
                     setCellValue: async function (newData, value, currentRowData) {
 
-                      console.log('currentRowData');
-                      console.log(currentRowData);
+                      // console.log('currentRowData');
+                      // console.log(currentRowData);
 
                       newData.quantity = value;
                       if (!isAddingSet) {
@@ -1455,7 +1571,7 @@ async function setClientApiContext(Xrm, formContext) {
                       precision: 2
                     },
                     cellTemplate(container, info) {
-                      console.log(container, info);
+                      // console.log(container, info);
                       return info.data.extreme_pricelistpriceperunit !== null && info.data.extreme_pricelistpriceperunit !== undefined ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
                     },
                     visible: dataGrid.columnOption("extreme_pricelistpriceperunit", "visible"),
@@ -1688,8 +1804,8 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     customizeText: function (cellInfo) {
 
-                      console.log('CELL INFO CHILD');
-                      console.log(cellInfo);
+                      // console.log('CELL INFO CHILD');
+                      // console.log(cellInfo);
 
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
                     },
@@ -1842,8 +1958,8 @@ async function setClientApiContext(Xrm, formContext) {
                     width: 60,
                     lookup: {
                       dataSource(options) {
-                        console.log('OPTIONS FROM VAT GROUP LOOKUP');
-                        console.log(options);
+                        // console.log('OPTIONS FROM VAT GROUP LOOKUP');
+                        // console.log(options);
 
                         let filterQuery = null;
                         if (options.data && options.data.productid && isGuid(options.data.productid)) {
@@ -1960,8 +2076,8 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     allowEditing: false,
                     customizeText: function (cellInfo) {
-                      console.log('cellInfo');
-                      console.log(cellInfo);
+                      // console.log('cellInfo');
+                      // console.log(cellInfo);
                       return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
                     },
                     visible: dataGrid.columnOption("extreme_tax", "visible")
@@ -2041,11 +2157,7 @@ async function setClientApiContext(Xrm, formContext) {
                           },
                           paginate: true,
                           pageSize: 20,
-                          filter: options.data ? ['productid', '=', options.data.productid] : null,
-                          postProcess: function (data) {
-                            // data.unshift({ name: "Price list", amount: "Price", disabled: true });
-                            return data;
-                          }
+                          filter: options.data ? [['productid', '=', options.data.productid], "and", ['statuscode', '=', 100001]] : null,
                         }
                       },
                       displayExpr: 'name',
@@ -2083,17 +2195,17 @@ async function setClientApiContext(Xrm, formContext) {
                     },
                     setCellValue: async function (newData, value, currentRowData) {
                       newData.extreme_pricelist = value;
-                      console.log('NEW PRICE FROM PRICE LIST CHANGE');
+                      // console.log('NEW PRICE FROM PRICE LIST CHANGE');
 
                       const newOrgPrice = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).amount_num;
                       const newOrgCurrency = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).currency_code;
                       const newOrgCurrencyValue = $(`#${newOrgCurrency}`).val() ? parseFloat($(`#${newOrgCurrency}`).val()) : 1;
                       const newOrgCurrencySymbol = currenciesArray.find((item) => item.isocurrencycode == newOrgCurrency).currencysymbol;
 
-                      console.log(newOrgPrice);
-                      console.log(newOrgCurrency);
-                      console.log(newOrgCurrencyValue);
-                      console.log(newOrgCurrencySymbol);
+                      // console.log(newOrgPrice);
+                      // console.log(newOrgCurrency);
+                      // console.log(newOrgCurrencyValue);
+                      // console.log(newOrgCurrencySymbol);
 
                       newData.extreme_pricelistpriceperunit = newOrgPrice;
                       newData.extreme_pricelistcurrency = newOrgCurrencySymbol;
@@ -2319,7 +2431,7 @@ async function setClientApiContext(Xrm, formContext) {
                           return false;
                         },
                         onClick(e) {
-                          console.log(e);
+                          // console.log(e);
 
                           const popupContentTemplate = function (item) {
 
@@ -2362,7 +2474,7 @@ async function setClientApiContext(Xrm, formContext) {
                                 text: 'Save',
                                 disabled: !isDraftStatus,
                                 async onClick() {
-                                  console.log($('#productDescription').val().trim());
+                                  // console.log($('#productDescription').val().trim());
 
                                   var record = {};
                                   record.extreme_productdescription = "test"; // Multiline Text
@@ -2389,8 +2501,8 @@ async function setClientApiContext(Xrm, formContext) {
                               },
                             }],
                             onHiding: (e) => {
-                              console.log('Hidding popup event');
-                              console.log(e);
+                              // console.log('Hidding popup event');
+                              // console.log(e);
                               selectedDescriptionItem = null;
                             }
                           }).dxPopup('instance');
@@ -2408,8 +2520,8 @@ async function setClientApiContext(Xrm, formContext) {
                   }
                 ],
                 onEditorPreparing: async (e) => {
-                  console.log('Editor Preparing');
-                  console.log(e);
+                  // console.log('Editor Preparing');
+                  // console.log(e);
 
                   // if (e.dataField == "uomid" && typeof (e.row.data.productid) !== 'number') e.editorOptions.disabled = true;
 
@@ -2427,8 +2539,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                 },
                 onRowPrepared: async (e) => {
-                  console.log('ROW PREPARED');
-                  console.log(e);
+                  // console.log('ROW PREPARED');
+                  // console.log(e);
 
                   if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
                     (
@@ -2454,31 +2566,31 @@ async function setClientApiContext(Xrm, formContext) {
 
                 },
                 onFocusedCellChanged: (e) => {
-                  console.log(e);
+                  // console.log(e);
                 },
                 onEditingStart: (e) => {
-                  console.log('EditingStart');
-                  console.log(e);
+                  // console.log('EditingStart');
+                  // console.log(e);
                 },
                 onEditCanceling: (e) => {
-                  console.log('EditCanceling');
-                  console.log(e);
+                  // console.log('EditCanceling');
+                  // console.log(e);
                 },
                 onInitNewRow: async (e) => {
-                  console.log('InitNewRow');
-                  console.log(e);
+                  // console.log('InitNewRow');
+                  // console.log(e);
                 },
                 onRowInserting: async (e) => {
-                  console.log('RowInserting');
-                  console.log(e);
+                  // console.log('RowInserting');
+                  // console.log(e);
                 },
                 onRowInserted: async (e) => {
-                  console.log('RowInserted');
-                  console.log(e);
+                  // console.log('RowInserted');
+                  // console.log(e);
                 },
                 onRowUpdating: async (e) => {
-                  console.log('RowUpdating');
-                  console.log(e);
+                  // console.log('RowUpdating');
+                  // console.log(e);
 
                   var record = {};
                   if (e.newData.productid) record["productid@odata.bind"] = `/products(${e.newData.productid})`; // Lookup
@@ -2517,20 +2629,24 @@ async function setClientApiContext(Xrm, formContext) {
                   await Xrm.WebApi.updateRecord("quotedetail", `${e.key}`, record).then(
                     async function success(result) {
                       var updatedId = result.id;
-                      console.log(updatedId);
+                      // console.log(updatedId);
                       // await getQuoteProducts(quoteIdForm);
                       // dataGrid.refresh();
                     },
                     function (error) {
-                      console.log(error.message);
+                      Xrm.Navigation.openErrorDialog({
+                        details: error,
+                        errorCode: 400,
+                        message: error.message
+                      });
                     }
                   );
 
-                  console.log("PARENT QUOTE LINE");
-                  console.log(e.oldData.extreme_parentquoteline);
+                  // console.log("PARENT QUOTE LINE");
+                  // console.log(e.oldData.extreme_parentquoteline);
                   if (e.oldData.extreme_parentquoteline) {
 
-                    console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
+                    // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
 
                     let baseamount_sum = 0;
                     let extendedamount_sum = 0;
@@ -2575,29 +2691,33 @@ async function setClientApiContext(Xrm, formContext) {
 
                 },
                 onRowUpdated(e) {
-                  console.log('RowUpdated');
-                  console.log(e);
+                  // console.log('RowUpdated');
+                  // console.log(e);
                 },
                 onRowRemoving: async (e) => {
-                  console.log('RowRemoving');
-                  console.log(e);
+                  // console.log('RowRemoving');
+                  // console.log(e);
 
                   Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
 
                   quoteLinesData.remove(e.key);
                   await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`).then(
                     async function success(result) {
-                      console.log(result);
+                      // console.log(result);
                       await getQuoteProducts(quoteIdForm);
                       dataGrid.refresh();
                     },
                     function (error) {
-                      console.log(error.message);
+                      Xrm.Navigation.openErrorDialog({
+                        details: error,
+                        errorCode: 400,
+                        message: error.message
+                      });
                     }
                   );
 
                   if (e.data.extreme_parentquoteline) {
-                    console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
+                    // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
                     const parentQuoteLineGUID = e.data.extreme_parentquoteline;
 
                     let baseamount_sum = 0;
@@ -2655,25 +2775,25 @@ async function setClientApiContext(Xrm, formContext) {
 
                 },
                 onRowRemoved: (e) => {
-                  console.log('RowRemoved');
+                  // console.log('RowRemoved');
                 },
                 onSaving() {
-                  console.log('Saving');
+                  // console.log('Saving');
                 },
                 onSaved() {
-                  console.log('Saved');
+                  // console.log('Saved');
                 },
                 onCellDblClick(e) {
-                  console.log('CELL DOUBLE CLICK');
-                  console.log(e);
+                  // console.log('CELL DOUBLE CLICK');
+                  // console.log(e);
 
                   if (e.column.dataField === "productid" && isGuid(e.data.productid) && e.data.productid) {
                     // Create an anchor element
                     const globalContext = Xrm.Utility.getGlobalContext();
                     globalContext.getCurrentAppUrl();
 
-                    console.log('CLIENT URL');
-                    console.log(globalContext.getCurrentAppUrl());
+                    // console.log('CLIENT URL');
+                    // console.log(globalContext.getCurrentAppUrl());
 
                     const link = document.createElement('a');
                     link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=product&id=${e.data.productid}`;
@@ -2691,16 +2811,16 @@ async function setClientApiContext(Xrm, formContext) {
 
                   if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
 
-                    inventoryInfo(e.data.productid);
+                    inventoryInfo(e.data.productid, e.data.quotedetailid);
 
                   }
 
                 },
                 onEditCanceling() {
-                  console.log('EditCanceling');
+                  // console.log('EditCanceling');
                 },
                 onEditCanceled() {
-                  console.log('EditCanceled');
+                  // console.log('EditCanceled');
                 },
                 onContentReady: function (e) {
                   e.component.columnOption("command:select", "visibleIndex", 999);
@@ -2860,7 +2980,29 @@ async function setClientApiContext(Xrm, formContext) {
               const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
               if (productInfo._pricelevelid_value) {
                 if (value !== null && isGuid(value)) {
-                  priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
+                  const priceListInfo = await Xrm.WebApi.retrieveRecord("pricelevel", `${productInfo._pricelevelid_value}`, "?$select=enddate,statuscode");
+
+                  if ((new Date(priceListInfo.enddate) > new Date() || priceListInfo.enddate === null) && priceListInfo.statuscode === 100001) {
+                    priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})`);
+                  }
+                  else {
+                    var alertStrings = {
+                      confirmButtonLabel: "OK",
+                      text: "Price list for this product expired or is no longer active.",
+                      title: "Price list"
+                    };
+                    var alertOptions = { height: 120, width: 260 };
+                    Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+                      function (success) {
+                        // console.log("Alert dialog closed");
+                      },
+                      function (error) {
+                        console.log(error.message);
+                      }
+                    );
+
+                    priceListItemInfo = [];
+                  }
                 }
               }
               if (value !== null && isGuid(value)) {
@@ -2877,25 +3019,25 @@ async function setClientApiContext(Xrm, formContext) {
               // set create asset to false
               newData.extreme_createasset = false;
 
-              console.log('priceListItemInfo');
-              console.log(priceListItemInfo);
+              // console.log('priceListItemInfo');
+              // console.log(priceListItemInfo);
 
-              const priceListMargin = priceListItemInfo.length !== 0 && priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin;
-              const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : null;
-              const priceListItemAmountFormatted = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
-              const priceListItemCurrency = priceListItemInfo.length !== 0 ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
+              const priceListMargin = priceListItemInfo.entities ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] !== null ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin : currentRowData.extreme_margin;
+              const priceListItemAmount = priceListItemInfo.entities ? priceListItemInfo.entities[0].amount : 0;
+              const priceListItemAmountFormatted = priceListItemInfo.entities ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
+              const priceListItemCurrency = priceListItemInfo.entities ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
 
-              console.log('SET CELL VALUES');
-              console.log(priceListItemAmount);
-              console.log(priceListItemCurrency);
-              console.log(productInfo._pricelevelid_value);
+              // console.log('SET CELL VALUES');
+              // console.log(priceListItemAmount);
+              // console.log(priceListItemCurrency);
+              // console.log(productInfo._pricelevelid_value);
 
-              console.log('newData: ');
-              console.log(newData);
-              console.log('value: ');
-              console.log(value);
-              console.log('currentRowDataa: ');
-              console.log(currentRowData);
+              // console.log('newData: ');
+              // console.log(newData);
+              // console.log('value: ');
+              // console.log(value);
+              // console.log('currentRowDataa: ');
+              // console.log(currentRowData);
               newData.productid = value;
               if (!isAddingSet) {
                 newData.extreme_tax = defaultVatSetting === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatSetting).vat
@@ -2908,10 +3050,10 @@ async function setClientApiContext(Xrm, formContext) {
               newData.extreme_customproductname = productInfo.name;
               if (productInfo._defaultuomid_value !== null) newData.uomid = productInfo._defaultuomid_value;
               if (productInfo._pricelevelid_value && !isAddingSet) {
-                newData.extreme_pricelist = productInfo._pricelevelid_value;
-                newData.extreme_pricelistpriceperunit = priceListItemAmount;
-                newData.extreme_pricelistcurrency = priceListItemCurrency;
-                if (quoteCurrencySymbol !== priceListItemCurrency) {
+                if (priceListItemInfo.entities) newData.extreme_pricelist = productInfo._pricelevelid_value;
+                if (priceListItemInfo.entities) newData.extreme_pricelistpriceperunit = priceListItemAmount;
+                if (priceListItemInfo.entities) newData.extreme_pricelistcurrency = priceListItemCurrency;
+                if (quoteCurrencySymbol !== priceListItemCurrency && priceListItemInfo.entities) {
                   newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                   supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                 } else {
@@ -2925,11 +3067,11 @@ async function setClientApiContext(Xrm, formContext) {
                 currentRowData.extreme_supplierdiscount !== null &&
                 currentRowData.extreme_discount !== null &&
                 !isAddingSet) {
-                console.log("NEW DATA FROM SELECTING PRODUCT");
-                console.log(currentRowData.extreme_margin);
-                console.log(supplierPricePerUnit);
-                console.log(currentRowData.extreme_discount);
-                console.log(1);
+                // console.log("NEW DATA FROM SELECTING PRODUCT");
+                // console.log(currentRowData.extreme_margin);
+                // console.log(supplierPricePerUnit);
+                // console.log(currentRowData.extreme_discount);
+                // console.log(1);
 
                 const recalcResult = recalculateAmounts({
 
@@ -2960,7 +3102,7 @@ async function setClientApiContext(Xrm, formContext) {
             },
             customizeText: function (cellInfo) {
               if (cellInfo.valueText) {
-                // console.log(productsStore._array.find((item) => item.name === cellInfo.valueText))
+                // // console.log(productsStore._array.find((item) => item.name === cellInfo.valueText))
                 return cellInfo.valueText;
                 // return productsStore._array.find((item) => item.name === cellInfo.valueText)["productId"]
               }
@@ -3010,8 +3152,8 @@ async function setClientApiContext(Xrm, formContext) {
             width: 44,
             setCellValue: async function (newData, value, currentRowData) {
 
-              console.log('currentRowData');
-              console.log(currentRowData);
+              // console.log('currentRowData');
+              // console.log(currentRowData);
 
               newData.quantity = value;
               if (!isAddingSet) {
@@ -3104,7 +3246,7 @@ async function setClientApiContext(Xrm, formContext) {
               precision: 2
             },
             cellTemplate(container, info) {
-              console.log(container, info);
+              // console.log(container, info);
               return info.data.extreme_pricelistpriceperunit !== null && info.data.extreme_pricelistpriceperunit ? $('<div>').text(info.data.extreme_pricelistpriceperunit + ` ${info.data.extreme_pricelistcurrency}`) : null;
             },
             visible: false,
@@ -3334,8 +3476,8 @@ async function setClientApiContext(Xrm, formContext) {
             },
             customizeText: function (cellInfo) {
 
-              console.log('CELL INFO CHILD');
-              console.log(cellInfo);
+              // console.log('CELL INFO CHILD');
+              // console.log(cellInfo);
 
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             }
@@ -3483,8 +3625,8 @@ async function setClientApiContext(Xrm, formContext) {
             width: 60,
             lookup: {
               dataSource(options) {
-                console.log('OPTIONS FROM VAT GROUP LOOKUP');
-                console.log(options);
+                // console.log('OPTIONS FROM VAT GROUP LOOKUP');
+                // console.log(options);
 
                 let filterQuery = null;
                 if (options.data && options.data.productid && options.data.productid && isGuid(options.data.productid)) {
@@ -3600,8 +3742,8 @@ async function setClientApiContext(Xrm, formContext) {
             },
             allowEditing: false,
             customizeText: function (cellInfo) {
-              console.log('cellInfo');
-              console.log(cellInfo);
+              // console.log('cellInfo');
+              // console.log(cellInfo);
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + " %";
             },
             visible: false
@@ -3680,7 +3822,7 @@ async function setClientApiContext(Xrm, formContext) {
                   },
                   paginate: true,
                   pageSize: 20,
-                  filter: options.data ? ['productid', '=', options.data.productid] : null,
+                  filter: options.data ? [['productid', '=', options.data.productid], "and", ['statuscode', '=', 100001]] : null,
                   postProcess: function (data) {
                     // data.unshift({ name: "Price list", amount: "Price", disabled: true });
                     return data;
@@ -3722,17 +3864,17 @@ async function setClientApiContext(Xrm, formContext) {
             },
             setCellValue: async function (newData, value, currentRowData) {
               newData.extreme_pricelist = value;
-              console.log('NEW PRICE FROM PRICE LIST CHANGE');
+              // console.log('NEW PRICE FROM PRICE LIST CHANGE');
 
               const newOrgPrice = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).amount_num;
               const newOrgCurrency = priceListsArray.find((item) => item.productid === currentRowData.productid && item.id === value).currency_code;
               const newOrgCurrencyValue = $(`#${newOrgCurrency}`).val() ? parseFloat($(`#${newOrgCurrency}`).val()) : 1;
               const newOrgCurrencySymbol = currenciesArray.find((item) => item.isocurrencycode == newOrgCurrency).currencysymbol;
 
-              console.log(newOrgPrice);
-              console.log(newOrgCurrency);
-              console.log(newOrgCurrencyValue);
-              console.log(newOrgCurrencySymbol);
+              // console.log(newOrgPrice);
+              // console.log(newOrgCurrency);
+              // console.log(newOrgCurrencyValue);
+              // console.log(newOrgCurrencySymbol);
 
               newData.extreme_pricelistpriceperunit = newOrgPrice;
               newData.extreme_pricelistcurrency = newOrgCurrencySymbol;
@@ -3986,7 +4128,7 @@ async function setClientApiContext(Xrm, formContext) {
                   return false;
                 },
                 onClick(e) {
-                  console.log(e);
+                  // console.log(e);
 
                   const popupContentTemplate = function (item) {
 
@@ -4029,7 +4171,7 @@ async function setClientApiContext(Xrm, formContext) {
                         text: 'Save',
                         disabled: !isDraftStatus,
                         async onClick() {
-                          console.log($('#productDescription').val().trim());
+                          // console.log($('#productDescription').val().trim());
 
                           // var record = {};
                           // record.extreme_productdescription = "test"; // Multiline Text
@@ -4056,8 +4198,8 @@ async function setClientApiContext(Xrm, formContext) {
                       },
                     }],
                     onHiding: (e) => {
-                      console.log('Hidding popup event');
-                      console.log(e);
+                      // console.log('Hidding popup event');
+                      // console.log(e);
                       selectedDescriptionItem = null;
                     }
                   }).dxPopup('instance');
@@ -4094,11 +4236,11 @@ async function setClientApiContext(Xrm, formContext) {
                 width: 'auto',
                 disabled: !isDraftStatus,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
 
                   isAddingSet = false;
-                  console.log("isAddingSet: ", isAddingSet);
+                  // console.log("isAddingSet: ", isAddingSet);
 
                   dataGrid.columnOption("productid", "editorOptions", {
                     acceptCustomValue: false,
@@ -4205,11 +4347,11 @@ async function setClientApiContext(Xrm, formContext) {
                 width: 'auto',
                 disabled: !isDraftStatus,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
 
                   isAddingSet = false;
-                  console.log("isAddingSet: ", isAddingSet);
+                  // console.log("isAddingSet: ", isAddingSet);
 
                   dataGrid.columnOption("productid", "editorOptions", {
                     acceptCustomValue: true,
@@ -4302,11 +4444,11 @@ async function setClientApiContext(Xrm, formContext) {
                 width: 'auto',
                 disabled: !isDraftStatus,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
 
                   isAddingSet = true;
-                  console.log("isAddingSet: ", isAddingSet);
+                  // console.log("isAddingSet: ", isAddingSet);
 
                   dataGrid.columnOption("productid", "editorOptions", {
                     acceptCustomValue: false,
@@ -4413,11 +4555,11 @@ async function setClientApiContext(Xrm, formContext) {
                 width: 'auto',
                 disabled: !isDraftStatus,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
 
                   isAddingSet = true;
-                  console.log("isAddingSet: ", isAddingSet);
+                  // console.log("isAddingSet: ", isAddingSet);
 
                   dataGrid.columnOption("productid", "editorOptions", {
                     acceptCustomValue: true,
@@ -4513,8 +4655,8 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 disabled: true,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
                   dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible', false);
                   // dataGrid.columnOption('extreme_pricelistcurrency', 'visible', !dataGrid.columnOption('extreme_pricelistcurrency', 'visible'));
                   dataGrid.columnOption('extreme_supplierdiscount', 'visible', false);
@@ -4526,8 +4668,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                   // reset all columns after classify
                   if ($('#classifyBtn').dxButton('instance').option('disabled') === true) {
-                    console.log('ALL COLUMNS');
-                    console.log(dataGrid.option('columns'));
+                    // console.log('ALL COLUMNS');
+                    // console.log(dataGrid.option('columns'));
                     dataGrid.option('columns').forEach(col => {
                       if (
                         col.dataField !== "extreme_pricelistpriceperunit" &&
@@ -4597,8 +4739,8 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 disabled: false,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
                   dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible', true);
                   // dataGrid.columnOption('extreme_pricelistcurrency', 'visible', !dataGrid.columnOption('extreme_pricelistcurrency', 'visible'));
                   dataGrid.columnOption('extreme_supplierdiscount', 'visible', true);
@@ -4610,8 +4752,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                   // reset all columns after classify
                   if ($('#classifyBtn').dxButton('instance').option('disabled') === true) {
-                    console.log('ALL COLUMNS');
-                    console.log(dataGrid.option('columns'));
+                    // console.log('ALL COLUMNS');
+                    // console.log(dataGrid.option('columns'));
                     dataGrid.option('columns').forEach(col => {
                       if (
                         // col.dataField !== "extreme_pricelistpriceperunit" &&
@@ -4680,17 +4822,17 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 disabled: false,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
-                  console.log('GET VISIBLE COLUMNS');
-                  console.log(dataGrid.getVisibleColumns());
+                  // console.log(e);
+                  // console.log(dataGrid);
+                  // console.log('GET VISIBLE COLUMNS');
+                  // console.log(dataGrid.getVisibleColumns());
                   dataGrid.getVisibleColumns().forEach(col => {
                     if (col.dataField !== 'productid' &&
                       col.dataField !== 'extreme_customproductname' &&
                       // col.dataField !== 'extreme_productdescription' &&
                       col.dataType !== 'detailExpand' &&
                       col.dataType !== 'drag') {
-                      // console.log(col);
+                      // // console.log(col);
                       dataGrid.columnOption(col.dataField, 'visible', false);
                     }
                   });
@@ -4762,7 +4904,7 @@ async function setClientApiContext(Xrm, formContext) {
                     }).on('change', async function () {
                       Xrm.Utility.showProgressIndicator(`Changing exchange rate for ${currency}`);
                       const newValue = $(this).val();
-                      console.log(`New value for ${currency}: ${newValue} ${typeof (newValue)}`);
+                      // console.log(`New value for ${currency}: ${newValue} ${typeof (newValue)}`);
                       switch (currency) {
                         case "EUR":
                           await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_euroexchangerate: parseFloat(newValue) });
@@ -4824,8 +4966,8 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
         },
         onRowPrepared: async (e) => {
-          console.log('ROW PREPARED');
-          console.log(e);
+          // console.log('ROW PREPARED');
+          // console.log(e);
 
           if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
             (
@@ -4861,9 +5003,9 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
           if (e.rowType === 'data' && !e.data.extreme_isparentitem && e.data.quotedetailid) {
-            console.log('REMOVED EXPAND FOR ', e.data.quotedetailid);
-            console.log(dataGrid.hasEditData());
-            console.log(e.cells[1].cellElement[0]);
+            // console.log('REMOVED EXPAND FOR ', e.data.quotedetailid);
+            // console.log(dataGrid.hasEditData());
+            // console.log(e.cells[1].cellElement[0]);
             e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
             e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
             // e.cells[1].cellElement[0].style.display = "none";
@@ -4876,12 +5018,12 @@ async function setClientApiContext(Xrm, formContext) {
 
         },
         onEditorPreparing: async (e) => {
-          console.log('Editor Preparing');
-          console.log(e);
+          // console.log('Editor Preparing');
+          // console.log(e);
 
           // if (e.dataField == "productid" && e.row.data.extreme_isparentitem === false) {
-          //   console.log('e.editorElement');
-          //   console.log(e.editorElement);
+          //   // console.log('e.editorElement');
+          //   // console.log(e.editorElement);
           //   e.editorElement[0].parentElement.setAttribute('colspan', '2');
           // }
 
@@ -4921,19 +5063,19 @@ async function setClientApiContext(Xrm, formContext) {
 
         },
         onFocusedCellChanged: (e) => {
-          console.log(e);
+          // console.log(e);
         },
         onEditingStart: (e) => {
-          console.log('EditingStart');
-          console.log(e);
+          // console.log('EditingStart');
+          // console.log(e);
         },
         onEditCanceling: (e) => {
-          console.log('EditCanceling');
-          console.log(e);
+          // console.log('EditCanceling');
+          // console.log(e);
         },
         onInitNewRow: async (e) => {
-          console.log('InitNewRow');
-          console.log(e);
+          // console.log('InitNewRow');
+          // console.log(e);
 
           if (!isAddingSet) {
             e.data.extreme_isparentitem = false;
@@ -4949,8 +5091,8 @@ async function setClientApiContext(Xrm, formContext) {
 
         },
         onRowInserting: async (e) => {
-          console.log('RowInserting');
-          console.log(e);
+          // console.log('RowInserting');
+          // console.log(e);
 
           Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
@@ -5006,8 +5148,8 @@ async function setClientApiContext(Xrm, formContext) {
               record["productid@odata.bind"] = `/products(${e.data.productid})`;
 
               const existingProductLookups = await Xrm.WebApi.retrieveRecord("product", `${e.data.productid}`, "?$select=description,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
-              console.log('EXISTING PRODUCT LOOKUPS');
-              console.log(existingProductLookups);
+              // console.log('EXISTING PRODUCT LOOKUPS');
+              // console.log(existingProductLookups);
               if (existingProductLookups._extreme_area_value) record["extreme_Area@odata.bind"] = `/extreme_areas(${existingProductLookups._extreme_area_value})`; // Lookup
               if (existingProductLookups._extreme_technology_value) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${existingProductLookups._extreme_technology_value})`; // Lookup
               if (existingProductLookups._extreme_vendorsupplier_value) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${existingProductLookups._extreme_vendorsupplier_value})`; // Lookup
@@ -5023,17 +5165,17 @@ async function setClientApiContext(Xrm, formContext) {
           }; // Lookup / Custom Text
 
 
-          console.log('RECORD AFTER SET PROPERTIES:');
-          console.log(record);
+          // console.log('RECORD AFTER SET PROPERTIES:');
+          // console.log(record);
 
           await Xrm.WebApi.createRecord("quotedetail", record).then(
             async function success(result) {
               var newId = result.id;
               if (quoteLinesData._array.length > 0) {
-                console.log(dataGrid.getDataSource());
-                console.log(quoteLinesData._array);
-                console.log(quoteLinesData._array[quoteLinesData._array.length - 1]);
-                console.log(quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid);
+                // console.log(dataGrid.getDataSource());
+                // console.log(quoteLinesData._array);
+                // console.log(quoteLinesData._array[quoteLinesData._array.length - 1]);
+                // console.log(quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid);
                 quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid = newId;
                 quoteLinesData._array[quoteLinesData._array.length - 1].extreme_productdescription = record.extreme_productdescription;
 
@@ -5051,7 +5193,7 @@ async function setClientApiContext(Xrm, formContext) {
                   }
                 }
 
-                console.log(quoteLinesData._array);
+                // console.log(quoteLinesData._array);
 
                 await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { sequencenumber: parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00") });
                 quoteLinesData._array[quoteLinesData._array.length - 1].sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00");
@@ -5064,9 +5206,9 @@ async function setClientApiContext(Xrm, formContext) {
                 if (!quoteLinesData._array[quoteLinesData._array.length - 1].manualdiscountamount) quoteLinesData._array[quoteLinesData._array.length - 1].manualdiscountamount = 0;
                 if (!quoteLinesData._array[quoteLinesData._array.length - 1].extreme_supplierbaseamount) quoteLinesData._array[quoteLinesData._array.length - 1].extreme_supplierbaseamount = 0;
                 if (!quoteLinesData._array[quoteLinesData._array.length - 1].tax) quoteLinesData._array[quoteLinesData._array.length - 1].tax = 0;
-                console.log(quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid);
-                console.log(quoteLinesData._array[quoteLinesData._array.length - 1].extreme_parentquoteline);
-                console.log(quoteLinesData._array[quoteLinesData._array.length - 1].extreme_isparentitem);
+                // console.log(quoteLinesData._array[quoteLinesData._array.length - 1].quotedetailid);
+                // console.log(quoteLinesData._array[quoteLinesData._array.length - 1].extreme_parentquoteline);
+                // console.log(quoteLinesData._array[quoteLinesData._array.length - 1].extreme_isparentitem);
 
                 await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { extendedamount: Number(parseFloat(e.data.extendedamount).toFixed(4)) });
 
@@ -5076,12 +5218,12 @@ async function setClientApiContext(Xrm, formContext) {
                 // If inserting parent item with existing child items
                 if (e.data.extreme_isparentitem === true && isGuid(e.data.productid)) {
 
-                  console.log('quoteLinesData before parent created');
-                  console.log(quoteLinesData);
+                  // console.log('quoteLinesData before parent created');
+                  // console.log(quoteLinesData);
 
                   await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
                     async function success(results) {
-                      console.log(results);
+                      // console.log(results);
                       for (var i = 0; i < results.entities.length; i++) {
                         var result = results.entities[i];
                         // Columns
@@ -5112,9 +5254,9 @@ async function setClientApiContext(Xrm, formContext) {
                             productType = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode");
                             productType = productType.producttypecode;
 
-                            console.log('PRODUCT TYPE CHILD');
-                            console.log(productType);
-                            console.log(taxPercentOfAccount.extreme_tax);
+                            // console.log('PRODUCT TYPE CHILD');
+                            // console.log(productType);
+                            // console.log(taxPercentOfAccount.extreme_tax);
 
                             defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
                             defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
@@ -5187,46 +5329,50 @@ async function setClientApiContext(Xrm, formContext) {
 
                         if (priceListMargin !== null &&
                           supplierPricePerUnit !== null) {
-                          const supplierDiscount = 0;
-                          const discount = 0;
-                          quantity = 1;
-                          supplierBaseAmount = supplierPricePerUnit * 1;
-                          PPU = Math.ceil(priceListMargin * supplierPricePerUnit);
-                          const pricePerUnit = Math.ceil(priceListMargin * supplierPricePerUnit);
-                          baseAmount = Math.ceil(priceListMargin * supplierPricePerUnit) * 1;
-                          fullPriceWithDiscount = ((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1;
-                          discountAmount = (1 * (Math.ceil(priceListMargin * supplierPricePerUnit))) - (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
-                          taxAmount = ((((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
-                          extendedAmount = (((((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1) * (1 + defaultTax / 100)) - (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1)) + (((Math.ceil(priceListMargin * supplierPricePerUnit)) * (1 - discount / 100)) * 1);
-                          const supplierDiscountAmount = supplierPricePerUnit * (supplierDiscount / 100);
-                          const pricePerUnitWithSupplierDiscount = supplierPricePerUnit - supplierDiscountAmount;
-                          const customDiscountAmount = pricePerUnit * (discount / 100);
-                          const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-                          const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-                          pd = pdPerUnit;
-                          fullPD = pdPerUnit * 1;
+
+                          // TO DO: Odraditi recalc funkciju ovde umesto ovoga dole ispod
+
+                          const recalcResult = recalculateAmounts({
+                            quantity: 1,
+                            supplierPricePerUnit: supplierPricePerUnit,
+                            supplierDiscount: 0,
+                            margin: priceListMargin,
+                            discount: 0,
+                            TaxPercent: 0
+                          });
+
+                          quantity = recalcResult.quantity;
+                          supplierBaseAmount = recalcResult.supplierBaseAmount;
+                          PPU = recalcResult.pricePerUnit;
+                          baseAmount = recalcResult.baseAmount;
+                          fullPriceWithDiscount = recalcResult.fullPriceWithDiscount;
+                          discountAmount = recalcResult.customDiscountAmount;
+                          taxAmount = recalcResult.tax;
+                          extendedAmount = recalcResult.extendedAmount;
+                          pd = recalcResult.pdPerUnit;
+                          fullPD = recalcResult.fullPd;
                         }
 
-                        console.log(area,
-                          technology,
-                          vendorSupplier,
-                          vatGroup,
-                          defaultUomid,
-                          priceList,
-                          priceListPPU,
-                          priceListCurrecy,
-                          taxAmount,
-                          discountAmount,
-                          extendedAmount,
-                          pd,
-                          fullPD,
-                          PPU,
-                          baseAmount,
-                          supplierBaseAmount,
-                          quantity,
-                          fullPriceWithDiscount,
-                          vatSetting,
-                          description)
+                        // console.log(area,
+                        // technology,
+                        // vendorSupplier,
+                        // vatGroup,
+                        // defaultUomid,
+                        // priceList,
+                        // priceListPPU,
+                        // priceListCurrecy,
+                        // taxAmount,
+                        // discountAmount,
+                        // extendedAmount,
+                        // pd,
+                        // fullPD,
+                        // PPU,
+                        // baseAmount,
+                        // supplierBaseAmount,
+                        // quantity,
+                        // fullPriceWithDiscount,
+                        // vatSetting,
+                        // description)
 
 
                         var record = {};
@@ -5266,8 +5412,8 @@ async function setClientApiContext(Xrm, formContext) {
                         record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
                         record.extreme_isparentitem = false; // Boolean
 
-                        console.log("RECORD AFTER SETTING PROPERTIES");
-                        console.log(record);
+                        // console.log("RECORD AFTER SETTING PROPERTIES");
+                        // console.log(record);
 
                         let newIdChild = '';
                         await Xrm.WebApi.createRecord("quotedetail", record).then(
@@ -5282,17 +5428,25 @@ async function setClientApiContext(Xrm, formContext) {
                             await Xrm.WebApi.updateRecord("quotedetail", `${result.id}`, record).then(
                               function success(result) {
                                 var updatedId = result.id;
-                                console.log(updatedId);
+                                // console.log(updatedId);
                               },
                               function (error) {
-                                console.log(error.message);
+                                Xrm.Navigation.openErrorDialog({
+                                  details: error,
+                                  errorCode: 400,
+                                  message: error.message
+                                });
                               }
                             );
 
-                            console.log(newId);
+                            // console.log(newId);
                           },
                           function (error) {
-                            console.log(error.message);
+                            Xrm.Navigation.openErrorDialog({
+                              details: error,
+                              errorCode: 400,
+                              message: error.message
+                            });
                           }
                         );
 
@@ -5337,11 +5491,11 @@ async function setClientApiContext(Xrm, formContext) {
                         quoteLinesData.insert(recordForStore)
                           .done(function (dataObj, key) {
                             // Process the key and data object here
-                            console.log(key);
+                            // console.log(key);
                           })
                           .fail(function (error) {
                             // Handle the "error" here
-                            console.log(error);
+                            // console.log(error);
                           });
 
                         // recalculate parent item
@@ -5356,18 +5510,22 @@ async function setClientApiContext(Xrm, formContext) {
                       }
                     },
                     function (error) {
-                      console.log(error.message);
+                      Xrm.Navigation.openErrorDialog({
+                        details: error,
+                        errorCode: 400,
+                        message: error.message
+                      });
                     }
                   );
                 }
 
 
-                console.log('quoteLinesData after parent created');
-                console.log(quoteLinesData);
+                // console.log('quoteLinesData after parent created');
+                // console.log(quoteLinesData);
 
               }
               else {
-                console.log('quoteLinesData._array is empty');
+                // console.log('quoteLinesData._array is empty');
               }
 
               isAddingSet = null;
@@ -5395,12 +5553,16 @@ async function setClientApiContext(Xrm, formContext) {
 
             },
             function (error) {
-              console.log(error.message);
+              Xrm.Navigation.openErrorDialog({
+                details: error,
+                errorCode: 400,
+                message: error.message
+              });
             }
           );
 
           isAddingSet = null;
-          console.log("isAddingSet: ", isAddingSet);
+          // console.log("isAddingSet: ", isAddingSet);
           dataGrid.columnOption("productid", "lookup", {
             dataSource(options) {
 
@@ -5438,25 +5600,21 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.columnOption("extreme_vatsetting", "validationRules", null);
 
           await this.setClientApiContext(Xrm, formContext);
-          // await getQuoteProducts(quoteIdForm);
-          // await getPriceLists();
-          // dataGrid.refresh();
-
           formContext.data.refresh(true);
 
           Xrm.Utility.closeProgressIndicator();
 
         },
         onRowInserted: async (e) => {
-          console.log('RowInserted');
-          console.log(e);
+          // console.log('RowInserted');
+          // console.log(e);
 
           // await getQuoteProducts(quoteIdForm);
           // dataGrid.refresh();
         },
         onRowUpdating: async (e) => {
-          console.log('RowUpdating');
-          console.log(e);
+          // console.log('RowUpdating');
+          // console.log(e);
 
           var record = {};
           if (e.newData.productid) record["productid@odata.bind"] = `/products(${e.newData.productid})`; // Lookup
@@ -5510,12 +5668,12 @@ async function setClientApiContext(Xrm, formContext) {
           // Unified logic for updating parent item changes
           if ((e.newData.baseamount || e.newData.extreme_discount || e.newData.extreme_discount === 0) && e.oldData.extreme_isparentitem === true) {
             Xrm.Utility.showProgressIndicator("Recalculating... Please wait...");
-            console.log("ALL CHILD FOR UPDATE PROPORTION!");
-            console.log(
-              quoteLinesData._array.filter(
-                item => item.extreme_parentquoteline === e.oldData.quotedetailid
-              )
-            );
+            // console.log("ALL CHILD FOR UPDATE PROPORTION!");
+            // console.log(
+            //   quoteLinesData._array.filter(
+            //     item => item.extreme_parentquoteline === e.oldData.quotedetailid
+            //   )
+            // );
 
             // Function to adjust amounts proportionally and ensure the total matches
             function adjustProportionalAmounts(newTotal, amounts) {
@@ -5649,18 +5807,18 @@ async function setClientApiContext(Xrm, formContext) {
 
 
           else {
-            console.log("ONLY ONE FOR UPDATE DISCOUNT!");
+            // console.log("ONLY ONE FOR UPDATE DISCOUNT!");
             if (e.newData.extreme_discount || e.newData.extreme_discount === 0) record.extreme_discount = e.newData.extreme_discount; // Decimal
           }
 
-          console.log('RECORD AFTER UPDATING RECORD IS CREATED');
-          console.log(record);
+          // console.log('RECORD AFTER UPDATING RECORD IS CREATED');
+          // console.log(record);
 
           promises.push(Xrm.WebApi.updateRecord("quotedetail", `${e.key}`, record));
 
           try {
             await Promise.all(promises);
-            console.log('All updates completed successfully.');
+            // console.log('All updates completed successfully.');
 
             if (e.oldData.extreme_isparentitem === true) {
               const parentQuoteLineGUID = e.key;
@@ -5710,17 +5868,17 @@ async function setClientApiContext(Xrm, formContext) {
 
             formContext.data.refresh(true);
           } catch (error) {
-            console.log('Error during updates:', error.message);
+            // console.log('Error during updates:', error.message);
           }
 
         },
         onRowUpdated(e) {
-          console.log('RowUpdated');
-          console.log(e);
+          // console.log('RowUpdated');
+          // console.log(e);
         },
         onRowRemoving: async (e) => {
-          console.log('RowRemoving');
-          console.log(e);
+          // console.log('RowRemoving');
+          // console.log(e);
 
           Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
 
@@ -5728,18 +5886,18 @@ async function setClientApiContext(Xrm, formContext) {
             // Delete the main quotedetail record
             quoteLinesData.remove(e.key);
             await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`);
-            console.log('Main record deleted');
+            // console.log('Main record deleted');
 
             // Check if the item is a parent item
             if (e.data.extreme_isparentitem === true) {
-              console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
+              // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
 
               // Filter and delete child items
               const childItems = quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.key);
               for (const childItem of childItems) {
                 quoteLinesData.remove(childItem.quotedetailid);
                 await Xrm.WebApi.deleteRecord("quotedetail", `${childItem.quotedetailid}`);
-                console.log(`Child record ${childItem.quotedetailid} deleted`);
+                // console.log(`Child record ${childItem.quotedetailid} deleted`);
               }
             }
 
@@ -5761,22 +5919,26 @@ async function setClientApiContext(Xrm, formContext) {
 
             Xrm.Utility.closeProgressIndicator();
           } catch (error) {
-            console.log(error.message);
+            Xrm.Navigation.openErrorDialog({
+              details: error,
+              errorCode: 400,
+              message: error.message
+            });
           }
         },
         onRowRemoved: (e) => {
-          console.log('RowRemoved');
+          // console.log('RowRemoved');
         },
         onSaving() {
-          console.log('Saving');
+          // console.log('Saving');
         },
         onSaved(e) {
-          console.log('Saved');
-          console.log(e);
+          // console.log('Saved');
+          // console.log(e);
 
           if (e.changes.length == 0) {
             isAddingSet = null;
-            console.log("isAddingSet: ", isAddingSet);
+            // console.log("isAddingSet: ", isAddingSet);
             dataGrid.columnOption("productid", "lookup", {
               dataSource(options) {
 
@@ -5815,16 +5977,16 @@ async function setClientApiContext(Xrm, formContext) {
           }
         },
         onCellDblClick(e) {
-          console.log('CELL DOUBLE CLICK');
-          console.log(e);
+          // console.log('CELL DOUBLE CLICK');
+          // console.log(e);
 
           if (e.column.dataField === "productid" && isGuid(e.data.productid) && e.data.productid) {
             // Create an anchor element
             const globalContext = Xrm.Utility.getGlobalContext();
             globalContext.getCurrentAppUrl();
 
-            console.log('CLIENT URL');
-            console.log(globalContext.getCurrentAppUrl());
+            // console.log('CLIENT URL');
+            // console.log(globalContext.getCurrentAppUrl());
 
             const link = document.createElement('a');
             link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=product&id=${e.data.productid}`;
@@ -5841,17 +6003,21 @@ async function setClientApiContext(Xrm, formContext) {
           }
 
           if (e.column.dataField === "extreme_customproductname" && isGuid(e.data.productid)) {
-
-            inventoryInfo(e.data.productid);
-
+            inventoryInfo(e.data.productid, e.data.quotedetailid);
+          }
+          else if (e.column.dataField === "extreme_customproductname" && !isGuid(e.data.productid)) {
+            Xrm.Navigation.openAlertDialog({
+              title: "Warning",
+              text: "You cannot call the inventory information for a custom product."
+            });
           }
 
         },
         onEditCanceling() {
-          console.log('EditCanceling');
+          // console.log('EditCanceling');
         },
         onEditCanceled() {
-          console.log('EditCanceled');
+          // console.log('EditCanceled');
         },
         onContentReady(e) {
           e.component.columnOption("command:select", "visibleIndex", 999);
@@ -5865,14 +6031,14 @@ async function setClientApiContext(Xrm, formContext) {
       // resize child columns
       function masterGridColumnResized() {
         var detailContainers = dataGrid.element().find('.internal-grid');
-        console.log(detailContainers);
+        // console.log(detailContainers);
         if (detailContainers.length) {
           for (var j = 0; j < detailContainers.length; j++) {
             var detailGridInstance = $(detailContainers.get(j)).dxDataGrid('instance');
             detailGridInstance.beginUpdate();
             for (var i = 0; i < dataGrid.columnCount(); i++) {
-              console.log("columnOption dataField");
-              console.log(dataGrid.columnOption(i, "dataField"));
+              // console.log("columnOption dataField");
+              // console.log(dataGrid.columnOption(i, "dataField"));
               if (detailGridInstance.columnOption(i, "dataField") === "productid") {
                 detailGridInstance.columnOption(i, 'width', dataGrid.columnOption(i, 'width') + 30);
                 detailGridInstance.columnOption(i, 'visibleWidth', dataGrid.columnOption(i, 'visibleWidth') + 30);
@@ -5904,7 +6070,12 @@ async function setClientApiContext(Xrm, formContext) {
 
         // Calculate pricePerUnit if not provided
         if (pricePerUnit === null) {
-          pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
+          if (ROUNDING_PRICE_PER_UNIT_CONFIG === "true") {
+            pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
+          }
+          else {
+            pricePerUnit = parseFloat((margin * supplierPricePerUnit).toFixed(4));
+          }
         } else {
           // Calculate new margin based on supplierBaseAmount
           margin = pricePerUnit / supplierPricePerUnit;
@@ -5957,7 +6128,7 @@ async function setClientApiContext(Xrm, formContext) {
       const exchangeRateChange = async (currency, newValue) => {
         await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
           async function success(results) {
-            console.log(results);
+            // console.log(results);
             for (var i = 0; i < results.entities.length; i++) {
               var result = results.entities[i];
               // Columns
@@ -6011,7 +6182,7 @@ async function setClientApiContext(Xrm, formContext) {
               });
 
               if (quoteLinesData._array.find((item) => item.quotedetailid === quotedetailid).extreme_parentquoteline) {
-                console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
+                // // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
                 const parentQuoteLineGUID = quoteLinesData._array.find((item) => item.quotedetailid === quotedetailid).extreme_parentquoteline;
 
                 let baseamount_sum = 0;
@@ -6064,7 +6235,11 @@ async function setClientApiContext(Xrm, formContext) {
 
           },
           function (error) {
-            console.log(error.message);
+            Xrm.Navigation.openErrorDialog({
+              details: error,
+              errorCode: 400,
+              message: error.message
+            });
           }
         );
 
@@ -6102,14 +6277,14 @@ async function setClientApiContext(Xrm, formContext) {
 
         Xrm.Utility.showProgressIndicator('');
 
-        console.log('onAdd TRIGGERED!');
-        console.log(e);
+        // // console.log('onAdd TRIGGERED!');
+        // // console.log(e);
 
         let key = '';
         let values = {};
 
         if (e.fromData === 'root' && e.itemData.extreme_isparentitem === false) {
-          console.log('from root to child, no parent item');
+          // // console.log('from root to child, no parent item');
 
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).baseamount) + e.itemData.baseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.toData).extendedamount) + e.itemData.extendedamount;
@@ -6135,7 +6310,7 @@ async function setClientApiContext(Xrm, formContext) {
 
         }
         else if (e.fromData !== 'root' && e.toData === 'root') {
-          console.log('from child to parent');
+          // // console.log('from child to parent');
 
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount) - e.itemData.baseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount) - e.itemData.extendedamount;
@@ -6161,7 +6336,7 @@ async function setClientApiContext(Xrm, formContext) {
 
         }
         else if (e.fromData !== 'root' && e.toData !== 'root' && e.fromData !== e.toData) {
-          console.log('from child to another child');
+          // // console.log('from child to another child');
 
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).baseamount) - e.itemData.baseamount;
           quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount = parseFloat(quoteLinesData._array.find((item) => item.quotedetailid === e.fromData).extendedamount) - e.itemData.extendedamount;
@@ -6198,8 +6373,8 @@ async function setClientApiContext(Xrm, formContext) {
 
         }
 
-        console.log(key);
-        console.log(values);
+        // // console.log(key);
+        // // console.log(values);
 
         for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
           Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
@@ -6247,8 +6422,8 @@ async function setClientApiContext(Xrm, formContext) {
           $('#classifyBtn')[0].style.display = 'none';
         }
 
-        console.log('CLASSIFY NEEDED ROWS');
-        console.log(classifyNeededRows);
+        // // console.log('CLASSIFY NEEDED ROWS');
+        // // console.log(classifyNeededRows);
 
       }
 
@@ -6283,9 +6458,9 @@ async function setClientApiContext(Xrm, formContext) {
       }
 
       // Function to get Inventory Info and display it as pop-up dialog
-      async function inventoryInfo(productGuid) {
+      async function inventoryInfo(productGuid, quoteDetailGuid) {
         const globalContext = Xrm.Utility.getGlobalContext();
-        const productName = await Xrm.WebApi.retrieveRecord("product", productGuid, "?$select=name");
+        const productName = await Xrm.WebApi.retrieveRecord("product", productGuid, "?$select=name,productnumber");
 
 
         const pageInput = {
@@ -6295,6 +6470,7 @@ async function setClientApiContext(Xrm, formContext) {
             baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
             baseUrlWithApp: globalContext.getCurrentAppUrl(),
             entityId: formContext.data.entity.getId().slice(1, -1),
+            quoteDetailGuid: quoteDetailGuid,
             productGuid: productGuid,
             productName: productName.name,
           }),
@@ -6305,17 +6481,21 @@ async function setClientApiContext(Xrm, formContext) {
           height: { value: 500, unit: "px" },
           width: { value: 800, unit: "px" },
           position: 1,
-          title: "Inventory Info for " + productName.name,
+          title: productName.productnumber + " | " + productName.name,
         };
 
         Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
           function success() {
             // Run code on success
-            console.log("Success");
+            // // console.log("Success");
           },
-          function error() {
+          function error(error) {
             // Handle errors
-            console.log("Error");
+            Xrm.Navigation.openErrorDialog({
+              details: error,
+              errorCode: 400,
+              message: error.message
+            });
           }
         );
       }
@@ -6329,10 +6509,10 @@ async function setClientApiContext(Xrm, formContext) {
 
   const wrControl = formContext.getControl('WebResource_quoteLines');
   wrControl.getContentWindow().then(function (contentWindow) {
-    console.log('HEIGHT MAIN CONTAINER:');
-    console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
+    // // console.log('HEIGHT MAIN CONTAINER:');
+    // // console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
     gridContainer = contentWindow.document.getElementById('gridContainer');
-    console.log(gridContainer);
+    // // console.log(gridContainer);
 
     // Create a MutationObserver instance
     const observer = new MutationObserver((mutations) => {
@@ -6374,10 +6554,14 @@ function replaceCurlyBrackets(inputString, replacement) {
 async function deleteCaseLine(caseLineId) {
   await Xrm.WebApi.deleteRecord("extreme_caseline", `${caseLineId}`).then(
     function success(result) {
-      console.log(result);
+      // // console.log(result);
     },
     function (error) {
-      console.log(error.message);
+      Xrm.Navigation.openErrorDialog({
+        details: error,
+        errorCode: 400,
+        message: error.message
+      });
     }
   );
 }

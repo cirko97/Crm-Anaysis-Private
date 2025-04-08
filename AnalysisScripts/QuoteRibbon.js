@@ -98,24 +98,24 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		//isAccountSynced
 		var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
 		
-		if (await isAccountValidForSync(accountId) == false){
-			var alertStrings = { confirmButtonLabel: "OK", text: "Please make sure that you have entered a valid VAT No. and Tax % for this customer and try again!", title: "Synchronization Validation" };
-			var alertOptions = { height: 240, width: 260 };
-			await Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
-				function (success) {
-					console.log("Alert dialog closed");
-					stop = true;
-				},
-				function (error) {
-					console.log(error.message);
-					stop = true;
-				}
-			);
-		}
-		if (stop)
-			Xrm.Utility.closeProgressIndicator();
-		if (stop)
-			return;
+		// if (await isAccountValidForSync(accountId) == false){
+		// 	var alertStrings = { confirmButtonLabel: "OK", text: "Please make sure that you have entered a valid VAT No. and Tax % for this customer and try again!", title: "Synchronization Validation" };
+		// 	var alertOptions = { height: 240, width: 260 };
+		// 	await Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+		// 		function (success) {
+		// 			console.log("Alert dialog closed");
+		// 			stop = true;
+		// 		},
+		// 		function (error) {
+		// 			console.log(error.message);
+		// 			stop = true;
+		// 		}
+		// 	);
+		// }
+		// if (stop)
+		// 	Xrm.Utility.closeProgressIndicator();
+		// if (stop)
+		// 	return;
 
 		if (await isAccountSynced(accountId) == false && await isAccountValidForSync(accountId) == true) {
 			Xrm.Utility.showProgressIndicator(

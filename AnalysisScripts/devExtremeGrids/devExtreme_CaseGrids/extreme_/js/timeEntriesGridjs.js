@@ -5,6 +5,8 @@ let timeEntryTypesArray = [];
 let newCreateId;
 let isEditable = true;
 let heightAuto = true;
+let isImportingFromQuote = false;
+let caseImportInfo = null;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -40,6 +42,9 @@ async function setClientApiContext(Xrm, formContext) {
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
 
+  caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+  isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+
   const timeEntryTypes = await Xrm.Utility.getEntityMetadata('extreme_timeentry', ['extreme_type']).then(
     result => result.Attributes._collection.extreme_type.OptionSet,
     error => console.log(error)
@@ -48,11 +53,11 @@ async function setClientApiContext(Xrm, formContext) {
     return timeEntryTypes[key];
   });
 
-  console.log("TYPES: ", timeEntryTypes);
-  console.log("TYPES ARR: ", timeEntryTypesArray);
+  // console.log("TYPES: ", timeEntryTypes);
+  // console.log("TYPES ARR: ", timeEntryTypesArray);
 
-  console.log('User id: ' + userId);
-  console.log('GUID: ' + caseIdForm);
+  // console.log('User id: ' + userId);
+  // console.log('GUID: ' + caseIdForm);
   await getTimeEntries(caseIdForm);
   await getAssetsLookUp(accountIdForm);
   await getUsers();
@@ -66,12 +71,12 @@ async function setClientApiContext(Xrm, formContext) {
     result => result._displayName,
     error => console.log(error)
   );
-  console.log('TimeEntriesName: ', timeEntriesDisplayName);
+  // console.log('TimeEntriesName: ', timeEntriesDisplayName);
   // setTimeout(() => {
   //   const toolbarBefore = formContext.getControl("WebResource_timeEntries").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
-  //   console.log('dx toolbar before: ', toolbarBefore);
+  //   // console.log('dx toolbar before: ', toolbarBefore);
   //   toolbarBefore.innerHTML = `<span style='font-weight: 500; position: absolute; width: 100px; bottom: 30%; left: 0;'>${timeEntriesDisplayName}</span>`;
-  //   console.log(formContext.data.entity);
+  //   // console.log(formContext.data.entity);
   // }, 1000); // Adjust the timeout as needed
 
 
@@ -89,8 +94,8 @@ async function setClientApiContext(Xrm, formContext) {
     await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid,_extreme_caseline_value,extreme_comuteinkm,createdon,_ownerid_value,
       extreme_expences,scheduledstart,scheduleddurationminutes,scheduledend,extreme_type,description,_extreme_asset_value
       &$filter=_regardingobjectid_value eq ${caseId}`).then(
-      function success(results) {
-        console.log(results);
+      async function success(results) {
+        // console.log(results);
         timeEntriesArray = [];
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
@@ -121,6 +126,13 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_asset_formatted = result["_extreme_asset_value@OData.Community.Display.V1.FormattedValue"];
           var extreme_asset_lookuplogicalname = result["_extreme_asset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
+          let isEditableFromCaseLine = null;
+          if (extreme_caseline !== null) {
+            const caseLineInfo = await Xrm.WebApi.retrieveRecord("extreme_caseline", `${extreme_caseline}`, "?$select=_extreme_unit_value");
+            const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"] === "PAK" ? true : false;
+            isEditableFromCaseLine = isPAK
+          }
+
           timeEntriesArray.push({
             "activityid": activityid,
             "extreme_caseline": extreme_caseline,
@@ -132,7 +144,8 @@ async function setClientApiContext(Xrm, formContext) {
             "scheduleddurationminutes": parseFloat((scheduleddurationminutes / 60).toFixed(2)),
             "extreme_comuteinkm": extreme_comuteinkm,
             "extreme_expences": extreme_expences,
-            "description": description
+            "description": description,
+            "isEditableFromCaseLine": isEditableFromCaseLine
           });
 
         }
@@ -150,7 +163,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("systemuser", "?$select=systemuserid,fullname&$filter=(not contains(fullname,'%23') and isdisabled eq false)").then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -176,7 +189,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_asset", `?$select=extreme_isparent,_extreme_parentasset_value,extreme_assetid,extreme_name,extreme_serialnumber&$filter=_extreme_account_value eq ${accountId}`).then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -274,10 +287,19 @@ async function setClientApiContext(Xrm, formContext) {
             validationRules: [{
               type: 'custom',
               message: 'Asset is required',
-              validationCallback(params) {
+              async validationCallback(params) {
                 // console.log("VALLIDAATION");
                 // console.log(params);
-                return !params.value || params.value == null || params.data.extreme_type !== 424000002 ? false : true;
+                if (params.data.extreme_caseline) {
+                  const caseLineInfo = await Xrm.WebApi.retrieveRecord("extreme_caseline", `${params.data.extreme_caseline}`, "?$select=_extreme_unit_value");
+                  const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"] === "PAK" ? true : false;
+
+                  if (isPAK) {
+                    return false;
+                  }
+                }
+
+                return !params.value || params.value == null || (params.data.extreme_type !== 424000002 && params.data.extreme_type !== 424000003) ? false : true;
               }
             }]
           },
@@ -290,12 +312,12 @@ async function setClientApiContext(Xrm, formContext) {
             inputAttr: { 'aria-label': 'Date and time picker' },
             format: "dd.MM.yyyy HH:mm",
             setCellValue: async function (newData, value, currentRowData) {
-              console.log('newData: ');
-              console.log(newData);
-              console.log('value: ');
-              console.log(value);
-              console.log('currentRowData: ');
-              console.log(currentRowData);
+              // console.log('newData: ');
+              // console.log(newData);
+              // console.log('value: ');
+              // console.log(value);
+              // console.log('currentRowData: ');
+              // console.log(currentRowData);
               const dateFrom = new Date(value);
               const currentTime = currentRowData.scheduleddurationminutes;
               newData.scheduledend = new Date(dateFrom.addHours(currentTime));
@@ -343,7 +365,7 @@ async function setClientApiContext(Xrm, formContext) {
                 postProcess: function (data) {
                   // modify items. Here, all IDs divisible by 2 are disabled
                   let newData = data.map((x) => {
-                    if (x.value === 424000000) {
+                    if (x.value === 424000000 || x.value === 424000003) {
                       x.disabled = true;
                     }
 
@@ -388,12 +410,12 @@ async function setClientApiContext(Xrm, formContext) {
             width: 90,
             dataType: 'number',
             setCellValue: async function (newData, value, currentRowData) {
-              console.log('newData: ');
-              console.log(newData);
-              console.log('value: ');
-              console.log(value);
-              console.log('currentRowData: ');
-              console.log(currentRowData);
+              // console.log('newData: ');
+              // console.log(newData);
+              // console.log('value: ');
+              // console.log(value);
+              // console.log('currentRowData: ');
+              // console.log(currentRowData);
               const dateFrom = new Date(currentRowData.scheduledstart);
               const currentTime = value;
               newData.scheduledend = new Date(dateFrom.addHours(currentTime));
@@ -444,6 +466,13 @@ async function setClientApiContext(Xrm, formContext) {
             validationRules: [{ type: 'required' }]
           },
           {
+            dataField: 'isEditableFromCaseLine',
+            caption: 'Editable?',
+            width: 50,
+            dataType: 'boolean',
+            visible: false
+          },
+          {
             type: 'buttons',
             width: 110,
             buttons: ['delete', {
@@ -482,7 +511,7 @@ async function setClientApiContext(Xrm, formContext) {
                   function success(result) {
                     var newId = result.id;
                     newCloneId = result.id;
-                    console.log(newId);
+                    // console.log(newId);
 
                   },
                   function (error) {
@@ -490,21 +519,23 @@ async function setClientApiContext(Xrm, formContext) {
                   }
                 );
 
-                console.log(clonedItem);
+                // console.log(clonedItem);
 
                 timeEntriesData._array.splice(e.row.rowIndex, 0, clonedItem);
-                console.log(timeEntriesData._array[e.row.rowIndex]);
-                console.log(timeEntriesData._array[e.row.rowIndex + 1]);
+                // console.log(timeEntriesData._array[e.row.rowIndex]);
+                // console.log(timeEntriesData._array[e.row.rowIndex + 1]);
                 timeEntriesData._array[e.row.rowIndex + 1].activityid = newCloneId;
                 timeEntriesData._array[e.row.rowIndex + 1].extreme_caseline = null;
                 timeEntriesData._array[e.row.rowIndex + 1].extreme_type = record.extreme_type;
                 timeEntriesData._array[e.row.rowIndex + 1].owner = null;
-                console.log(timeEntriesData._array[e.row.rowIndex + 1]);
+                // console.log(timeEntriesData._array[e.row.rowIndex + 1]);
 
                 e.component.refresh(true);
                 e.event.preventDefault();
 
-                Xrm.Utility.closeProgressIndicator();
+                caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+                isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+                if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
               },
             }],
@@ -555,16 +586,16 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
         },
         onEditorPreparing: async (e) => {
-          console.log('Editor Preparing');
-          console.log(e);
+          // console.log('Editor Preparing');
+          // console.log(e);
           // if (e.dataField == "createdon") e.editorOptions.disabled = true;
           if (e.dataField == "extreme_asset") e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 400); };
           if (e.dataField == "scheduledend") e.editorOptions.disabled = true;
           if (e.dataField == "extreme_type") {
-            if (e.row.data.extreme_type === 424000000) e.editorOptions.disabled = true;
+            if (e.row.data.extreme_type === 424000000 || e.row.data.extreme_type === 424000003) e.editorOptions.disabled = true;
             e.editorOptions.onOpened = function (e) { e.component._popup.option('width', 200); }
           }
-          if (e.dataField == 'extreme_comuteinkm' && e.row.data.extreme_type !== 424000002) {
+          if (e.dataField == 'extreme_comuteinkm' && e.row.data.extreme_type !== 424000002 && e.row.data.extreme_type !== 424000003) {
             e.editorOptions.disabled = true;
           }
           // else {
@@ -584,7 +615,7 @@ async function setClientApiContext(Xrm, formContext) {
           // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
           if (e.row.data.extreme_caseline) {
             if (e.dataField == "owner") e.editorOptions.disabled = true;
-            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = true;
+            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = e.row.data.extreme_type === 424000003 || e.row.data.isEditableFromCaseLine === true ? false : true;
             if (e.dataField == "extreme_asset") e.editorOptions.disabled = true;
           }
 
@@ -595,13 +626,13 @@ async function setClientApiContext(Xrm, formContext) {
 
         },
         onEditingStart: (e) => {
-          console.log('EditingStart');
-          console.log(e);
+          // console.log('EditingStart');
+          // console.log(e);
         },
         onInitNewRow: async (e) => {
-          console.log('InitNewRow');
-          console.log(e);
-          console.log(timeEntriesData._array);
+          // console.log('InitNewRow');
+          // console.log(e);
+          // console.log(timeEntriesData._array);
 
           let maxDate = null;
           let dateToFromMax = null;
@@ -632,8 +663,8 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onRowInserting: async (e) => {
 
-          console.log('RowInserting');
-          console.log(e);
+          // console.log('RowInserting');
+          // console.log(e);
 
           Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
@@ -655,15 +686,15 @@ async function setClientApiContext(Xrm, formContext) {
               var newId = result.id;
               newCreateId = newId;
               if (timeEntriesData._array.length > 0) {
-                console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+                // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
                 timeEntriesData._array[timeEntriesData._array.length - 1].activityid = newId;
-                console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+                // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
                 await getTimeEntries(caseIdForm);
                 dataGrid.refresh();
               } else {
-                console.log('timeEntriesData._array is empty');
+                // console.log('timeEntriesData._array is empty');
               }
-              console.log('NEW CREATED ID: ' + newCreateId);
+              // console.log('NEW CREATED ID: ' + newCreateId);
             },
             function (error) {
               console.log(error.message);
@@ -674,15 +705,15 @@ async function setClientApiContext(Xrm, formContext) {
 
           // setTimeout(async () => {
 
-          console.log('RowInserted');
-          console.log(e);
+          // console.log('RowInserted');
+          // console.log(e);
 
           let newAssetCreated = false;
 
           if (e.data.extreme_asset) {
             await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseIdForm} and _extreme_asset_value eq ${e.data.extreme_asset})`).then(
               async function success(results) {
-                console.log(results);
+                // console.log(results);
                 if (results.entities.length === 0) newAssetCreated = true;
               },
               function (error) {
@@ -712,7 +743,7 @@ async function setClientApiContext(Xrm, formContext) {
               await Xrm.WebApi.createRecord("extreme_caseasset", record).then(
                 function success(result) {
                   var newId = result.id;
-                  console.log(newId);
+                  // console.log(newId);
                 },
                 function (error) {
                   console.log(error.message);
@@ -721,26 +752,28 @@ async function setClientApiContext(Xrm, formContext) {
             }
           }
           // if (timeEntriesData._array.length > 0) {
-          //   console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+          //   // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
           //   timeEntriesData._array[timeEntriesData._array.length - 1].activityid = newCreateId;
-          //   console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+          //   // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
           //   await getTimeEntries(caseIdForm);
           //   dataGrid.refresh();
           // } else {
-          //   console.log('timeEntriesData._array is empty');
+          //   // console.log('timeEntriesData._array is empty');
           // }
 
           if (newAssetCreated === true) await formContext.getControl('WebResource_caseAssets').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
 
-          Xrm.Utility.closeProgressIndicator();
+          caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+          isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+          if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
           // }, 1000);
 
 
         },
         onRowUpdating: async (e) => {
-          console.log('RowUpdating');
-          console.log(e);
+          // console.log('RowUpdating');
+          // console.log(e);
 
           const oldDataAssetId = e.newData.extreme_asset;
 
@@ -758,7 +791,7 @@ async function setClientApiContext(Xrm, formContext) {
           await Xrm.WebApi.updateRecord("extreme_timeentry", `${e.key}`, record).then(
             async function success(result) {
               var updatedId = result.id;
-              console.log(record);
+              // console.log(record);
               await getTimeEntries(caseIdForm);
               dataGrid.refresh();
             },
@@ -775,12 +808,12 @@ async function setClientApiContext(Xrm, formContext) {
           }
         },
         onRowUpdated() {
-          console.log('RowUpdated');
+          // console.log('RowUpdated');
         },
         onRowRemoving: async (e) => {
           Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
-          console.log('RowRemoving');
-          console.log(e);
+          // console.log('RowRemoving');
+          // console.log(e);
           if (e.data.extreme_caseline) {
             // Delete case line on another web resource
             await formContext.getControl('WebResource_caseLines').getObject().contentWindow.window.deleteCaseLine(e.data.extreme_caseline);
@@ -789,12 +822,12 @@ async function setClientApiContext(Xrm, formContext) {
           }
           await Xrm.WebApi.deleteRecord("extreme_timeentry", `${e.key}`).then(
             async function success(result) {
-              console.log('DELETED SUCCESS: ' + result);
+              // console.log('DELETED SUCCESS: ' + result);
               await getTimeEntries(caseIdForm);
               dataGrid.refresh();
             },
             function (error) {
-              console.log("Error: ", error.message);
+              // console.log("Error: ", error.message);
             }
           );
           await checkAssetsAfterDelete(e.data.extreme_asset, caseIdForm);
@@ -805,24 +838,27 @@ async function setClientApiContext(Xrm, formContext) {
 
           await getTimeEntries(caseIdForm);
           dataGrid.refresh();
-          Xrm.Utility.closeProgressIndicator();
+
+          caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+          isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+          if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
 
         },
         onRowRemoved: (e) => {
-          console.log('RowRemoved');
-          console.log(e);
+          // console.log('RowRemoved');
+          // console.log(e);
         },
         onSaving() {
-          console.log('Saving');
+          // console.log('Saving');
         },
         onSaved() {
-          console.log('Saved');
+          // console.log('Saved');
         },
         onEditCanceling() {
-          console.log('EditCanceling');
+          // console.log('EditCanceling');
         },
         onEditCanceled() {
-          console.log('EditCanceled');
+          // console.log('EditCanceled');
         }
       }).dxDataGrid('instance');
     });
@@ -836,10 +872,10 @@ async function setClientApiContext(Xrm, formContext) {
 
   const wrControl = formContext.getControl('WebResource_timeEntries');
   wrControl.getContentWindow().then(function (contentWindow) {
-    console.log('HEIGHT MAIN CONTAINER:');
-    console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
+    // console.log('HEIGHT MAIN CONTAINER:');
+    // console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
     gridContainer = contentWindow.document.getElementById('gridContainer');
-    console.log(gridContainer);
+    // console.log(gridContainer);
 
     // Create a MutationObserver instance
     const observer = new MutationObserver((mutations) => {
@@ -870,14 +906,14 @@ async function setClientApiContext(Xrm, formContext) {
 
   // const wrControl = formContext.getControl('WebResource_timeEntries');
   // wrControl.getContentWindow().then(function (contentWindow) {
-  //   console.log('HEIGHT MAIN CONTAINER:');
-  //   console.log(contentWindow.document.getElementById('timeEntriesMainContainer').offsetHeight);
+  //   // console.log('HEIGHT MAIN CONTAINER:');
+  //   // console.log(contentWindow.document.getElementById('timeEntriesMainContainer').offsetHeight);
   //   wrControl.getObject().style.minHeight = `${contentWindow.document.getElementById('timeEntriesMainContainer').offsetHeight}px`;
   // });
 
   // Xrm.Utility.closeProgressIndicator();
 
-  setWebResourceLoaded('WebResource_timeEntries');
+  setWebResourceLoaded('WebResource_timeEntries', caseIdForm);
 
 }
 
@@ -907,7 +943,7 @@ async function createTimeEntry(assetId, caseId, caseLineId, ownerId, ownerName, 
   await Xrm.WebApi.createRecord("extreme_timeentry", record).then(
     function success(result) {
       var newId = result.id;
-      console.log(newId);
+      // console.log(newId);
       return newId;
     },
     function (error) {
@@ -921,7 +957,7 @@ async function updateTimeEntry(caseLineId, assetId, ownerId, timeSpent) {
 
   await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid,scheduledstart&$filter=_extreme_caseline_value eq ${caseLineId}`).then(
     async function success(results) {
-      console.log(results);
+      // console.log(results);
       for (var i = 0; i < results.entities.length; i++) {
         var result = results.entities[i];
         // Columns
@@ -939,7 +975,7 @@ async function updateTimeEntry(caseLineId, assetId, ownerId, timeSpent) {
         await Xrm.WebApi.updateRecord("extreme_timeentry", `${activityid}`, record).then(
           function success(result) {
             var updatedId = result.id;
-            console.log(updatedId);
+            // console.log(updatedId);
           },
           function (error) {
             console.log(error.message);
@@ -957,7 +993,7 @@ async function updateTimeEntry(caseLineId, assetId, ownerId, timeSpent) {
 async function deleteTimeEntry(caseLineId) {
   await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid&$filter=_extreme_caseline_value eq ${caseLineId}`).then(
     async function success(results) {
-      // console.log(results);
+      // // console.log(results);
       for (var i = 0; i < results.entities.length; i++) {
         var result = results.entities[i];
         // Columns
@@ -965,7 +1001,7 @@ async function deleteTimeEntry(caseLineId) {
 
         await Xrm.WebApi.deleteRecord("extreme_timeentry", `${activityid}`).then(
           function success(result) {
-            // console.log(result);
+            // // console.log(result);
           },
           function (error) {
             console.log(error.message);
@@ -985,7 +1021,7 @@ let timeEntriesLoaded = false;
 let caseLinesLoaded = false;
 let caseAssetsLoaded = false;
 
-function setWebResourceLoaded(resourceName) {
+function setWebResourceLoaded(resourceName, caseId) {
   if (resourceName === 'WebResource_timeEntries') {
     timeEntriesLoaded = true;
   } else if (resourceName === 'WebResource_caseLines') {
@@ -993,12 +1029,15 @@ function setWebResourceLoaded(resourceName) {
   } else if (resourceName === 'WebResource_caseAssets') {
     caseAssetsLoaded = true;
   }
-  checkIfAllWebResourcesLoaded();
+  checkIfAllWebResourcesLoaded(caseId);
 }
 
-function checkIfAllWebResourcesLoaded() {
+async function checkIfAllWebResourcesLoaded(caseId) {
   if (timeEntriesLoaded && caseLinesLoaded && caseAssetsLoaded) {
-    Xrm.Utility.closeProgressIndicator();
+    const caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseId}`, "?$select=extreme_importingfromquote");
+    const isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+
+    if (isImportingFromQuote == false || !isImportingFromQuote) Xrm.Utility.closeProgressIndicator();
   }
 }
 
@@ -1014,7 +1053,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid,_extreme_asset_value,extreme_isparent,_extreme_parentcaseasset_value&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
       async function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -1039,7 +1078,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
               Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=_extreme_asset_value,extreme_caseassetid&$filter=_extreme_parentcaseasset_value eq ${extreme_caseassetid}`).then(
                 function success(results) {
-                  console.log(results);
+                  // console.log(results);
                   for (var i = 0; i < results.entities.length; i++) {
                     var result = results.entities[i];
                     // Columns
@@ -1058,8 +1097,8 @@ async function checkAssetsAfterDelete(assetId, caseId) {
                 }
               );
 
-              console.log('parentChildItems');
-              console.log(parentChildItems);
+              // console.log('parentChildItems');
+              // console.log(parentChildItems);
 
             }
 
@@ -1074,7 +1113,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
               Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=_extreme_asset_value,extreme_caseassetid&$filter=_extreme_parentcaseasset_value eq ${parentInfo.extreme_caseassetid}`).then(
                 function success(results) {
-                  console.log(results);
+                  // console.log(results);
                   for (var i = 0; i < results.entities.length; i++) {
                     var result = results.entities[i];
                     // Columns
@@ -1093,8 +1132,8 @@ async function checkAssetsAfterDelete(assetId, caseId) {
                 }
               );
 
-              console.log('parentChildItems');
-              console.log(parentChildItems);
+              // console.log('parentChildItems');
+              // console.log(parentChildItems);
 
             }
 
@@ -1117,7 +1156,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
         await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${parentChildItems[i].assetId})`).then(
           function success(results) {
-            console.log(results);
+            // console.log(results);
             if (results.entities.length === 0) {
               assetExistsInCaseLines = false
             }
@@ -1140,7 +1179,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
         await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=_extreme_asset_value&$filter=(_extreme_asset_value eq ${parentChildItems[i].assetId} and _regardingobjectid_value eq ${caseId})`).then(
           async function success(results) {
-            console.log(results);
+            // console.log(results);
             if (results.entities.length === 0) {
               assetExistsInTimeEntries = false
             }
@@ -1155,20 +1194,20 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
       };
 
-      console.log('parentChildItems');
-      console.log(parentChildItems);
+      // console.log('parentChildItems');
+      // console.log(parentChildItems);
 
-      console.log('assetExistsInCaseLines');
-      console.log(assetExistsInCaseLines);
+      // console.log('assetExistsInCaseLines');
+      // console.log(assetExistsInCaseLines);
 
-      console.log('assetExistsInTimeEntries');
-      console.log(assetExistsInTimeEntries);
+      // console.log('assetExistsInTimeEntries');
+      // console.log(assetExistsInTimeEntries);
 
       if (sumOfItems === 0) {
         for (let i = 0; i < parentChildItems.length; i++) {
           await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${parentChildItems[i].assetId})`).then(
             async function success(results) {
-              console.log(results);
+              // console.log(results);
               for (var i = 0; i < results.entities.length; i++) {
                 var result = results.entities[i];
                 // Columns
@@ -1176,7 +1215,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
                 await Xrm.WebApi.deleteRecord("extreme_caseasset", `${extreme_caseassetid}`).then(
                   function success(result) {
-                    console.log(result);
+                    // console.log(result);
                   },
                   function (error) {
                     console.log(error.message);
@@ -1195,7 +1234,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
           //   for (let i = 0; i < caseLineGuids.length; i++) {
           //     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${parentChildItems[i].assetId})`).then(
           //       async function success(results) {
-          //         console.log(results);
+          //         // console.log(results);
           //         for (var i = 0; i < results.entities.length; i++) {
           //           var result = results.entities[i];
           //           // Columns
@@ -1203,7 +1242,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
           //           await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
           //             function success(result) {
-          //               console.log(result);
+          //               // console.log(result);
           //             },
           //             function (error) {
           //               console.log(error.message);
@@ -1230,7 +1269,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=extreme_caselineid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         if (results.entities.length === 0) assetExistsInCaseLines = false;
 
         // if (results.entities.length > 0) {
@@ -1251,7 +1290,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=_extreme_asset_value&$filter=(_extreme_asset_value eq ${assetId} and _regardingobjectid_value eq ${caseId})`).then(
       async function success(results) {
-        console.log(results);
+        // console.log(results);
         if (results.entities.length === 0) assetExistsInTimeEntries = false;
       },
       function (error) {
@@ -1262,7 +1301,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
     if (assetExistsInCaseLines === false && assetExistsInTimeEntries === false) {
       await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_caseassetid&$filter=(_extreme_case_value eq ${caseId} and _extreme_asset_value eq ${assetId})`).then(
         async function success(results) {
-          console.log(results);
+          // console.log(results);
           for (var i = 0; i < results.entities.length; i++) {
             var result = results.entities[i];
             // Columns
@@ -1270,7 +1309,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
             await Xrm.WebApi.deleteRecord("extreme_caseasset", `${extreme_caseassetid}`).then(
               function success(result) {
-                console.log(result);
+                // console.log(result);
               },
               function (error) {
                 console.log(error.message);
@@ -1283,7 +1322,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
           //   for (let i = 0; i < caseLineGuids.length; i++) {
           //     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline_caseasset", `?$filter=(_extreme_caseline_value eq ${caseLineGuids[i]} and _extreme_caseasset_value eq ${assetId})`).then(
           //       async function success(results) {
-          //         console.log(results);
+          //         // console.log(results);
           //         for (var i = 0; i < results.entities.length; i++) {
           //           var result = results.entities[i];
           //           // Columns
@@ -1291,7 +1330,7 @@ async function checkAssetsAfterDelete(assetId, caseId) {
 
           //           await Xrm.WebApi.deleteRecord("extreme_caseline_caseasset", `${extreme_caseline_caseassetid}`).then(
           //             function success(result) {
-          //               console.log(result);
+          //               // console.log(result);
           //             },
           //             function (error) {
           //               console.log(error.message);

@@ -5,6 +5,9 @@ let preventiveCycleTypesArray = [];
 let newCreateId;
 let isEditable = true;
 let heightAuto = true;
+let caseImportInfo = null;
+let isImportingFromQuote = false;
+
 
 // Add hours to Date method
 Date.prototype.addMinutes = function (h) {
@@ -44,15 +47,18 @@ async function setClientApiContext(Xrm, formContext) {
     return preventiveCycleTypes[key];
   });
 
-  console.log('preventiveCycleTypesArray');
-  console.log(preventiveCycleTypesArray);
+  // console.log('preventiveCycleTypesArray');
+  // console.log(preventiveCycleTypesArray);
 
   const caseIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const accountIdForm = replaceCurlyBrackets(formContext.getAttribute('extreme_account').getValue()[0].id, "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
+
+  caseImportInfo = await Xrm.WebApi.retrieveRecord("extreme_case", `${caseIdForm}`, "?$select=extreme_importingfromquote");
+  isImportingFromQuote = caseImportInfo.extreme_importingfromquote;
+
+
   await getCaseAssets(caseIdForm);
-
-
   initDataGrid(caseIdForm, userId);
 
 
@@ -61,12 +67,12 @@ async function setClientApiContext(Xrm, formContext) {
     result => result._displayName,
     error => console.log(error)
   );
-  console.log('CaseAssets: ', caseAssetsDisplayName);
+  // console.log('CaseAssets: ', caseAssetsDisplayName);
   // setTimeout(() => {
   //   const toolbarBefore = formContext.getControl("WebResource_caseAssets").getObject().contentWindow.window.document.querySelector('div.dx-toolbar-before');
-  //   console.log('dx toolbar before: ', toolbarBefore);
+  //   // console.log('dx toolbar before: ', toolbarBefore);
   //   toolbarBefore.innerHTML = `<span style='font-weight: 500; position: absolute; width: 100px; bottom: 30%; left: 0;'>${caseAssetsDisplayName}</span>`;
-  //   console.log(formContext.data.entity);
+  //   // console.log(formContext.data.entity);
   // }, 1000); // Adjust the timeout as needed
 
 
@@ -83,7 +89,7 @@ async function setClientApiContext(Xrm, formContext) {
 
     await Xrm.WebApi.retrieveMultipleRecords("extreme_caseasset", `?$select=extreme_warranty,extreme_isparent,_extreme_parentcaseasset_value,extreme_caseassetid,extreme_description,extreme_solution&$expand=extreme_Asset($select=extreme_productid,extreme_inventoryno,extreme_preventiveservicecycle,extreme_assetid,extreme_location,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor,extreme_warrantystartdate,extreme_assetcode,extreme_lastactivitydate,extreme_name,extreme_serialnumber,extreme_warrantyend,extreme_warrantyenddatevendor)&$filter=_extreme_case_value eq ${caseId}`).then(
       function success(results) {
-        console.log(results);
+        // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
           var result = results.entities[i];
           // Columns
@@ -137,8 +143,8 @@ async function setClientApiContext(Xrm, formContext) {
 
         }
 
-        console.log('caseAssetsArray');
-        console.log(caseAssetsArray);
+        // console.log('caseAssetsArray');
+        // console.log(caseAssetsArray);
 
       },
       function (error) {
@@ -299,8 +305,8 @@ async function setClientApiContext(Xrm, formContext) {
                         type: 'custom',
                         message: 'Required',
                         validationCallback(params) {
-                          console.log('VALIDATION PARAMS');
-                          console.log(params);
+                          // console.log('VALIDATION PARAMS');
+                          // console.log(params);
 
                           return params.data.extreme_isparent !== true && (params.value === null || params.value.trim() === '') ? false : true;
 
@@ -466,8 +472,8 @@ async function setClientApiContext(Xrm, formContext) {
                   dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
                 },
                 onRowPrepared: async (e) => {
-                  console.log('ROW PREPARED');
-                  console.log(e);
+                  // console.log('ROW PREPARED');
+                  // console.log(e);
 
                   // Check calssify
                   if (typeof (e.isNewRow) === 'undefined' && e.rowType === 'data' && e.data.extreme_isparent === false && (
@@ -488,19 +494,19 @@ async function setClientApiContext(Xrm, formContext) {
 
                 },
                 onCellDblClick(e) {
-                  console.log('CELL DOUBLE CLICK');
-                  console.log(e);
+                  // console.log('CELL DOUBLE CLICK');
+                  // console.log(e);
 
                   if (e.column.dataField === "extreme_productid" || e.column.dataField === "extreme_name") {
                     // Create an anchor element
                     const globalContext = Xrm.Utility.getGlobalContext();
-                    globalContext.getClientUrl();
+                    globalContext.getCurrentAppUrl();
 
-                    console.log('CLIENT URL');
-                    console.log(globalContext.getClientUrl());
+                    // console.log('CLIENT URL');
+                    // console.log(globalContext.getCurrentAppUrl());
 
                     const link = document.createElement('a');
-                    link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+                    link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
                     link.target = "_blank";
 
                     // Append the anchor to the body (required for Firefox)
@@ -515,8 +521,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                 },
                 onEditorPreparing: async (e) => {
-                  console.log('Editor Preparing');
-                  console.log(e);
+                  // console.log('Editor Preparing');
+                  // console.log(e);
 
                   if (e.dataField === "extreme_description" || e.dataField === "extreme_solution") {
                     e.editorName = "dxTextArea";
@@ -524,12 +530,12 @@ async function setClientApiContext(Xrm, formContext) {
                   }
                 },
                 onEditingStart: (e) => {
-                  console.log('EditingStart');
-                  console.log(e);
+                  // console.log('EditingStart');
+                  // console.log(e);
                 },
                 onInitNewRow: async (e) => {
-                  console.log('InitNewRow');
-                  console.log(e);
+                  // console.log('InitNewRow');
+                  // console.log(e);
                   // e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
                   // e.data.extreme_return = false;
                   // e.data.scheduledstart = new Date().toISOString();
@@ -539,8 +545,8 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 onRowInserting: async (e) => {
 
-                  console.log('RowInserting');
-                  console.log(e);
+                  // console.log('RowInserting');
+                  // console.log(e);
 
                   // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
@@ -560,7 +566,7 @@ async function setClientApiContext(Xrm, formContext) {
                   //   function success(result) {
                   //     var newId = result.id;
                   //     newCreateId = newId;
-                  //     console.log('NEW CREATED ID: ' + newCreateId);
+                  //     // console.log('NEW CREATED ID: ' + newCreateId);
                   //   },
                   //   function (error) {
                   //     console.log(error.message);
@@ -571,17 +577,17 @@ async function setClientApiContext(Xrm, formContext) {
 
                   // setTimeout(async () => {
 
-                  //   console.log('RowInserted');
-                  //   console.log(e);
+                  //   // console.log('RowInserted');
+                  //   // console.log(e);
 
                   //   if (timeEntriesData._array.length > 0) {
-                  //     console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+                  //     // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
                   //     timeEntriesData._array[timeEntriesData._array.length - 1].activityid = newCreateId;
-                  //     console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+                  //     // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
                   //     await getTimeEntries(caseIdForm);
                   //     dataGrid.refresh();
                   //   } else {
-                  //     console.log('timeEntriesData._array is empty');
+                  //     // console.log('timeEntriesData._array is empty');
                   //   }
 
                   //   Xrm.Utility.closeProgressIndicator();
@@ -591,8 +597,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                 },
                 onRowUpdating: async (e) => {
-                  console.log('RowUpdating');
-                  console.log(e);
+                  // console.log('RowUpdating');
+                  // console.log(e);
 
                   var record = {};
                   if (typeof (e.newData.extreme_warranty) === 'boolean') record.extreme_warranty = e.newData.extreme_warranty;
@@ -602,7 +608,7 @@ async function setClientApiContext(Xrm, formContext) {
                   await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.key}`, record).then(
                     async function success(result) {
                       var updatedId = result.id;
-                      console.log(updatedId);
+                      // console.log(updatedId);
                       await getCaseAssets();
                       dataGrid.refresh();
                     },
@@ -624,7 +630,7 @@ async function setClientApiContext(Xrm, formContext) {
                   // await Xrm.WebApi.updateRecord("extreme_timeentry", `${e.key}`, record).then(
                   //   async function success(result) {
                   //     var updatedId = result.id;
-                  //     console.log(record);
+                  //     // console.log(record);
                   //     await getTimeEntries(caseIdForm);
                   //     dataGrid.refresh();
                   //   },
@@ -634,18 +640,18 @@ async function setClientApiContext(Xrm, formContext) {
                   // );
                 },
                 onRowUpdated() {
-                  console.log('RowUpdated');
+                  // console.log('RowUpdated');
                 },
                 onRowRemoving: async (e) => {
-                  console.log('RowRemoving');
-                  console.log(e);
+                  // console.log('RowRemoving');
+                  // console.log(e);
                   // Delete case line on another web resource
                   // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
                   // Refresh grid for case lines
                   // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
                   await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
                     function success(result) {
-                      console.log(result);
+                      // console.log(result);
                     },
                     function (error) {
                       console.log(error.message);
@@ -653,20 +659,20 @@ async function setClientApiContext(Xrm, formContext) {
                   );
                 },
                 onRowRemoved: (e) => {
-                  console.log('RowRemoved');
-                  console.log(e);
+                  // console.log('RowRemoved');
+                  // console.log(e);
                 },
                 onSaving() {
-                  console.log('Saving');
+                  // console.log('Saving');
                 },
                 onSaved() {
-                  console.log('Saved');
+                  // console.log('Saved');
                 },
                 onEditCanceling() {
-                  console.log('EditCanceling');
+                  // console.log('EditCanceling');
                 },
                 onEditCanceled() {
-                  console.log('EditCanceled');
+                  // console.log('EditCanceled');
                 },
                 onContentReady(e) {
                   e.component.columnOption("command:select", "visibleIndex", 999);
@@ -712,8 +718,8 @@ async function setClientApiContext(Xrm, formContext) {
                 type: 'custom',
                 message: 'Required',
                 validationCallback(params) {
-                  console.log('VALIDATION PARAMS');
-                  console.log(params);
+                  // console.log('VALIDATION PARAMS');
+                  // console.log(params);
 
                   return params.data.extreme_isparent !== true && (params.value === null || params.value.trim() === '') ? false : true;
 
@@ -732,8 +738,8 @@ async function setClientApiContext(Xrm, formContext) {
             //     type: 'custom',
             //     message: 'Required',
             //     validationCallback(params) {
-            //       console.log('VALIDATION PARAMS');
-            //       console.log(params);
+            //       // console.log('VALIDATION PARAMS');
+            //       // console.log(params);
 
             //       if (params.data.extreme_isparent === true && (params.value === null || params.value.trim() === '')) {
             //         return true;
@@ -965,11 +971,11 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 disabled: true,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
                   // reset visible for all columns - classify
-                  console.log('ALL COLUMNS');
-                  console.log(dataGrid.option('columns'));
+                  // console.log('ALL COLUMNS');
+                  // console.log(dataGrid.option('columns'));
                   dataGrid.option('columnAutoWidth', false);
                   dataGrid.option('columns').forEach(col => {
                     if (
@@ -1039,11 +1045,11 @@ async function setClientApiContext(Xrm, formContext) {
                 },
                 disabled: false,
                 onClick(e) {
-                  console.log(e);
-                  console.log(dataGrid);
+                  // console.log(e);
+                  // console.log(dataGrid);
                   // reset visible for all columns - classify
-                  console.log('ALL COLUMNS');
-                  console.log(dataGrid.option('columns'));
+                  // console.log('ALL COLUMNS');
+                  // console.log(dataGrid.option('columns'));
                   dataGrid.option('columnAutoWidth', true);
                   dataGrid.option('columns').forEach(col => {
                     if (
@@ -1088,13 +1094,13 @@ async function setClientApiContext(Xrm, formContext) {
           dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
         },
         onRowPrepared: async (e) => {
-          console.log('ROW PREPARED');
-          console.log(e);
+          // console.log('ROW PREPARED');
+          // console.log(e);
 
           if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
-            // console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
-            // console.log(dataGrid.hasEditData());
-            // console.log(e.cells[1].cellElement[0]);
+            // // console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
+            // // console.log(dataGrid.hasEditData());
+            // // console.log(e.cells[1].cellElement[0]);
             e.cells[0].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
             e.cells[0].cellElement[0].classList.remove('dx-datagrid-expand');
             // e.cells[1].cellElement[0].style.display = "none";
@@ -1150,19 +1156,19 @@ async function setClientApiContext(Xrm, formContext) {
 
         },
         onCellDblClick(e) {
-          console.log('CELL DOUBLE CLICK');
-          console.log(e);
+          // console.log('CELL DOUBLE CLICK');
+          // console.log(e);
 
           if (e.column.dataField === "extreme_productid" || e.column.dataField === "extreme_name") {
             // Create an anchor element
             const globalContext = Xrm.Utility.getGlobalContext();
-            globalContext.getClientUrl();
+            globalContext.getCurrentAppUrl();
 
-            console.log('CLIENT URL');
-            console.log(globalContext.getClientUrl());
+            // console.log('CLIENT URL');
+            // console.log(globalContext.getCurrentAppUrl());
 
             const link = document.createElement('a');
-            link.href = `${globalContext.getClientUrl()}/main.aspx?appid=4272b2c5-fd5d-ef11-bfe3-000d3abf93f6&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
+            link.href = `${globalContext.getCurrentAppUrl()}&pagetype=entityrecord&etn=extreme_asset&id=${e.data.extreme_assetid}`;
             link.target = "_blank";
 
             // Append the anchor to the body (required for Firefox)
@@ -1177,8 +1183,8 @@ async function setClientApiContext(Xrm, formContext) {
 
         },
         onEditorPreparing: async (e) => {
-          console.log('Editor Preparing');
-          console.log(e);
+          // console.log('Editor Preparing');
+          // console.log(e);
 
           if (e.dataField === "extreme_description" || e.dataField === "extreme_solution") {
             e.editorName = "dxTextArea";
@@ -1186,12 +1192,12 @@ async function setClientApiContext(Xrm, formContext) {
           }
         },
         onEditingStart: (e) => {
-          console.log('EditingStart');
-          console.log(e);
+          // console.log('EditingStart');
+          // console.log(e);
         },
         onInitNewRow: async (e) => {
-          console.log('InitNewRow');
-          console.log(e);
+          // console.log('InitNewRow');
+          // console.log(e);
           // e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
           // e.data.extreme_return = false;
           // e.data.scheduledstart = new Date().toISOString();
@@ -1201,8 +1207,8 @@ async function setClientApiContext(Xrm, formContext) {
         },
         onRowInserting: async (e) => {
 
-          console.log('RowInserting');
-          console.log(e);
+          // console.log('RowInserting');
+          // console.log(e);
 
           // Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
@@ -1222,7 +1228,7 @@ async function setClientApiContext(Xrm, formContext) {
           //   function success(result) {
           //     var newId = result.id;
           //     newCreateId = newId;
-          //     console.log('NEW CREATED ID: ' + newCreateId);
+          //     // console.log('NEW CREATED ID: ' + newCreateId);
           //   },
           //   function (error) {
           //     console.log(error.message);
@@ -1233,17 +1239,17 @@ async function setClientApiContext(Xrm, formContext) {
 
           // setTimeout(async () => {
 
-          //   console.log('RowInserted');
-          //   console.log(e);
+          //   // console.log('RowInserted');
+          //   // console.log(e);
 
           //   if (timeEntriesData._array.length > 0) {
-          //     console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+          //     // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
           //     timeEntriesData._array[timeEntriesData._array.length - 1].activityid = newCreateId;
-          //     console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
+          //     // console.log(timeEntriesData._array[timeEntriesData._array.length - 1].activityid);
           //     await getTimeEntries(caseIdForm);
           //     dataGrid.refresh();
           //   } else {
-          //     console.log('timeEntriesData._array is empty');
+          //     // console.log('timeEntriesData._array is empty');
           //   }
 
           //   Xrm.Utility.closeProgressIndicator();
@@ -1253,8 +1259,8 @@ async function setClientApiContext(Xrm, formContext) {
 
         },
         onRowUpdating: async (e) => {
-          console.log('RowUpdating');
-          console.log(e);
+          // console.log('RowUpdating');
+          // console.log(e);
 
           var record = {};
           var assetRecord = {};
@@ -1273,7 +1279,7 @@ async function setClientApiContext(Xrm, formContext) {
           await Xrm.WebApi.updateRecord("extreme_asset", `${e.oldData.extreme_assetid}`, assetRecord).then(
             function success(result) {
               var updatedId = result.id;
-              console.log(updatedId);
+              // console.log(updatedId);
             },
             function (error) {
               console.log(error.message);
@@ -1283,7 +1289,7 @@ async function setClientApiContext(Xrm, formContext) {
           await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.key}`, record).then(
             async function success(result) {
               var updatedId = result.id;
-              console.log(updatedId);
+              // console.log(updatedId);
             },
             function (error) {
               console.log(error.message);
@@ -1306,7 +1312,7 @@ async function setClientApiContext(Xrm, formContext) {
           // await Xrm.WebApi.updateRecord("extreme_timeentry", `${e.key}`, record).then(
           //   async function success(result) {
           //     var updatedId = result.id;
-          //     console.log(record);
+          //     // console.log(record);
           //     await getTimeEntries(caseIdForm);
           //     dataGrid.refresh();
           //   },
@@ -1316,18 +1322,18 @@ async function setClientApiContext(Xrm, formContext) {
           // );
         },
         onRowUpdated() {
-          console.log('RowUpdated');
+          // console.log('RowUpdated');
         },
         onRowRemoving: async (e) => {
-          console.log('RowRemoving');
-          console.log(e);
+          // console.log('RowRemoving');
+          // console.log(e);
           // // Delete case line on another web resource
           // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.createTimeEntry(e.data.extreme_caseline);
           // // Refresh grid for case lines
           // await formContext.getControl('WebResource_new_2').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
           await Xrm.WebApi.deleteRecord("extreme_caseasset", `${e.key}`).then(
             function success(result) {
-              console.log(result);
+              // console.log(result);
             },
             function (error) {
               console.log(error.message);
@@ -1335,20 +1341,20 @@ async function setClientApiContext(Xrm, formContext) {
           );
         },
         onRowRemoved: (e) => {
-          console.log('RowRemoved');
-          console.log(e);
+          // console.log('RowRemoved');
+          // console.log(e);
         },
         onSaving() {
-          console.log('Saving');
+          // console.log('Saving');
         },
         onSaved() {
-          console.log('Saved');
+          // console.log('Saved');
         },
         onEditCanceling() {
-          console.log('EditCanceling');
+          // console.log('EditCanceling');
         },
         onEditCanceled() {
-          console.log('EditCanceled');
+          // console.log('EditCanceled');
         },
         onContentReady(e) {
           e.component.columnOption("command:select", "visibleIndex", 999);
@@ -1362,14 +1368,14 @@ async function setClientApiContext(Xrm, formContext) {
       // resize child columns
       function masterGridColumnResized() {
         var detailContainers = dataGrid.element().find('.internal-grid');
-        console.log(detailContainers);
+        // console.log(detailContainers);
         if (detailContainers.length) {
           for (var j = 0; j < detailContainers.length; j++) {
             var detailGridInstance = $(detailContainers.get(j)).dxDataGrid('instance');
             detailGridInstance.beginUpdate();
             for (var i = 0; i < dataGrid.columnCount(); i++) {
-              console.log("columnOption dataField");
-              console.log(dataGrid.columnOption(i, "dataField"));
+              // console.log("columnOption dataField");
+              // console.log(dataGrid.columnOption(i, "dataField"));
               if (dataGrid.columnOption(i, "dataField") == "extreme_assetcode") {
                 detailGridInstance.columnOption(i, 'width', dataGrid.columnOption(i, 'width') + 30);
                 detailGridInstance.columnOption(i, 'visibleWidth', dataGrid.columnOption(i, 'visibleWidth') + 30);
@@ -1417,8 +1423,8 @@ async function setClientApiContext(Xrm, formContext) {
           $('#classifyBtn')[0].style.display = 'inline-flex';
         }
 
-        console.log('CLASSIFY NEEDED ROWS');
-        console.log(classifyNeededRows);
+        // console.log('CLASSIFY NEEDED ROWS');
+        // console.log(classifyNeededRows);
 
       }
 
@@ -1431,10 +1437,10 @@ async function setClientApiContext(Xrm, formContext) {
 
   const wrControl = formContext.getControl('WebResource_caseAssets');
   wrControl.getContentWindow().then(function (contentWindow) {
-    console.log('HEIGHT MAIN CONTAINER:');
-    console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
+    // console.log('HEIGHT MAIN CONTAINER:');
+    // console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
     gridContainer = contentWindow.document.getElementById('gridContainer');
-    console.log(gridContainer);
+    // console.log(gridContainer);
 
     // Create a MutationObserver instance
     const observer = new MutationObserver((mutations) => {
@@ -1464,7 +1470,7 @@ async function setClientApiContext(Xrm, formContext) {
 
   // Xrm.Utility.closeProgressIndicator();
 
-  formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets");
+  formContext.getControl('WebResource_timeEntries').getObject().contentWindow.window.setWebResourceLoaded("WebResource_caseAssets", caseIdForm);
 
 }
 
