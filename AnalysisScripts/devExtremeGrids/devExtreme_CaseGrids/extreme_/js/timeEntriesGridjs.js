@@ -94,7 +94,7 @@ async function setClientApiContext(Xrm, formContext) {
     await Xrm.WebApi.retrieveMultipleRecords("extreme_timeentry", `?$select=activityid,_extreme_caseline_value,extreme_comuteinkm,createdon,_ownerid_value,
       extreme_expences,scheduledstart,scheduleddurationminutes,scheduledend,extreme_type,description,_extreme_asset_value
       &$filter=_regardingobjectid_value eq ${caseId}`).then(
-      function success(results) {
+      async function success(results) {
         // console.log(results);
         timeEntriesArray = [];
         for (var i = 0; i < results.entities.length; i++) {
@@ -126,6 +126,13 @@ async function setClientApiContext(Xrm, formContext) {
           var extreme_asset_formatted = result["_extreme_asset_value@OData.Community.Display.V1.FormattedValue"];
           var extreme_asset_lookuplogicalname = result["_extreme_asset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
 
+          let isEditableFromCaseLine = null;
+          if (extreme_caseline !== null) {
+            const caseLineInfo = await Xrm.WebApi.retrieveRecord("extreme_caseline", `${extreme_caseline}`, "?$select=_extreme_unit_value");
+            const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"] === "PAK" ? true : false;
+            isEditableFromCaseLine = isPAK
+          }
+
           timeEntriesArray.push({
             "activityid": activityid,
             "extreme_caseline": extreme_caseline,
@@ -137,7 +144,8 @@ async function setClientApiContext(Xrm, formContext) {
             "scheduleddurationminutes": parseFloat((scheduleddurationminutes / 60).toFixed(2)),
             "extreme_comuteinkm": extreme_comuteinkm,
             "extreme_expences": extreme_expences,
-            "description": description
+            "description": description,
+            "isEditableFromCaseLine": isEditableFromCaseLine
           });
 
         }
@@ -279,9 +287,18 @@ async function setClientApiContext(Xrm, formContext) {
             validationRules: [{
               type: 'custom',
               message: 'Asset is required',
-              validationCallback(params) {
+              async validationCallback(params) {
                 // console.log("VALLIDAATION");
                 // console.log(params);
+                if (params.data.extreme_caseline) {
+                  const caseLineInfo = await Xrm.WebApi.retrieveRecord("extreme_caseline", `${params.data.extreme_caseline}`, "?$select=_extreme_unit_value");
+                  const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"] === "PAK" ? true : false;
+
+                  if (isPAK) {
+                    return false;
+                  }
+                }
+
                 return !params.value || params.value == null || (params.data.extreme_type !== 424000002 && params.data.extreme_type !== 424000003) ? false : true;
               }
             }]
@@ -449,6 +466,13 @@ async function setClientApiContext(Xrm, formContext) {
             validationRules: [{ type: 'required' }]
           },
           {
+            dataField: 'isEditableFromCaseLine',
+            caption: 'Editable?',
+            width: 50,
+            dataType: 'boolean',
+            visible: false
+          },
+          {
             type: 'buttons',
             width: 110,
             buttons: ['delete', {
@@ -590,11 +614,8 @@ async function setClientApiContext(Xrm, formContext) {
           // if (e.dataField == "extreme_type") e.editorOptions.disabled = true;
           // if (e.dataField == "scheduledstart") e.editorOptions.pickerType = "rollers";
           if (e.row.data.extreme_caseline) {
-            const caseLineInfo = await Xrm.WebApi.retrieveRecord("extreme_caseline", `${e.row.data.extreme_caseline}`, "?$select=_extreme_unit_value");
-            const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"] === "PAK" ? true : false;
-
             if (e.dataField == "owner") e.editorOptions.disabled = true;
-            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = e.row.data.extreme_type === 424000003 || isPAK ? false : true;
+            if (e.dataField == "scheduleddurationminutes") e.editorOptions.disabled = e.row.data.extreme_type === 424000003 || e.row.data.isEditableFromCaseLine === true ? false : true;
             if (e.dataField == "extreme_asset") e.editorOptions.disabled = true;
           }
 
