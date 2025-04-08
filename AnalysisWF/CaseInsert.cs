@@ -135,7 +135,15 @@ namespace AnalysisWF
             var actualResolutionDate = actualResolutionDateValue.HasValue
                 ? actualResolutionDateValue.Value.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
                 : null;
-            var acNote = "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + actualResolutionDate + " godine.";
+
+            // Check config to see if acNote should be included
+            
+            var includeNoteSetting = Helper.GetConfigurationValue("acNoteIncludedInCaseSync", service);
+            string acNote = string.IsNullOrWhiteSpace(includeNoteSetting) || includeNoteSetting.ToLower() != "true"
+                ? string.Empty
+                : "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + actualResolutionDate + " godine.";
+            //var acNote = "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + actualResolutionDate + " godine.";
+
             var acPayMethod = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_code", service);
             var acDelivery = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_deliverymethod"), "extreme_code", service);
             var anDaysForPayment = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_numberofdays", service);
