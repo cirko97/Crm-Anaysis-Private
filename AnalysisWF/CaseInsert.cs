@@ -131,9 +131,9 @@ namespace AnalysisWF
             var adDeliveryDate = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var acReceiver = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_account"), "extreme_paname30characters", service);
             var acCurrency = caseRecord.GetAttributeValue<EntityReference>("transactioncurrencyid")?.Name;
-            var actualResolutionDateValue = caseRecord.GetAttributeValue<DateTime?>("extreme_actualdateofcompletion");
-            var actualResolutionDate = actualResolutionDateValue.HasValue
-                ? actualResolutionDateValue.Value.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
+            var ResolutionDateValue = caseRecord.GetAttributeValue<DateTime?>("extreme_dateofcompletion");
+            var ResolutionDate = ResolutionDateValue.HasValue
+                ? ResolutionDateValue.Value.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
                 : null;
 
             // Check config to see if acNote should be included
@@ -141,8 +141,8 @@ namespace AnalysisWF
             var includeNoteSetting = Helper.GetConfigurationValue("acNoteIncludedInCaseSync", service);
             string acNote = string.IsNullOrWhiteSpace(includeNoteSetting) || includeNoteSetting.ToLower() != "true"
                 ? string.Empty
-                : "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + actualResolutionDate + " godine.";
-            //var acNote = "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + actualResolutionDate + " godine.";
+                : "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + ResolutionDate + " godine.";
+            //var acNote = "Faktura izdata prema radnom nalogu " + acCrmNO + " od " + ResolutionDate + " godine.";
 
             var acPayMethod = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_paymentterms"), "extreme_code", service);
             var acDelivery = Helper.GetLookupFieldValue(caseRecord.GetAttributeValue<EntityReference>("extreme_deliverymethod"), "extreme_code", service);
