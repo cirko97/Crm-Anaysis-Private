@@ -140,6 +140,13 @@ namespace AnalysisWF
                 if (products.Entities.Count > 0)
                 {
                     product = products.Entities[0];
+
+                    // Ensure product has correct price list
+                    if (product.Contains("pricelevelid") == false || product.GetAttributeValue<EntityReference>("pricelevelid")?.Id != priceList.Id)
+                    {
+                        product["pricelevelid"] = priceList;
+                        service.Update(product);
+                    }
                 }
                 else
                 {
