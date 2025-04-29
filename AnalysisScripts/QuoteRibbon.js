@@ -28,7 +28,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			function success(results) {
 				return results.entities[0];
 			},
-			function(error) {
+			function (error) {
 				console.log(error.message);
 			}
 		);
@@ -36,7 +36,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		var filename = report["filename"];
 
 		var arrReportSession = executeReport(quoteId, reportid, reportName, formContext);
-		
+
 		var blobData = await convertResponseToPDF(arrReportSession); //3. Convert the response in base 64 string i.e. PDF.
 
 		Xrm.Utility.showProgressIndicator("Creating email...");
@@ -44,9 +44,9 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		var brojPonude = formContext.getAttribute("quotenumber").getValue();
 		var revBroj = formContext.getAttribute("revisionnumber").getValue();
 		var puniBrojPonude = "";
-		if(revBroj > 0){
-			puniBrojPonude = brojPonude +"/"+ revBroj;
-		}else{
+		if (revBroj > 0) {
+			puniBrojPonude = brojPonude + "/" + revBroj;
+		} else {
 			puniBrojPonude = brojPonude;
 		}
 
@@ -55,7 +55,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
 		await attachFileToDraftEmail(blobData, emailId, `${brojPonude}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
-		
+
 		Xrm.Utility.closeProgressIndicator();
 
 		var pageInput = {
@@ -65,16 +65,16 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		};
 		var navigationOptions = {
 			target: 2,
-			height: {value: 80, unit:"%"},
-			width: {value: 70, unit:"%"},
+			height: { value: 80, unit: "%" },
+			width: { value: 70, unit: "%" },
 			position: 1
 		};
 		Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
 			function success() {
-					// Run code on success
+				// Run code on success
 			},
 			function error() {
-					// Handle errors
+				// Handle errors
 			}
 		);
 
@@ -97,7 +97,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			'Synchronizing Data... Please Wait.');
 		//isAccountSynced
 		var accountId = formContext.getAttribute("customerid").getValue()[0].id.slice(1, -1);
-		
+
 		// if (await isAccountValidForSync(accountId) == false){
 		// 	var alertStrings = { confirmButtonLabel: "OK", text: "Please make sure that you have entered a valid VAT No. and Tax % for this customer and try again!", title: "Synchronization Validation" };
 		// 	var alertOptions = { height: 240, width: 260 };
@@ -123,7 +123,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 			await syncAccount(accountId);
 			Xrm.Utility.showProgressIndicator(
 				'Account Synchronized....... Please Wait.');
-		} 
+		}
 		//isCostDriveNeededAndSynced
 		if (isCostDriveNeeded) {
 			if (formContext.getAttribute("opportunityid").getValue() !== null) {
@@ -155,97 +155,97 @@ var QuoteRibbon = window.QuoteRibbon || {};
 }).call(QuoteRibbon);
 
 const convertResponseToPDF = async function (arrResponseSession) {
-    return new Promise((resolve, reject) => {
-        // Extract the PdfDownloadUrl using a regular expression
-        const pdfDownloadUrlRegex = /"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
-        const match = pdfDownloadUrlRegex.exec(arrResponseSession);
+	return new Promise((resolve, reject) => {
+		// Extract the PdfDownloadUrl using a regular expression
+		const pdfDownloadUrlRegex = /"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
+		const match = pdfDownloadUrlRegex.exec(arrResponseSession);
 
-        if (match && match[1]) {
-            const pdfDownloadUrl = match[1];
-            console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
+		if (match && match[1]) {
+			const pdfDownloadUrl = match[1];
+			console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
 
-            // Replace \u0026 with &
-            const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
-            const globalContext = Xrm.Utility.getGlobalContext();
-            const pth = globalContext.getClientUrl() + updatedPdfDownloadUrl;
+			// Replace \u0026 with &
+			const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
+			const globalContext = Xrm.Utility.getGlobalContext();
+			const pth = globalContext.getClientUrl() + updatedPdfDownloadUrl;
 
-            // Create request object that will be called to convert the response into a Base64 string
-            const retrieveEntityReq = new XMLHttpRequest();
+			// Create request object that will be called to convert the response into a Base64 string
+			const retrieveEntityReq = new XMLHttpRequest();
 
-            retrieveEntityReq.open("GET", pth, true);
-            retrieveEntityReq.setRequestHeader("Accept", "*/*");
-            retrieveEntityReq.responseType = "arraybuffer";
+			retrieveEntityReq.open("GET", pth, true);
+			retrieveEntityReq.setRequestHeader("Accept", "*/*");
+			retrieveEntityReq.responseType = "arraybuffer";
 
-            retrieveEntityReq.onreadystatechange = function () {
-                if (retrieveEntityReq.readyState === 4) {
-                    if (retrieveEntityReq.status === 200) {
-                        try {
-                            const bytes = new Uint8Array(retrieveEntityReq.response);
-                            let binary = "";
-                            for (let i = 0; i < bytes.byteLength; i++) {
-                                binary += String.fromCharCode(bytes[i]);
-                            }
-                            const base64PDFString = btoa(binary); // Convert to Base64
-                            console.log("Base64 PDF String Generated");
-                            resolve(base64PDFString); // Resolve the promise with the Base64 string
-                        } catch (error) {
-                            console.error("Error converting response to Base64:", error);
-                            reject(error);
-                        }
-                    } else {
-                        reject(
-                            new Error(
-                                `Failed to retrieve PDF. Status: ${retrieveEntityReq.status}`
-                            )
-                        );
-                    }
-                }
-            };
+			retrieveEntityReq.onreadystatechange = function () {
+				if (retrieveEntityReq.readyState === 4) {
+					if (retrieveEntityReq.status === 200) {
+						try {
+							const bytes = new Uint8Array(retrieveEntityReq.response);
+							let binary = "";
+							for (let i = 0; i < bytes.byteLength; i++) {
+								binary += String.fromCharCode(bytes[i]);
+							}
+							const base64PDFString = btoa(binary); // Convert to Base64
+							console.log("Base64 PDF String Generated");
+							resolve(base64PDFString); // Resolve the promise with the Base64 string
+						} catch (error) {
+							console.error("Error converting response to Base64:", error);
+							reject(error);
+						}
+					} else {
+						reject(
+							new Error(
+								`Failed to retrieve PDF. Status: ${retrieveEntityReq.status}`
+							)
+						);
+					}
+				}
+			};
 
-            retrieveEntityReq.onerror = function () {
-                reject(new Error("Network error while fetching the PDF."));
-            };
+			retrieveEntityReq.onerror = function () {
+				reject(new Error("Network error while fetching the PDF."));
+			};
 
-            retrieveEntityReq.send();
-        } else {
-            reject(new Error("PdfDownloadUrl not found."));
-        }
-    });
+			retrieveEntityReq.send();
+		} else {
+			reject(new Error("PdfDownloadUrl not found."));
+		}
+	});
 };
 const executeReport = function (quoteId, reportGuid, reportName, formContext) {
 
-    var globalContext = Xrm.Utility.getGlobalContext();
-    var pth = globalContext.getClientUrl() + "/CRMReports/rsviewer/reportviewer.aspx";
-    //Prepare query to execute report.
+	var globalContext = Xrm.Utility.getGlobalContext();
+	var pth = globalContext.getClientUrl() + "/CRMReports/rsviewer/reportviewer.aspx";
+	//Prepare query to execute report.
 
-    //Prepare request object to execute the report.
+	//Prepare request object to execute the report.
 
-	var queryDecoded = `id={${reportGuid}}&uniquename=${globalContext.organizationSettings.uniqueName}` + 
-	            `&iscustomreport=true&reportnameonsrs=&signatureid=&reporttypecode=1&reportName=${reportName}`+
-				`&isScheduledReport=false&CRM_Filter=`+
-				`<ReportFilter><ReportEntity+paramname="CRM_quote"+displayname="Quotes"+donotconvert="1">`+
-				`<fetch+version="1.0"+output-format="xml-platform"+mapping="logical"+distinct="false">`+
-				`<entity+name="quote"><all-attributes/><filter+type="and"><condition+attribute="quoteid"+operator="eq"+uitype="quote"+value="${quoteId}"/>`+
-				`</filter></entity></fetch></ReportEntity></ReportFilter>`
+	var queryDecoded = `id={${reportGuid}}&uniquename=${globalContext.organizationSettings.uniqueName}` +
+		`&iscustomreport=true&reportnameonsrs=&signatureid=&reporttypecode=1&reportName=${reportName}` +
+		`&isScheduledReport=false&CRM_Filter=` +
+		`<ReportFilter><ReportEntity+paramname="CRM_quote"+displayname="Quotes"+donotconvert="1">` +
+		`<fetch+version="1.0"+output-format="xml-platform"+mapping="logical"+distinct="false">` +
+		`<entity+name="quote"><all-attributes/><filter+type="and"><condition+attribute="quoteid"+operator="eq"+uitype="quote"+value="${quoteId}"/>` +
+		`</filter></entity></fetch></ReportEntity></ReportFilter>`
 
-    var retrieveEntityReq = new XMLHttpRequest();
+	var retrieveEntityReq = new XMLHttpRequest();
 
-    retrieveEntityReq.open("POST", pth, false);
+	retrieveEntityReq.open("POST", pth, false);
 
-    retrieveEntityReq.setRequestHeader("Accept", "*/*");
+	retrieveEntityReq.setRequestHeader("Accept", "*/*");
 
-    retrieveEntityReq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	retrieveEntityReq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 
-    //This statement runs the query and executes the report synchronously.
+	//This statement runs the query and executes the report synchronously.
 
-    retrieveEntityReq.send(queryDecoded);
+	retrieveEntityReq.send(queryDecoded);
 
 	return retrieveEntityReq.responseText;
 
 }
 const attachFileToDraftEmail = async function (base64data, emailId, filename, mimetype) {
-    return new Promise(async function (resolve, reject) {
-        try {
+	return new Promise(async function (resolve, reject) {
+		try {
 			var record = {};
 			record.subject = "att"; // Text
 			record.objecttypecode = "email"; // EntityName
@@ -277,72 +277,72 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
 				}
 			};
 			req.send(JSON.stringify(record));
-        } catch (error) {
-            console.error("Error in attachment function:", error);
-            reject(error);
-        }
-    });
+		} catch (error) {
+			console.error("Error in attachment function:", error);
+			reject(error);
+		}
+	});
 };
 const createEmail = async function (quoteId, quoteNumber, formContext) {
-    var emailActivityParties = [];
+	var emailActivityParties = [];
 	//
-    // Retrieve current user details for the sender
-    const userId = Xrm.Utility.getGlobalContext().userSettings.userId.slice(1, -1); // Remove curly braces
-    const currentUserName = Xrm.Utility.getGlobalContext().userSettings.userName;
+	// Retrieve current user details for the sender
+	const userId = Xrm.Utility.getGlobalContext().userSettings.userId.slice(1, -1); // Remove curly braces
+	const currentUserName = Xrm.Utility.getGlobalContext().userSettings.userName;
 
-    // Add the sender (current user) to the email_activity_parties array
-    emailActivityParties.push({
-        "partyid_systemuser@odata.bind": `/systemusers(${userId})`,
-        "participationtypemask": 1 // Sender
-    });
+	// Add the sender (current user) to the email_activity_parties array
+	emailActivityParties.push({
+		"partyid_systemuser@odata.bind": `/systemusers(${userId})`,
+		"participationtypemask": 1 // Sender
+	});
 
-    // Retrieve primary contact or account for the To recipient
-    const contact = formContext.getAttribute("extreme_primarycontact");
-    const account = formContext.getAttribute("customerid");
+	// Retrieve primary contact or account for the To recipient
+	const contact = formContext.getAttribute("extreme_primarycontact");
+	const account = formContext.getAttribute("customerid");
 
-    if (contact && contact.getValue() !== null) {
-        const contactId = contact.getValue()[0].id;
-        const contactName = contact.getValue()[0].name;
+	if (contact && contact.getValue() !== null) {
+		const contactId = contact.getValue()[0].id;
+		const contactName = contact.getValue()[0].name;
 
-        let contactEmail = null;
-        try {
-            contactEmail = await Xrm.WebApi.retrieveRecord("contact", contactId, "?$select=emailaddress1")
-                .then(result => result["emailaddress1"]);
-        } catch (error) {
-            console.error("Error fetching contact email: ", error.message);
-        }
+		let contactEmail = null;
+		try {
+			contactEmail = await Xrm.WebApi.retrieveRecord("contact", contactId, "?$select=emailaddress1")
+				.then(result => result["emailaddress1"]);
+		} catch (error) {
+			console.error("Error fetching contact email: ", error.message);
+		}
 
-        if (contactEmail) {
-            emailActivityParties.push({
-                "partyid_contact@odata.bind": `/contacts(${contactId.slice(1,-1)})`,
-                "participationtypemask": 2 // To recipient
-            });
-        }
-    } else if (account && account.getValue() !== null) {
-        const accountId = account.getValue()[0].id;
-        const accountName = account.getValue()[0].name;
+		if (contactEmail) {
+			emailActivityParties.push({
+				"partyid_contact@odata.bind": `/contacts(${contactId.slice(1, -1)})`,
+				"participationtypemask": 2 // To recipient
+			});
+		}
+	} else if (account && account.getValue() !== null) {
+		const accountId = account.getValue()[0].id;
+		const accountName = account.getValue()[0].name;
 
-        let accountEmail = null;
-        try {
-            accountEmail = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=emailaddress1")
-                .then(result => result["emailaddress1"]);
-        } catch (error) {
-            console.error("Error fetching account email: ", error.message);
-        }
+		let accountEmail = null;
+		try {
+			accountEmail = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=emailaddress1")
+				.then(result => result["emailaddress1"]);
+		} catch (error) {
+			console.error("Error fetching account email: ", error.message);
+		}
 
-        if (accountEmail) {
-            emailActivityParties.push({
-                "partyid_account@odata.bind": `/accounts(${accountId.slice(1,-1)})`,
-                "participationtypemask": 2 // To recipient
-            });
-        }
-    }
+		if (accountEmail) {
+			emailActivityParties.push({
+				"partyid_account@odata.bind": `/accounts(${accountId.slice(1, -1)})`,
+				"participationtypemask": 2 // To recipient
+			});
+		}
+	}
 
-    // Prepare the email record
-    var record = {
-        "regardingobjectid_quote_email@odata.bind": `/quotes(${quoteId})`, // Regarding field
-        "subject": `PONUDA ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
-        "description": `
+	// Prepare the email record
+	var record = {
+		"regardingobjectid_quote_email@odata.bind": `/quotes(${quoteId})`, // Regarding field
+		"subject": `PONUDA ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
+		"description": `
             Poštovani,<br><br>
 
             u prilogu Vam dostavljamo našu prodajnu ponudu pripremljenu u skladu sa Vašim zahtevima.<br><br>
@@ -359,18 +359,18 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
             Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
 
         `,
-        "email_activity_parties": emailActivityParties
-    };
+		"email_activity_parties": emailActivityParties
+	};
 
-    // Create the email record
-    try {
-        const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
-        console.log("Email created successfully with ID:", newId);
-        return newId;
-    } catch (error) {
-        console.error("Error creating email record: ", error.message);
-        return null;
-    }
+	// Create the email record
+	try {
+		const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
+		console.log("Email created successfully with ID:", newId);
+		return newId;
+	} catch (error) {
+		console.error("Error creating email record: ", error.message);
+		return null;
+	}
 };
 
 const isAccountSynced = async function (accountId) {
@@ -396,10 +396,10 @@ const isAccountValidForSync = async function (accountId) {
 		async function success(result) {
 			console.log(result);
 			// Columns
-			if(result["extreme_vatnumber"] !== null)
-			return true;
+			if (result["extreme_vatnumber"] !== null)
+				return true;
 			else
-			return false;
+				return false;
 		},
 		function (error) {
 			console.log(error.message);
@@ -514,7 +514,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			console.log(results);
 			return results.entities[0]["uomscheduleid"];
 		},
-		function(error) {
+		function (error) {
 			console.log(error.message);
 		}
 	);
@@ -523,7 +523,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			console.log(results);
 			return results.entities[0]["uomid"];
 		},
-		function(error) {
+		function (error) {
 			console.log(error.message);
 		}
 	);
@@ -573,92 +573,115 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					//Create And Sync Product
 					Xrm.Utility.showProgressIndicator(
 						'Products Creation In Progress... Please Wait.');
-					
+
 					var record = {};
 					//UOM Check
 					var newUomId = null;
-				    await Xrm.WebApi.retrieveMultipleRecords("uom", `?$filter=name eq '${extreme_uomid}'`).then(
+					await Xrm.WebApi.retrieveMultipleRecords("uom", `?$filter=name eq '${extreme_uomid}'`).then(
 						function success(results) {
 							console.log(results);
-							if(results.entities.length > 0)
+							if (results.entities.length > 0)
 								newUomId = results.entities[0]["uomid"];
 						},
-						function(error) {
+						function (error) {
 							console.log(error.message);
 						}
 					);
-					if (newUomId !== null){
+					if (newUomId !== null) {
 						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
-					}else {
+					} else {
 						var uomrecord = {};
-							uomrecord["baseuom@odata.bind"] = `/uoms(${primaryUnit})`; // Lookup
-							uomrecord["uomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
-							uomrecord.name = extreme_uomid; // Text
-							uomrecord.quantity = 1; // Decimal
+						uomrecord["baseuom@odata.bind"] = `/uoms(${primaryUnit})`; // Lookup
+						uomrecord["uomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
+						uomrecord.name = extreme_uomid; // Text
+						uomrecord.quantity = 1; // Decimal
 
 						newUomId = await Xrm.WebApi.createRecord("uom", uomrecord).then(
 							function success(result) {
 								return result.id;
-								console.log(newId);
+								// console.log(newId);
 							},
-							function(error) {
+							function (error) {
 								console.log(error.message);
 							}
 						);
 						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
 					}
-					
+
+
+
 					record.productnumber = extreme_customproductid; // Text
 					record.name = quotedetailname; // Text
 					record.description = extreme_productdescription; // Multiline Text
 					record.quantitydecimal = 2; // Whole Number
 					record["defaultuomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
 					// record["pricelevelid@odata.bind"] = `/pricelevels(${formContext.getAttribute("pricelevelid").getValue()[0].id.slice(1,-1)})`; // Lookup
-					if(extreme_area !== null)
-					record["extreme_Area@odata.bind"] = `/extreme_areas(${extreme_area})`; // Lookup
-					if(extreme_technology !== null)
-					record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
-					if(extreme_vendorsupplier !== null)
-					record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
-					if(extreme_producttype !== null){
+					if (extreme_area !== null)
+						record["extreme_Area@odata.bind"] = `/extreme_areas(${extreme_area})`; // Lookup
+					if (extreme_technology !== null)
+						record["extreme_Technology@odata.bind"] = `/extreme_technologies(${extreme_technology})`; // Lookup
+					if (extreme_vendorsupplier !== null)
+						record["extreme_Supplier@odata.bind"] = `/accounts(${extreme_vendorsupplier})`; // Lookup
+					if (extreme_producttype !== null) {
 						record.producttypecode = extreme_producttype; // Choice   //1 products 3services
 					} else {
 						record.producttypecode = 1;
 					}
-					if(extreme_vatgroup !== null)
-					record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${extreme_vatgroup})`; 
-					if(extreme_isparentitem !== null)
-					record["extreme_isparent"] = extreme_isparentitem;
-					if(extreme_parentquoteline !== null){
+					if (extreme_vatgroup !== null)
+						record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${extreme_vatgroup})`;
+					if (extreme_isparentitem !== null)
+						record["extreme_isparent"] = extreme_isparentitem;
+					if (extreme_parentquoteline !== null) {
 						var parentProductId = await Xrm.WebApi.retrieveRecord("quotedetail", extreme_parentquoteline, "?$select=_productid_value").then(
 							function success(result) {
 								console.log(result);
 								// Columns
 								return result["_productid_value"]; // Lookup
 							},
-							function(error) {
+							function (error) {
 								console.log(error.message);
 							}
 						);
 						record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
 						record["extreme_quantityforparent"] = quantity;
 					}
-					
-
-					
 
 
-					var newProductId = await Xrm.WebApi.createRecord("product", record).then(
-						function success(result) {
-							return result.id;
-							console.log(newId);
+					var newProductId = null;
+					await Xrm.WebApi.retrieveMultipleRecords(
+						"product",
+						`?$select=productid,productnumber&$filter=productnumber eq '${extreme_customproductid.trim()}'`
+					).then(
+						async function success(results) {
+							console.log(results);
+							if (results.entities.length > 0) {
+								var result = results.entities[0];
+								// Columns
+								var productid = result["productid"]; // Guid
+								var productnumber = result["productnumber"]; // Text
+
+								newProductId = productid;
+								record.productnumber = productnumber; // Text
+							}
+							else {
+								await Xrm.WebApi.createRecord("product", record).then(
+									function success(result) {
+										newProductId = result.id;
+										// console.log(newId);
+									},
+									function (error) {
+										console.log(error.message);
+									}
+								);
+							}
 						},
-						function(error) {
+						function (error) {
 							console.log(error.message);
 						}
 					);
+					if (!newProductId) throw new Error("Product creation failed. newProductId variable returned null!");
 
-					
+
 					if (formContext.getAttribute("transactioncurrencyid").getValue() !== null) {
 						var currencyName = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
 						var defaultPriceListId = null;
@@ -685,26 +708,26 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 							default:
 								break;
 						}
-					}  
-					
+					}
+
 
 					var PLIrecord = {};
-						PLIrecord.amount = extreme_supplierpriceperunit; // Currency
-						PLIrecord.pricingmethodcode = 1; // Choice
-						PLIrecord["pricelevelid@odata.bind"] = `/pricelevels(${defaultPriceListId})`; // Lookup
-						PLIrecord["productid@odata.bind"] = `/products(${newProductId})`; // Lookup
-						PLIrecord.quantitysellingcode = 2; // Choice
-						PLIrecord["uomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
+					PLIrecord.amount = extreme_supplierpriceperunit; // Currency
+					PLIrecord.pricingmethodcode = 1; // Choice
+					PLIrecord["pricelevelid@odata.bind"] = `/pricelevels(${defaultPriceListId})`; // Lookup
+					PLIrecord["productid@odata.bind"] = `/products(${newProductId})`; // Lookup
+					PLIrecord.quantitysellingcode = 2; // Choice
+					PLIrecord["uomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
 
 					await Xrm.WebApi.createRecord("productpricelevel", PLIrecord).then(
-							function success(result) {
-								var newId = result.id;
-								console.log(newId);
-							},
-							function(error) {
-								console.log(error.message);
-							}
-						);
+						function success(result) {
+							var newId = result.id;
+							console.log(newId);
+						},
+						function (error) {
+							console.log(error.message);
+						}
+					);
 
 					await updateQuoteLine(newProductId, newUomId, defaultPriceListId, quotedetailid);
 					//Update QuoteLine
@@ -716,15 +739,15 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 							var productid = result["productid"]; // Guid
 							var extreme_synchronized = result["extreme_synchronized"]; // Boolean
 							var extreme_synchronized_formatted = result["extreme_synchronized@OData.Community.Display.V1.FormattedValue"];
-							
-							if(extreme_parentquoteline !== null){
+
+							if (extreme_parentquoteline !== null) {
 								var parentProductId = await Xrm.WebApi.retrieveRecord("quotedetail", extreme_parentquoteline, "?$select=_productid_value").then(
 									function success(result) {
 										console.log(result);
 										// Columns
 										return result["_productid_value"]; // Lookup
 									},
-									function(error) {
+									function (error) {
 										console.log(error.message);
 									}
 								);
@@ -737,7 +760,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 										var updatedId = result.id;
 										console.log(updatedId);
 									},
-									function(error) {
+									function (error) {
 										console.log(error.message);
 									}
 								);
@@ -763,13 +786,13 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 				var result = results.entities[i];
 				// Columns
 				var productid = result["_productid_value"]; // Lookup
-	
+
 				if (productid !== null) {
 					Xrm.Utility.showProgressIndicator(
-						'Products Sync In Progress... Please Wait.'); 
+						'Products Sync In Progress... Please Wait.');
 
 					await syncProduct(productid);
-				} 
+				}
 			}
 		},
 		function (error) {
