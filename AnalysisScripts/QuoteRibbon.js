@@ -29,7 +29,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 				return results.entities[0];
 			},
 			function (error) {
-				console.log(error.message);
+				Xrm.Navigation.openErrorDialog({ message: error.message });
 			}
 		);
 		var reportid = report["reportid"];
@@ -107,7 +107,7 @@ var QuoteRibbon = window.QuoteRibbon || {};
 		// 			stop = true;
 		// 		},
 		// 		function (error) {
-		// 			console.log(error.message);
+		// 			Xrm.Navigation.openErrorDialog({ message: error.message });
 		// 			stop = true;
 		// 		}
 		// 	);
@@ -162,7 +162,7 @@ const convertResponseToPDF = async function (arrResponseSession) {
 
 		if (match && match[1]) {
 			const pdfDownloadUrl = match[1];
-			console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
+			// console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
 
 			// Replace \u0026 with &
 			const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
@@ -186,7 +186,7 @@ const convertResponseToPDF = async function (arrResponseSession) {
 								binary += String.fromCharCode(bytes[i]);
 							}
 							const base64PDFString = btoa(binary); // Convert to Base64
-							console.log("Base64 PDF String Generated");
+							// console.log("Base64 PDF String Generated");
 							resolve(base64PDFString); // Resolve the promise with the Base64 string
 						} catch (error) {
 							console.error("Error converting response to Base64:", error);
@@ -269,10 +269,10 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
 						var regExp = /\(([^)]+)\)/;
 						var matches = regExp.exec(uri);
 						var newId = matches[1];
-						console.log(newId);
+						// console.log(newId);
 						resolve();
 					} else {
-						console.log(this.responseText);
+						Xrm.Navigation.openErrorDialog({ message: this.responseText });
 					}
 				}
 			};
@@ -365,10 +365,10 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
 	// Create the email record
 	try {
 		const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
-		console.log("Email created successfully with ID:", newId);
+		// console.log("Email created successfully with ID:", newId);
 		return newId;
 	} catch (error) {
-		console.error("Error creating email record: ", error.message);
+		Xrm.Navigation.openErrorDialog({ message: "Error creating email record: " + error.message });
 		return null;
 	}
 };
@@ -377,7 +377,7 @@ const isAccountSynced = async function (accountId) {
 	var isAccountSynced = null;
 	isAccountSynced = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=extreme_synchronized").then(
 		async function success(result) {
-			console.log(result);
+			// console.log(result);
 			// Columns
 			var accountid = result["accountid"]; // Guid
 			var extreme_synchronized = result["extreme_synchronized"]; // Boolean
@@ -385,7 +385,7 @@ const isAccountSynced = async function (accountId) {
 			return extreme_synchronized;
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 	return isAccountSynced;
@@ -394,7 +394,7 @@ const isAccountValidForSync = async function (accountId) {
 	var isAccountValidForSync = null;
 	isAccountValidForSync = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=extreme_vatnumber").then(
 		async function success(result) {
-			console.log(result);
+			// console.log(result);
 			// Columns
 			if (result["extreme_vatnumber"] !== null)
 				return true;
@@ -402,7 +402,7 @@ const isAccountValidForSync = async function (accountId) {
 				return false;
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 	return isAccountValidForSync;
@@ -431,9 +431,9 @@ const syncAccount = async function (accountId) {
 		}
 	).then(function (responseBody) {
 		var result = responseBody;
-		console.log(result);
+		// console.log(result);
 	}).catch(function (error) {
-		console.log(error.message);
+		Xrm.Navigation.openErrorDialog({ message: error.message });
 	});
 }
 const isCostDriveNeeded = async function (formContext) {
@@ -500,9 +500,9 @@ const syncCostDrive = async function (oppId) {
 		}
 	).then(function (responseBody) {
 		var result = responseBody;
-		console.log(result);
+		// console.log(result);
 	}).catch(function (error) {
-		console.log(error.message);
+		Xrm.Navigation.openErrorDialog({ message: error.message });
 	});
 }
 const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
@@ -511,26 +511,26 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 
 	var defaultuomscheduleid = await Xrm.WebApi.retrieveMultipleRecords("uomschedule", "?$filter=name eq 'Default Unit'").then(
 		function success(results) {
-			console.log(results);
+			// console.log(results);
 			return results.entities[0]["uomscheduleid"];
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 	var primaryUnit = await Xrm.WebApi.retrieveMultipleRecords("uom", "?$filter=name eq 'Primary Unit'").then(
 		function success(results) {
-			console.log(results);
+			// console.log(results);
 			return results.entities[0]["uomid"];
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 	// creates everything DESC isParent
 	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quantity,extreme_producttype,_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
 		async function success(results) {
-			console.log(results);
+			// console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
 				var result = results.entities[i];
 				// Columns
@@ -579,12 +579,12 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					var newUomId = null;
 					await Xrm.WebApi.retrieveMultipleRecords("uom", `?$filter=name eq '${extreme_uomid}'`).then(
 						function success(results) {
-							console.log(results);
+							// console.log(results);
 							if (results.entities.length > 0)
 								newUomId = results.entities[0]["uomid"];
 						},
 						function (error) {
-							console.log(error.message);
+							Xrm.Navigation.openErrorDialog({ message: error.message });
 						}
 					);
 					if (newUomId !== null) {
@@ -602,7 +602,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 								// console.log(newId);
 							},
 							function (error) {
-								console.log(error.message);
+								Xrm.Navigation.openErrorDialog({ message: error.message });
 							}
 						);
 						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
@@ -634,12 +634,12 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					if (extreme_parentquoteline !== null) {
 						var parentProductId = await Xrm.WebApi.retrieveRecord("quotedetail", extreme_parentquoteline, "?$select=_productid_value").then(
 							function success(result) {
-								console.log(result);
+								// console.log(result);
 								// Columns
 								return result["_productid_value"]; // Lookup
 							},
 							function (error) {
-								console.log(error.message);
+								Xrm.Navigation.openErrorDialog({ message: error.message });
 							}
 						);
 						record["extreme_ParentProduct@odata.bind"] = `/products(${parentProductId})`; // Lookup
@@ -653,7 +653,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 						`?$select=productid,productnumber&$filter=productnumber eq '${extreme_customproductid.trim()}'`
 					).then(
 						async function success(results) {
-							console.log(results);
+							// console.log(results);
 							if (results.entities.length > 0) {
 								var result = results.entities[0];
 								// Columns
@@ -670,13 +670,13 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 										// console.log(newId);
 									},
 									function (error) {
-										console.log(error.message);
+										Xrm.Navigation.openErrorDialog({ message: error.message });
 									}
 								);
 							}
 						},
 						function (error) {
-							console.log(error.message);
+							Xrm.Navigation.openErrorDialog({ message: error.message });
 						}
 					);
 					if (!newProductId) throw new Error("Product creation failed. newProductId variable returned null!");
@@ -722,10 +722,10 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					await Xrm.WebApi.createRecord("productpricelevel", PLIrecord).then(
 						function success(result) {
 							var newId = result.id;
-							console.log(newId);
+							// console.log(newId);
 						},
 						function (error) {
-							console.log(error.message);
+							Xrm.Navigation.openErrorDialog({ message: error.message });
 						}
 					);
 
@@ -734,7 +734,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 				} else {
 					await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=productid,extreme_synchronized").then(
 						async function success(result) {
-							console.log(result);
+							// console.log(result);
 							// Columns
 							var productid = result["productid"]; // Guid
 							var extreme_synchronized = result["extreme_synchronized"]; // Boolean
@@ -743,12 +743,12 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 							if (extreme_parentquoteline !== null) {
 								var parentProductId = await Xrm.WebApi.retrieveRecord("quotedetail", extreme_parentquoteline, "?$select=_productid_value").then(
 									function success(result) {
-										console.log(result);
+										// console.log(result);
 										// Columns
 										return result["_productid_value"]; // Lookup
 									},
 									function (error) {
-										console.log(error.message);
+										Xrm.Navigation.openErrorDialog({ message: error.message });
 									}
 								);
 								var record = {};
@@ -758,16 +758,16 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 								await Xrm.WebApi.updateRecord("product", productid, record).then(
 									function success(result) {
 										var updatedId = result.id;
-										console.log(updatedId);
+										// console.log(updatedId);
 									},
 									function (error) {
-										console.log(error.message);
+										Xrm.Navigation.openErrorDialog({ message: error.message });
 									}
 								);
 							}
 						},
 						function (error) {
-							console.log(error.message);
+							Xrm.Navigation.openErrorDialog({ message: error.message });
 						}
 					);
 				}
@@ -775,13 +775,13 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			}
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 	// syncs everything ASC isParent
 	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=productid&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem asc`).then(
 		async function success(results) {
-			console.log(results);
+			// console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
 				var result = results.entities[i];
 				// Columns
@@ -796,7 +796,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			}
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 }
@@ -826,7 +826,7 @@ const syncProduct = async function (productId) {
 		var result = responseBody;
 		//console.log(result);
 	}).catch(function (error) {
-		console.log(error.message);
+		Xrm.Navigation.openErrorDialog({ message: error.message });
 	});
 }
 const updateQuoteLine = async function (productId, uomid, pricelevelid, quoteDetailId) {
@@ -837,10 +837,10 @@ const updateQuoteLine = async function (productId, uomid, pricelevelid, quoteDet
 	await Xrm.WebApi.updateRecord("quotedetail", quoteDetailId, record).then(
 		function success(result) {
 			var updatedId = result.id;
-			console.log(updatedId);
+			// console.log(updatedId);
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 }
@@ -873,7 +873,7 @@ const syncQuote = async function (quoteId, formContext) {
 		formContext.data.refresh(true);
 		//console.log(result);
 	}).catch(function (error) {
-		console.log(error.message);
+		Xrm.Navigation.openErrorDialog({ message: error.message });
 	});
 }
 const readConfigurationValue = async function (key) {
@@ -883,7 +883,7 @@ const readConfigurationValue = async function (key) {
 			return results.entities[0]["extreme_value"];
 		},
 		function (error) {
-			console.log(error.message);
+			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
 	return value;
