@@ -485,20 +485,13 @@ async function setClientApiContext(Xrm, formContext) {
 
         // console.log('QuoteLinesWithGoodProductId');
         // console.log(quoteLinesArray.filter((item) => isGuid(item.productid)));
-        const productIdsForFilter = quoteLinesArray.filter((item) => isGuid(item.productid));
-        if (productIdsForFilter.length === 1) {
-          filterForPriceListsQuery = `productid/productid eq ${quoteLinesArray.find((item) => isGuid(item.productid)).productid}`;
-        }
-        else if (productIdsForFilter.length > 1) {
-          for (let i = 0; i < productIdsForFilter.length; i++) {
-            if (i === productIdsForFilter.length - 1) {
-              filterForPriceListsQuery += `productid/productid eq ${productIdsForFilter[i].productid}`
-            }
-            else {
-              filterForPriceListsQuery += `productid/productid eq ${productIdsForFilter[i].productid} or `
-            }
-          }
-        }
+
+        const productIdsForFilter = new Set(quoteLinesArray.filter((item) => isGuid(item.productid)).map(item => item.productid));
+
+        filterForPriceListsQuery = Array.from(productIdsForFilter).map(id => `productid/productid eq ${id}`).join(' or ');
+
+        // console.log(`(${filterForPriceListsQuery})`);
+
 
         // console.log('productIdsForFilter');
         // console.log(productIdsForFilter);
