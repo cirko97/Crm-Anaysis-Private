@@ -866,7 +866,7 @@ async function setClientApiContext(Xrm, formContext) {
     $(() => {
       const quoteLinesData = new DevExpress.data.ArrayStore({
         key: 'quotedetailid',
-        data: [...new Set(quoteLinesArray)],
+        data: [...new Map(quoteLinesArray.map(item => [item.quotedetailid, item])).values()],
       });
 
       const vendorSupplierODataStore = new DevExpress.data.ODataStore({
