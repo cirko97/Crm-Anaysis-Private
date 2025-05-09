@@ -26,17 +26,17 @@ async function form_onload(executionContext) {
     }
 
     if (formType === FORM_NEW) {
-        if(formContext.getAttribute("effectivefrom").getValue() === null){
+        if (formContext.getAttribute("effectivefrom").getValue() === null) {
             formContext.getAttribute("effectivefrom").setValue(new Date());
             var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
             var newEffectiveTo = addDays(new Date(), parseInt(defaultQuoteValidDays, 10));
-            formContext.getAttribute("effectiveto").setValue(newEffectiveTo);           
+            formContext.getAttribute("effectiveto").setValue(newEffectiveTo);
         }
-        if(formContext.getAttribute("extreme_deliverymethod").getValue() === null 
-        && formContext.getAttribute("extreme_paymentterms").getValue() === null){
+        if (formContext.getAttribute("extreme_deliverymethod").getValue() === null
+            && formContext.getAttribute("extreme_paymentterms").getValue() === null) {
             populateAccountDefaults();
         }
-        
+
     } else {
         // Get Nav. Item
         var navItem = formContext.ui.navigation.items.get("navSPDocuments");
@@ -56,16 +56,16 @@ async function form_onload(executionContext) {
         }
     }
 
-    if(formContext.getAttribute("extreme_placeofpublishing").getValue() === null){
+    if (formContext.getAttribute("extreme_placeofpublishing").getValue() === null) {
         var publishingLocation = await readConfigurationValue("QuotePublishingLocation")
         formContext.getAttribute("extreme_placeofpublishing").setValue(publishingLocation);
     }
 
-    if(formContext.getAttribute("effectivefrom").getValue() === null){
+    if (formContext.getAttribute("effectivefrom").getValue() === null) {
         formContext.getAttribute("effectivefrom").setValue(new Date());
         var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
         var newEffectiveTo = addDays(new Date(), parseInt(defaultQuoteValidDays, 10));
-        formContext.getAttribute("effectiveto").setValue(newEffectiveTo);           
+        formContext.getAttribute("effectiveto").setValue(newEffectiveTo);
     }
 
 
@@ -121,34 +121,34 @@ async function form_onload(executionContext) {
         return result;
     }
 
-    async function populateAccountDefaults(){
-        if(formContext.getAttribute("customerid").getValue() !== null) {
+    async function populateAccountDefaults() {
+        if (formContext.getAttribute("customerid").getValue() !== null) {
             var accountId = formContext.getAttribute("customerid").getValue()[0].id;
             var account = await Xrm.WebApi.retrieveRecord("account", `${accountId}`, "?$select=_extreme_deliverymethod_value,_extreme_paymentterms_value").then(
                 function success(result) {
                     return result;
                 },
-                function(error) {
+                function (error) {
                     console.log(error.message);
                 }
             );
             var deliveryMethodLookup = [{
-                id: account["_extreme_deliverymethod_value"], 
+                id: account["_extreme_deliverymethod_value"],
                 name: account["_extreme_deliverymethod_value@OData.Community.Display.V1.FormattedValue"],
                 entityType: account["_extreme_deliverymethod_value@Microsoft.Dynamics.CRM.lookuplogicalname"]
             }];
 
-            if(account["_extreme_deliverymethod_value"]!== null)
-            formContext.getAttribute("extreme_deliverymethod").setValue(deliveryMethodLookup);
+            if (account["_extreme_deliverymethod_value"] !== null)
+                formContext.getAttribute("extreme_deliverymethod").setValue(deliveryMethodLookup);
 
             var paymentTermsLookup = [{
-                id: account["_extreme_paymentterms_value"], 
-                name: account["_extreme_paymentterms_value@OData.Community.Display.V1.FormattedValue"], 
-                entityType: account["_extreme_paymentterms_value@Microsoft.Dynamics.CRM.lookuplogicalname"] 
+                id: account["_extreme_paymentterms_value"],
+                name: account["_extreme_paymentterms_value@OData.Community.Display.V1.FormattedValue"],
+                entityType: account["_extreme_paymentterms_value@Microsoft.Dynamics.CRM.lookuplogicalname"]
             }];
 
-            if(account["_extreme_paymentterms_value"]!== null)
-            formContext.getAttribute("extreme_paymentterms").setValue(paymentTermsLookup);
+            if (account["_extreme_paymentterms_value"] !== null)
+                formContext.getAttribute("extreme_paymentterms").setValue(paymentTermsLookup);
         }
     }
 
@@ -205,5 +205,57 @@ async function form_onload(executionContext) {
             console.error("Max retries reached. Unable to set client API context.");
         }
     }
-    
+
+}
+
+function ActivateQuote(primaryControl) {
+    const formContext = primaryControl;
+    Xrm.Utility.showProgressIndicator("Activating Quote...");
+    Xrm.Page.data.save().then(function () {
+        Xrm.WebApi.updateRecord("quote", Xrm.Page.data.entity.getId(), {
+            statecode: 1,
+            statuscode: -1
+        }).then(function () {
+            Xrm.Page.data.refresh().then(function () {
+                Xrm.Page.ui.refreshRibbon();
+                Xrm.Utility.closeProgressIndicator();
+
+                var userId = Xrm.Utility.getGlobalContext().userSettings.userId.replace(/[{}]/g, ""); // Remove curly braces
+                var notificationData = {
+                    Title: "Quote Activated",
+                    Body: "You have activated a quote.",
+                    Recipient: `/systemusers(${userId})`,
+                    IconType: 100000001, // info
+                    ToastType: 200000000 // timed
+                };
+
+                var req = new XMLHttpRequest();
+                req.open("POST", Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/SendAppNotification", true);
+                req.setRequestHeader("OData-MaxVersion", "4.0");
+                req.setRequestHeader("OData-Version", "4.0");
+                req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+                req.setRequestHeader("Accept", "application/json");
+                req.onreadystatechange = function () {
+                    if (this.readyState === 4) {
+                        req.onreadystatechange = null;
+                        if (this.status === 204) {
+                            console.log("Notification sent successfully.");
+                        } else {
+                            console.error("Error sending notification: " + this.responseText);
+                        }
+                    }
+                };
+                req.send(JSON.stringify(notificationData));
+
+            });
+        }).catch(function (error) {
+            progressIndicator.hideOnError(ClientUtility.ActionFailedHandler.actionFailedCallback)(error);
+        });
+    }).catch(function (error) {
+        progressIndicator.hideOnError(ClientUtility.ActionFailedHandler.actionFailedCallback)(error);
+    });
+
+    if (formContext.getControl('WebResource_quoteLines').getObject()) {
+        formContext.getControl('WebResource_quoteLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+    }
 }
