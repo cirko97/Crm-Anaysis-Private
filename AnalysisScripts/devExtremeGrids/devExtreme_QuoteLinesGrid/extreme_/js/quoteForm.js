@@ -208,54 +208,56 @@ async function form_onload(executionContext) {
 
 }
 
-function ActivateQuote(primaryControl) {
-    const formContext = primaryControl;
-    Xrm.Utility.showProgressIndicator("Activating Quote...");
-    Xrm.Page.data.save().then(function () {
-        Xrm.WebApi.updateRecord("quote", Xrm.Page.data.entity.getId(), {
-            statecode: 1,
-            statuscode: -1
-        }).then(function () {
-            Xrm.Page.data.refresh().then(function () {
-                Xrm.Page.ui.refreshRibbon();
-                Xrm.Utility.closeProgressIndicator();
+// async function ActivateQuote(primaryControl) {
+//     const formContext = primaryControl;
+//     Xrm.Utility.showProgressIndicator("Activating Quote...");
+//     Xrm.Page.data.save().then(function () {
+//         Xrm.WebApi.updateRecord("quote", Xrm.Page.data.entity.getId(), {
+//             statecode: 1,
+//             statuscode: -1
+//         }).then(function () {
+//             Xrm.Page.data.refresh().then(function () {
+//                 Xrm.Page.ui.refreshRibbon();
 
-                var userId = Xrm.Utility.getGlobalContext().userSettings.userId.replace(/[{}]/g, ""); // Remove curly braces
-                var notificationData = {
-                    Title: "Quote Activated",
-                    Body: "You have activated a quote.",
-                    Recipient: `/systemusers(${userId})`,
-                    IconType: 100000001, // info
-                    ToastType: 200000000 // timed
-                };
+//                 var userId = Xrm.Utility.getGlobalContext().userSettings.userId.replace(/[{}]/g, ""); // Remove curly braces
+//                 var notificationData = {
+//                     Title: "Quote Activated",
+//                     Body: "You have activated a quote.",
+//                     Recipient: `/systemusers(${userId})`,
+//                     IconType: 100000001, // info
+//                     ToastType: 200000000, // timed
+//                     Expiry: 6 // 6 seconds
+//                 };
 
-                var req = new XMLHttpRequest();
-                req.open("POST", Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/SendAppNotification", true);
-                req.setRequestHeader("OData-MaxVersion", "4.0");
-                req.setRequestHeader("OData-Version", "4.0");
-                req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-                req.setRequestHeader("Accept", "application/json");
-                req.onreadystatechange = function () {
-                    if (this.readyState === 4) {
-                        req.onreadystatechange = null;
-                        if (this.status === 204) {
-                            console.log("Notification sent successfully.");
-                        } else {
-                            console.error("Error sending notification: " + this.responseText);
-                        }
-                    }
-                };
-                req.send(JSON.stringify(notificationData));
+//                 var req = new XMLHttpRequest();
+//                 req.open("POST", Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/SendAppNotification", true);
+//                 req.setRequestHeader("OData-MaxVersion", "4.0");
+//                 req.setRequestHeader("OData-Version", "4.0");
+//                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+//                 req.setRequestHeader("Accept", "application/json");
+//                 req.onreadystatechange = function () {
+//                     if (this.readyState === 4) {
+//                         req.onreadystatechange = null;
+//                         if (this.status === 200) {
+//                             console.log("Notification sent successfully.");
+//                         } else {
+//                             console.log("Error sending notification: " + this.responseText + ", Status: " + this.status);
+//                         }
+//                     }
+//                 };
+//                 req.send(JSON.stringify(notificationData));
 
-            });
-        }).catch(function (error) {
-            progressIndicator.hideOnError(ClientUtility.ActionFailedHandler.actionFailedCallback)(error);
-        });
-    }).catch(function (error) {
-        progressIndicator.hideOnError(ClientUtility.ActionFailedHandler.actionFailedCallback)(error);
-    });
+//             });
+//         }).catch(function (error) {
+//             progressIndicator.hideOnError(ClientUtility.ActionFailedHandler.actionFailedCallback)(error);
+//         });
+//     }).catch(function (error) {
+//         progressIndicator.hideOnError(ClientUtility.ActionFailedHandler.actionFailedCallback)(error);
+//     });
 
-    if (formContext.getControl('WebResource_quoteLines').getObject()) {
-        formContext.getControl('WebResource_quoteLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
-    }
-}
+//     if (formContext.getControl('WebResource_quoteLines').getObject()) {
+//         await formContext.getControl('WebResource_quoteLines').getObject().contentWindow.window.setClientApiContext(Xrm, formContext);
+//     }
+
+//     Xrm.Utility.closeProgressIndicator();
+// }

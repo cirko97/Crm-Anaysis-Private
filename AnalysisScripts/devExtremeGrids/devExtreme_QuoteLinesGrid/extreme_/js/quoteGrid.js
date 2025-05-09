@@ -191,7 +191,6 @@ async function setClientApiContext(Xrm, formContext) {
     );
   }
 
-
   await getProductTypes();
   await getUnits();
   await getCurrencies();
@@ -867,7 +866,7 @@ async function setClientApiContext(Xrm, formContext) {
     $(() => {
       const quoteLinesData = new DevExpress.data.ArrayStore({
         key: 'quotedetailid',
-        data: quoteLinesArray,
+        data: [...new Set(quoteLinesArray)],
       });
 
       const vendorSupplierODataStore = new DevExpress.data.ODataStore({
