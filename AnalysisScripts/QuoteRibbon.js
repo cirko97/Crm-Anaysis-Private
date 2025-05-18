@@ -528,7 +528,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 		}
 	);
 	// creates everything DESC isParent
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quantity,extreme_producttype,_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quantity,extreme_customproductname,extreme_producttype,_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
 		async function success(results) {
 			// console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
@@ -548,6 +548,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 				var extreme_customproductid = result["extreme_customproductid"]; // Text
 				var extreme_productid = result["extreme_productid"]; // Text
 				var quotedetailname = result["quotedetailname"]; // Text
+				var customproductname = result["extreme_customproductname"]; // Text
 				var productname = result["productname"]; // Text
 				var productnumber = result["productnumber"]; // Text
 				var extreme_uomid = result["extreme_uomid"]; // Text
@@ -608,10 +609,30 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 						record["defaultuomid@odata.bind"] = `/uoms(${newUomId})`; // Lookup
 					}
 
+					// Check if a product with the same name or custom product ID already exists
+					var existingProductId = null;
+					await Xrm.WebApi.retrieveMultipleRecords(
+						"product",
+						`?$select=productid,productnumber&$filter= productnumber eq '${extreme_customproductid}'`
+					).then(
+						function success(results) {
+							if (results.entities.length > 0) {
+								existingProductId = results.entities[0]["productid"];
+							}
+						},
+						function (error) {
+							Xrm.Navigation.openErrorDialog({ message: error.message });
+						}
+					);
 
+					if (existingProductId) {
+						// If a matching product exists, use it instead of creating a new one
+						await updateQuoteLine(existingProductId, newUomId, defaultPriceListId, quotedetailid);
+						return; // Skip the creation process
+					}
 
 					record.productnumber = extreme_customproductid; // Text
-					record.name = quotedetailname; // Text
+					record.name = customproductname; // Text
 					record.description = extreme_productdescription; // Multiline Text
 					record.quantitydecimal = 2; // Whole Number
 					record["defaultuomscheduleid@odata.bind"] = `/uomschedules(${defaultuomscheduleid})`; // Lookup
