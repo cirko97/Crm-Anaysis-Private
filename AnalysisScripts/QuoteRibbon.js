@@ -800,7 +800,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 		}
 	);
 	// syncs everything ASC isParent
-	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=productid&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem asc`).then(
+	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_productid_value&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem asc`).then(
 		async function success(results) {
 			// console.log(results);
 			for (var i = 0; i < results.entities.length; i++) {
