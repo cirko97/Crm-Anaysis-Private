@@ -570,6 +570,7 @@ function form_onload(executionContext) {
       lockOrUnlockFieldsInSection("generalTab", "ResolutionDetails", true);
       lockOrUnlockFieldsInSection("calendarTab", "Calendar_section_3", true);
       formContext.getControl("extreme_dateofcompletion").setDisabled(false);
+      formContext.getControl("extreme_totalcaseamount").setDisabled(false);
     } else {
       lockOrUnlockFieldsInSection("generalTab", "general", false);
       lockOrUnlockFieldsInSection("generalTab", "ResolutionDetails", false);
