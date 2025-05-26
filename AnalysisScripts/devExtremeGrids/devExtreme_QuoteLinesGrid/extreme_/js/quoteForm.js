@@ -11,6 +11,8 @@ async function form_onload(executionContext) {
 
     formContext.getControl("customerid").setEntityTypes(["account"]);
 
+
+
     // Check form type for quote grid
     if (formType !== FORM_NEW) {
         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
@@ -39,6 +41,7 @@ async function form_onload(executionContext) {
 
     } else {
         const createdOnDate = getCreatedOnDate(formContext.data.entity.getId().slice(1, -1));
+        createdOnDate.setHours(0, 0, 0, 0); // Normalize time to midnight
         // console.log("Created On Date: ", createdOnDate);
         // console.log("Effective From Date: ", new Date(formContext.getAttribute("effectivefrom").getValue()));
         if (createdOnDate > new Date(formContext.getAttribute("effectivefrom").getValue())) {
@@ -47,6 +50,25 @@ async function form_onload(executionContext) {
             var newEffectiveTo = addDays(createdOnDate, parseInt(defaultQuoteValidDays, 10));
             formContext.getAttribute("effectiveto").setValue(newEffectiveTo);
         }
+
+        formContext.getAttribute("effectivefrom").addOnChange(async () => {
+            const effectiveFromDate = new Date(formContext.getAttribute("effectivefrom").getValue());
+
+            console.log("Effective From Date: ", effectiveFromDate);
+            console.log("Created On Date: ", createdOnDate);
+            if (effectiveFromDate < createdOnDate) {
+                formContext.getAttribute("effectivefrom").setValue(createdOnDate);
+                Xrm.Utility.alertDialog("Effective From date cannot be earlier than the Created On date.");
+                return;
+            }
+            if (effectiveFromDate) {
+                var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
+                var newEffectiveTo = addDays(createdOnDate, parseInt(defaultQuoteValidDays, 10));
+                formContext.getAttribute("effectiveto").setValue(newEffectiveTo);
+                console.log("Default Quote Valid Days: ", defaultQuoteValidDays);
+                console.log("New Effective To Date: ", newEffectiveTo);
+            }
+        });
 
         // Get Nav. Item
         var navItem = formContext.ui.navigation.items.get("navSPDocuments");
