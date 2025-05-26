@@ -129,7 +129,7 @@ async function setClientApiContext(Xrm, formContext) {
           let isEditableFromCaseLine = null;
           if (extreme_caseline !== null) {
             const caseLineInfo = await Xrm.WebApi.retrieveRecord("extreme_caseline", `${extreme_caseline}`, "?$select=_extreme_unit_value");
-            const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"] === "PAK" ? true : false;
+            const isPAK = caseLineInfo["_extreme_unit_value@OData.Community.Display.V1.FormattedValue"].toLowerCase().trim() === "PAK".toLowerCase().trim() ? true : false;
             isEditableFromCaseLine = isPAK
           }
 
