@@ -38,6 +38,16 @@ async function form_onload(executionContext) {
         }
 
     } else {
+        const createdOnDate = getCreatedOnDate(formContext.data.entity.getId().slice(1, -1));
+        // console.log("Created On Date: ", createdOnDate);
+        // console.log("Effective From Date: ", new Date(formContext.getAttribute("effectivefrom").getValue()));
+        if (createdOnDate > new Date(formContext.getAttribute("effectivefrom").getValue())) {
+            formContext.getAttribute("effectivefrom").setValue(createdOnDate);
+            var defaultQuoteValidDays = await readConfigurationValue("defaultQuoteValidDays");
+            var newEffectiveTo = addDays(createdOnDate, parseInt(defaultQuoteValidDays, 10));
+            formContext.getAttribute("effectiveto").setValue(newEffectiveTo);
+        }
+
         // Get Nav. Item
         var navItem = formContext.ui.navigation.items.get("navSPDocuments");
         // First set focus on Nav. Item to open related tab
@@ -204,6 +214,39 @@ async function form_onload(executionContext) {
         } else {
             console.error("Max retries reached. Unable to set client API context.");
         }
+    }
+
+
+    function getCreatedOnDate(quoteId) {
+        let createdOnDate = null;
+        var req = new XMLHttpRequest();
+        req.open("GET", Xrm.Utility.getGlobalContext().getClientUrl() + `/api/data/v9.2/quotes(${quoteId})?$select=createdon`, false);
+        req.setRequestHeader("OData-MaxVersion", "4.0");
+        req.setRequestHeader("OData-Version", "4.0");
+        req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+        req.setRequestHeader("Accept", "application/json");
+        req.setRequestHeader("Prefer", "odata.include-annotations=*");
+        req.onreadystatechange = function () {
+            if (this.readyState === 4) {
+                req.onreadystatechange = null;
+                if (this.status === 200) {
+                    var result = JSON.parse(this.response);
+                    // console.log(result);
+                    // Columns
+                    var quoteid = result["quoteid"]; // Guid
+                    var createdon = result["createdon"]; // Date Time
+                    var createdon_formatted = result["createdon@OData.Community.Display.V1.FormattedValue"];
+
+                    if (createdon) createdOnDate = new Date(createdon);
+
+                } else {
+                    console.log(this.responseText);
+                }
+            }
+        };
+        req.send();
+
+        return createdOnDate;
     }
 
 }
