@@ -1051,7 +1051,7 @@ async function setClientApiContext(Xrm, formContext) {
             let timeSpent;
             // console.log("UNIT FOR CREATE TIME ENTRY");
             // console.log(unitsArray.find(item => item.id === e.data.extreme_unit).name);
-            if (unitsArray.find(item => item.id === e.data.extreme_unit).name == "PAK" || unitsArray.find(item => item.id === e.data.extreme_unit).name == "DAN") {
+            if (unitsArray.find(item => item.id === e.data.extreme_unit).name.toLowerCase().trim() == "PAK".toLowerCase().trim() || unitsArray.find(item => item.id === e.data.extreme_unit).name.toLowerCase().trim() == "DAN".toLowerCase().trim()) {
               dateTo.addMinutes(e.data.extreme_quantity * (60 * 8));
               timeSpent = e.data.extreme_quantity * (60 * 8);
             }
@@ -1335,7 +1335,7 @@ async function setClientApiContext(Xrm, formContext) {
             const assetId = e.newData.extreme_asset ? e.newData.extreme_asset : e.oldData.extreme_asset;
 
             let timeSpent;
-            if (unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "PAK" || unitsArray.find(item => item.id === e.oldData.extreme_unit).name == "DAN") {
+            if (unitsArray.find(item => item.id === e.oldData.extreme_unit).name.toLowerCase().trim() == "PAK".toLowerCase().trim() || unitsArray.find(item => item.id === e.oldData.extreme_unit).name.toLowerCase().trim() == "DAN".toLowerCase().trim()) {
               timeSpent = quantity * (60 * 8);
             }
             else {
