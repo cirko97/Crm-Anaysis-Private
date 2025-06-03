@@ -688,6 +688,15 @@ async function setClientApiContext(Xrm, formContext) {
         onSelectionChanged(data) {
           dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
         },
+        onRowPrepared: async (e) => {
+          // console.log('ROW PREPARED');
+          // console.log(e);
+
+          if (e.rowType === 'header') {
+            e.cells[7].cellElement[0].colSpan = 2;
+            e.cells[8].cellElement[0].style.display = "none";
+          }
+        },
         onEditorPreparing: async (e) => {
           // console.log('Editor Preparing');
           // console.log(e);

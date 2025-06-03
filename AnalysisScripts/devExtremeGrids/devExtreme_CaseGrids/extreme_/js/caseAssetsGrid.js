@@ -1300,6 +1300,13 @@ async function setClientApiContext(Xrm, formContext) {
           // console.log('ROW PREPARED');
           // console.log(e);
 
+          if (e.rowType === 'header') {
+            e.cells[6].cellElement[0].colSpan = 2;
+            e.cells[7].cellElement[0].style.display = "none";
+            e.cells[8].cellElement[0].colSpan = 2;
+            e.cells[9].cellElement[0].style.display = "none";
+          }
+
           if (e.rowType === 'data' && !e.data.extreme_isparent && e.data.extreme_caseassetid) {
             // // console.log('REMOVED EXPAND FOR ', e.data.extreme_caseassetid);
             // // console.log(dataGrid.hasEditData());
