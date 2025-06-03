@@ -527,6 +527,37 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
+	if (formContext.getAttribute("transactioncurrencyid").getValue() !== null) {
+		var currencyName = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
+		var defaultPriceListId = null;
+
+		switch (currencyName) {
+			case "EUR":
+				defaultPriceListId = await readConfigurationValue("defaultEURPriceListId");
+				break;
+			case "USD":
+				defaultPriceListId = await readConfigurationValue("defaultUSDPriceListId");
+				break;
+			case "RSD":
+				defaultPriceListId = await readConfigurationValue("defaultRSDPriceListId");
+				break;
+			case "GBP":
+				defaultPriceListId = await readConfigurationValue("defaultGBPPriceListId");
+				break;
+			case "CHF":
+				defaultPriceListId = await readConfigurationValue("defaultCHFPriceListId");
+				break;
+			case "MKD":
+				defaultPriceListId = await readConfigurationValue("defaultMKDPriceListId");
+				break;
+			default:
+				break;
+		}
+	}
+	//set quote to draft
+	await Xrm.WebApi.updateRecord("quote", quoteId, { "statecode": 0, "statuscode": 1 });
+	
+
 	// creates everything DESC isParent
 	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quantity,extreme_customproductname,extreme_producttype,_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
 		async function success(results) {
@@ -628,7 +659,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					if (existingProductId) {
 						// If a matching product exists, use it instead of creating a new one
 						await updateQuoteLine(existingProductId, newUomId, defaultPriceListId, quotedetailid);
-						return; // Skip the creation process
+						continue; // <----- this will skip to the next iteration!
 					}
 
 					record.productnumber = extreme_customproductid; // Text
@@ -702,36 +733,6 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 					);
 					if (!newProductId) throw new Error("Product creation failed. newProductId variable returned null!");
 
-
-					if (formContext.getAttribute("transactioncurrencyid").getValue() !== null) {
-						var currencyName = formContext.getAttribute("transactioncurrencyid").getValue()[0].name;
-						var defaultPriceListId = null;
-
-						switch (currencyName) {
-							case "EUR":
-								defaultPriceListId = await readConfigurationValue("defaultEURPriceListId");
-								break;
-							case "USD":
-								defaultPriceListId = await readConfigurationValue("defaultUSDPriceListId");
-								break;
-							case "RSD":
-								defaultPriceListId = await readConfigurationValue("defaultRSDPriceListId");
-								break;
-							case "GBP":
-								defaultPriceListId = await readConfigurationValue("defaultGBPPriceListId");
-								break;
-							case "CHF":
-								defaultPriceListId = await readConfigurationValue("defaultCHFPriceListId");
-								break;
-							case "MKD":
-								defaultPriceListId = await readConfigurationValue("defaultMKDPriceListId");
-								break;
-							default:
-								break;
-						}
-					}
-
-
 					var PLIrecord = {};
 					PLIrecord.amount = extreme_supplierpriceperunit; // Currency
 					PLIrecord.pricingmethodcode = 1; // Choice
@@ -799,6 +800,9 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
+	//set quote back to active
+	await Xrm.WebApi.updateRecord("quote", quoteId, { "statecode": 1, "statuscode": 2 });
+
 	// syncs everything ASC isParent
 	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=_productid_value&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem asc`).then(
 		async function success(results) {
@@ -864,6 +868,7 @@ const updateQuoteLine = async function (productId, uomid, pricelevelid, quoteDet
 			Xrm.Navigation.openErrorDialog({ message: error.message });
 		}
 	);
+
 }
 const syncQuote = async function (quoteId, formContext) {
 	Xrm.Utility.showProgressIndicator(
