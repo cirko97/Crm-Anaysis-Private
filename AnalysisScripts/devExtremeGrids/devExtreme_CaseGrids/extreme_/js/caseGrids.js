@@ -610,7 +610,7 @@ async function setClientApiContext(Xrm, formContext) {
               options: {
                 text: 'Import lines from Quote',
                 icon: 'copy',
-                disabled: false,
+                disabled: !isEditable,
                 onClick() {
                   //define data for lookupOptions
                   var lookupOptions =
