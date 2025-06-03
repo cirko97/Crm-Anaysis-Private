@@ -7,6 +7,7 @@ let isEditable = true;
 let heightAuto = true;
 let isImportingFromQuote = false;
 let caseImportInfo = null;
+let selectedDescriptionItem = null;
 
 // Add hours to Date method
 Date.prototype.addHours = function (h) {
@@ -437,9 +438,110 @@ async function setClientApiContext(Xrm, formContext) {
           {
             dataField: 'description',
             caption: 'Description',
-            width: 500,
+            width: 450,
             cssClass: 'textarea-fields',
-            dataType: 'string'
+            dataType: 'string',
+            allowEditing: false
+          },
+          {
+            type: 'buttons',
+            width: 50,
+            buttons: [
+              {
+                hint: 'Description',
+                icon: 'edit',
+                visible(e) {
+                  return true;
+                },
+                disabled(e) {
+                  return false;
+                },
+                onClick(e) {
+                  // console.log(e);
+
+                  const popupContentTemplate = function (item) {
+
+                    if (isEditable) {
+                      return $('<div data-mdb-input-init class="form-outline">')
+                        .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.description ? item.description.trim() : ''}</textarea>`))
+                    }
+                    else {
+                      return $('<div class="overflow-auto" style="max-height: 100px;">')
+                        .append($(`<p>${item.description ? item.description.trim() : ''}</p>`))
+                    }
+
+                    return $('<div>').append(
+                      $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
+                    );
+                  };
+                  const popup = $('#popup').dxPopup({
+                    contentTemplate: popupContentTemplate,
+                    width: 500,
+                    height: 200,
+                    container: '.dx-viewport',
+                    showTitle: true,
+                    title: `Description`,
+                    visible: false,
+                    dragEnabled: false,
+                    hideOnOutsideClick: true,
+                    showCloseButton: false,
+                    position: {
+                      at: 'center',
+                      my: 'center',
+                      collision: 'fit',
+                    },
+                    toolbarItems: [{
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'before',
+                      options: {
+                        icon: 'save',
+                        stylingMode: 'contained',
+                        text: 'Save',
+                        disabled: !isEditable,
+                        async onClick() {
+                          // console.log($('#productDescription').val().trim());
+
+                          var record = {};
+                          record.description = "test"; // Multiline Text
+
+                          await Xrm.WebApi.updateRecord("extreme_timeentry", `${e.row.data.activityid}`, { description: $('#productDescription').val().trim() });
+                          timeEntriesData.update(e.row.data.activityid, { description: $('#productDescription').val().trim() });
+                          dataGrid.refresh();
+
+                          popup.hide();
+
+                        },
+                      },
+                    }, {
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'after',
+                      options: {
+                        text: 'Close',
+                        stylingMode: 'outlined',
+                        type: 'normal',
+                        onClick() {
+                          popup.hide();
+                        },
+                      },
+                    }],
+                    onHiding: (e) => {
+                      // console.log('Hidding popup event');
+                      // console.log(e);
+                      selectedDescriptionItem = null;
+                    }
+                  }).dxPopup('instance');
+
+                  selectedDescriptionItem = e.row.data;
+                  popup.option({
+                    contentTemplate: () => popupContentTemplate(e.row.data)
+                  });
+                  popup.show();
+
+                },
+              }
+            ],
           },
           {
             dataField: 'owner',

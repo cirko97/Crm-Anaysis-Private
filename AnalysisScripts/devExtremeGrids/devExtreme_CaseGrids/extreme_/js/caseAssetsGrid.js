@@ -7,6 +7,7 @@ let isEditable = true;
 let heightAuto = true;
 let caseImportInfo = null;
 let isImportingFromQuote = false;
+let selectedDescriptionItem = null;
 
 
 // Add hours to Date method
@@ -910,15 +911,215 @@ async function setClientApiContext(Xrm, formContext) {
             dataType: 'string',
             cssClass: 'textarea-fields',
             width: 300,
-            allowEditing: true,
+            allowEditing: false,
+          },
+          {
+            type: 'buttons',
+            width: 50,
+            buttons: [
+              {
+                hint: 'Description',
+                icon: 'edit',
+                visible(e) {
+                  return true;
+                },
+                disabled(e) {
+                  return false;
+                },
+                onClick(e) {
+                  // console.log(e);
+
+                  const popupContentTemplate = function (item) {
+
+                    if (isEditable) {
+                      return $('<div data-mdb-input-init class="form-outline">')
+                        .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_description ? item.extreme_description.trim() : ''}</textarea>`))
+                    }
+                    else {
+                      return $('<div class="overflow-auto" style="max-height: 100px;">')
+                        .append($(`<p>${item.extreme_description ? item.extreme_description.trim() : ''}</p>`))
+                    }
+
+                    return $('<div>').append(
+                      $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
+                    );
+                  };
+                  const popup = $('#popup').dxPopup({
+                    contentTemplate: popupContentTemplate,
+                    width: 500,
+                    height: 200,
+                    container: '.dx-viewport',
+                    showTitle: true,
+                    title: `Description`,
+                    visible: false,
+                    dragEnabled: false,
+                    hideOnOutsideClick: true,
+                    showCloseButton: false,
+                    position: {
+                      at: 'center',
+                      my: 'center',
+                      collision: 'fit',
+                    },
+                    toolbarItems: [{
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'before',
+                      options: {
+                        icon: 'save',
+                        stylingMode: 'contained',
+                        text: 'Save',
+                        disabled: !isEditable,
+                        async onClick() {
+                          // console.log($('#productDescription').val().trim());
+
+                          // var record = {};
+                          // record.extreme_description = "test"; // Multiline Text
+
+                          await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.row.data.extreme_caseassetid}`, { extreme_description: $('#productDescription').val().trim() });
+                          caseAssetsData.update(e.row.data.extreme_caseassetid, { extreme_description: $('#productDescription').val().trim() });
+                          dataGrid.refresh();
+
+                          popup.hide();
+
+                        },
+                      },
+                    }, {
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'after',
+                      options: {
+                        text: 'Close',
+                        stylingMode: 'outlined',
+                        type: 'normal',
+                        onClick() {
+                          popup.hide();
+                        },
+                      },
+                    }],
+                    onHiding: (e) => {
+                      // console.log('Hidding popup event');
+                      // console.log(e);
+                      selectedDescriptionItem = null;
+                    }
+                  }).dxPopup('instance');
+
+                  selectedDescriptionItem = e.row.data;
+                  popup.option({
+                    contentTemplate: () => popupContentTemplate(e.row.data)
+                  });
+                  popup.show();
+
+                },
+              }
+            ],
           },
           {
             dataField: 'extreme_solution',
             caption: 'Solution',
             dataType: 'string',
             cssClass: 'textarea-fields',
-            // width: 300,
-            allowEditing: true
+            // width: 250,
+            allowEditing: false
+          },
+          {
+            type: 'buttons',
+            width: 50,
+            buttons: [
+              {
+                hint: 'Solution',
+                icon: 'edit',
+                visible(e) {
+                  return true;
+                },
+                disabled(e) {
+                  return false;
+                },
+                onClick(e) {
+                  // console.log(e);
+
+                  const popupContentTemplate = function (item) {
+
+                    if (isEditable) {
+                      return $('<div data-mdb-input-init class="form-outline">')
+                        .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_solution ? item.extreme_solution.trim() : ''}</textarea>`))
+                    }
+                    else {
+                      return $('<div class="overflow-auto" style="max-height: 100px;">')
+                        .append($(`<p>${item.extreme_solution ? item.extreme_solution.trim() : ''}</p>`))
+                    }
+
+                    return $('<div>').append(
+                      $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
+                    );
+                  };
+                  const popup = $('#popup').dxPopup({
+                    contentTemplate: popupContentTemplate,
+                    width: 500,
+                    height: 200,
+                    container: '.dx-viewport',
+                    showTitle: true,
+                    title: `Solution`,
+                    visible: false,
+                    dragEnabled: false,
+                    hideOnOutsideClick: true,
+                    showCloseButton: false,
+                    position: {
+                      at: 'center',
+                      my: 'center',
+                      collision: 'fit',
+                    },
+                    toolbarItems: [{
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'before',
+                      options: {
+                        icon: 'save',
+                        stylingMode: 'contained',
+                        text: 'Save',
+                        disabled: !isEditable,
+                        async onClick() {
+                          // console.log($('#productDescription').val().trim());
+
+                          var record = {};
+                          record.description = "test"; // Multiline Text
+
+                          await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.row.data.extreme_caseassetid}`, { extreme_solution: $('#productDescription').val().trim() });
+                          caseAssetsData.update(e.row.data.extreme_caseassetid, { extreme_solution: $('#productDescription').val().trim() });
+                          dataGrid.refresh();
+
+                          popup.hide();
+
+                        },
+                      },
+                    }, {
+                      widget: 'dxButton',
+                      toolbar: 'bottom',
+                      location: 'after',
+                      options: {
+                        text: 'Close',
+                        stylingMode: 'outlined',
+                        type: 'normal',
+                        onClick() {
+                          popup.hide();
+                        },
+                      },
+                    }],
+                    onHiding: (e) => {
+                      // console.log('Hidding popup event');
+                      // console.log(e);
+                      selectedDescriptionItem = null;
+                    }
+                  }).dxPopup('instance');
+
+                  selectedDescriptionItem = e.row.data;
+                  popup.option({
+                    contentTemplate: () => popupContentTemplate(e.row.data)
+                  });
+                  popup.show();
+
+                },
+              }
+            ],
           },
           {
             dataField: 'extreme_parentcaseasset',
