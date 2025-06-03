@@ -444,6 +444,7 @@ async function setClientApiContext(Xrm, formContext) {
             allowEditing: false
           },
           {
+            name: 'Edit description',
             type: 'buttons',
             width: 50,
             buttons: [
