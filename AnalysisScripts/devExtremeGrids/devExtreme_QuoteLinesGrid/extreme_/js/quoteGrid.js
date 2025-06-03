@@ -22,6 +22,7 @@ let isAddingSet = null;
 let isDraftStatus = true;
 let classifyNeededRows = 0;
 let selectedDescriptionItem = null;
+let primaryDefaultUnit = "KOM";
 
 async function setClientApiContext(Xrm, formContext) {
 
@@ -115,6 +116,21 @@ async function setClientApiContext(Xrm, formContext) {
     );
   }
 
+  await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'PrimaryDefaultUnit'").then(
+    function success(results) {
+      console.log(results);
+      for (var i = 0; i < results.entities.length; i++) {
+        var result = results.entities[i];
+        // Columns
+        var extreme_configurationid = result["extreme_configurationid"]; // Guid
+        var extreme_value = result["extreme_value"]; // Text
+        primaryDefaultUnit = extreme_value;
+      }
+    },
+    function (error) {
+      console.log(error.message);
+    }
+  );
 
   await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_key,extreme_value&$filter=extreme_key eq 'QUOTE_MARGIN'").then(
     function success(results) {
@@ -1253,7 +1269,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                         });
 
-                        newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+                        newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === primaryDefaultUnit.toLowerCase()).id;
 
                         newData.extreme_margin = recalcResult.margin;
                         newData.quantity = recalcResult.quantity;
@@ -1274,7 +1290,7 @@ async function setClientApiContext(Xrm, formContext) {
                       }
                       else if (typeof (value) === 'number' && currentRowData.extreme_isparentitem === true) {
                         newData.productid = value;
-                        newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+                        newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === primaryDefaultUnit.toLowerCase()).id;
                         newData.quantity = 1;
 
                         return;
@@ -2921,7 +2937,7 @@ async function setClientApiContext(Xrm, formContext) {
 
                 });
 
-                newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+                newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === primaryDefaultUnit.toLowerCase()).id;
 
                 newData.extreme_margin = recalcResult.margin;
                 newData.quantity = recalcResult.quantity;
@@ -2942,7 +2958,7 @@ async function setClientApiContext(Xrm, formContext) {
               }
               else if (typeof (value) === 'number' && currentRowData.extreme_isparentitem === true) {
                 newData.productid = value;
-                newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === "kom").id;
+                newData.uomid = unitsStore._array.find(item => item.name.toLowerCase() === primaryDefaultUnit.toLowerCase()).id;
                 newData.quantity = 1;
 
                 return;
