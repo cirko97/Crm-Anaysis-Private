@@ -30,12 +30,6 @@ async function setClientApiContext(Xrm, formContext) {
   window.Xrm = Xrm;
   window._formContext = formContext;
 
-  // Check if string is guid or not
-  function isGuid(value) {
-    const guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    return guidPattern.test(value);
-  }
-
   Xrm.Utility.showProgressIndicator('Loading... Please wait...');
 
   const quoteIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
@@ -46,166 +40,27 @@ async function setClientApiContext(Xrm, formContext) {
   const roundInfo = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'salesAmountRounding'");
   const ROUNDING_PRICE_PER_UNIT_CONFIG = roundInfo.entities[0]["extreme_value"];
 
-  await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=statecode").then(
-    function success(result) {
-      // // console.log(result);
-      // Columns
-      var quoteid = result["quoteid"]; // Guid
-      var statecode = result["statecode"]; // State
-      var statecode_formatted = result["statecode@OData.Community.Display.V1.FormattedValue"];
+  const responseIsDraft = await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=statecode");
+  isDraftStatus = responseIsDraft.statecode == 0 ? true : false;
 
-      isDraftStatus = statecode === 0 ? true : false;
-
-    },
-    function (error) {
-      Xrm.Navigation.openErrorDialog({
-        details: error,
-        errorCode: 400,
-        message: error.message
-      });
-    }
-  );
-
-  formContext.getAttribute('transactioncurrencyid').addOnChange(async () => {
-    var record = {};
-    record.extreme_chfexchangerate = null; // Decimal
-    record.extreme_dollarexchangerate = null; // Decimal
-    record.extreme_euroexchangerate = null; // Decimal
-    record.extreme_gbpexchangerate = null; // Decimal
-    record.extreme_macedoniandenarexchangerate = null; // Decimal
-    record.extreme_rsdexchangerate = null; // Decimal
-
-    await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record).then(
-      function success(result) {
-        var updatedId = result.id;
-        // // console.log(updatedId);
-      },
-      function (error) {
-        Xrm.Navigation.openErrorDialog({
-          details: error,
-          errorCode: 400,
-          message: error.message
-        });
-      }
-    );
-  });
+  formContext.getAttribute('transactioncurrencyid').addOnChange(async () => await transactionCurrencyIdChanged());
 
   let quoteCurrency = null;
   let quoteCurrencySymbol = null;
   let jsonForConverting = null;
   if (replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '') !== null) {
-    await Xrm.WebApi.retrieveRecord("transactioncurrency", `${replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '')}`, "?$select=isocurrencycode,currencysymbol").then(
-      function success(result) {
-        // // console.log(result);
-        // Columns
-        var transactioncurrencyid = result["transactioncurrencyid"]; // Guid
-        var isocurrencycode = result["isocurrencycode"]; // Text
-        var currencysymbol = result["currencysymbol"]; // Text
-
-        quoteCurrency = isocurrencycode;
-        quoteCurrencySymbol = currencysymbol;
-
-      },
-      function (error) {
-        Xrm.Navigation.openErrorDialog({
-          details: error,
-          errorCode: 400,
-          message: error.message
-        });
-      }
-    );
+    const response = await Xrm.WebApi.retrieveRecord("transactioncurrency", `${replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '')}`, "?$select=isocurrencycode,currencysymbol");
+    quoteCurrency = response.isocurrencycode;
+    quoteCurrencySymbol = response.currencysymbol;
   }
 
-  await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'PrimaryDefaultUnit'").then(
-    function success(results) {
-      console.log(results);
-      for (var i = 0; i < results.entities.length; i++) {
-        var result = results.entities[i];
-        // Columns
-        var extreme_configurationid = result["extreme_configurationid"]; // Guid
-        var extreme_value = result["extreme_value"]; // Text
-        primaryDefaultUnit = extreme_value;
-      }
-    },
-    function (error) {
-      console.log(error.message);
-    }
-  );
+  const responsePrimaryDefaultUnit = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'PrimaryDefaultUnit'");
+  primaryDefaultUnit = responsePrimaryDefaultUnit.entities[0].extreme_value;
 
-  await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_key,extreme_value&$filter=extreme_key eq 'QUOTE_MARGIN'").then(
-    function success(results) {
-      // console.log(results);
-      defaultMargin = parseFloat(results.entities[0]["extreme_value"]); // Text
-    },
-    function (error) {
-      Xrm.Navigation.openErrorDialog({
-        details: error,
-        errorCode: 400,
-        message: error.message
-      });
-    }
-  );
+  const responseDefaultMargin = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_key,extreme_value&$filter=extreme_key eq 'QUOTE_MARGIN'");
+  defaultMargin = parseFloat(responseDefaultMargin.entities[0]["extreme_value"]);
 
-  if (replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '') !== null) {
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", `?$select=extreme_value,extreme_key&$filter=extreme_key eq '${quoteCurrency}'`).then(
-      async function success(results) {
-        // console.log(results);
-        var result = results.entities[0];
-        // Columns
-        var extreme_configurationid = result["extreme_configurationid"]; // Guid
-        var extreme_value = result["extreme_value"]; // Text
-        var extreme_key = result["extreme_key"]; // Text
-
-        if (exchangeRatesForm.extreme_chfexchangerate) {
-          jsonForConverting = {
-            "EUR": exchangeRatesForm.extreme_euroexchangerate,
-            "USD": exchangeRatesForm.extreme_dollarexchangerate,
-            "CHF": exchangeRatesForm.extreme_chfexchangerate,
-            "RSD": exchangeRatesForm.extreme_rsdexchangerate,
-            "MKD": exchangeRatesForm.extreme_macedoniandenarexchangerate,
-            "GBP": exchangeRatesForm.extreme_gbpexchangerate
-          }
-        }
-        else {
-          jsonForConverting = JSON.parse(extreme_value);
-
-          var record = {};
-          record.extreme_euroexchangerate = jsonForConverting["EUR"]; // Decimal
-          record.extreme_dollarexchangerate = jsonForConverting["USD"]; // Decimal
-          record.extreme_chfexchangerate = jsonForConverting["CHF"]; // Decimal
-          record.extreme_rsdexchangerate = jsonForConverting["RSD"]; // Decimal
-          record.extreme_macedoniandenarexchangerate = jsonForConverting["MKD"]; // Decimal
-          record.extreme_gbpexchangerate = jsonForConverting["GBP"]; // Decimal
-
-          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record).then(
-            function success(result) {
-              var updatedId = result.id;
-              // console.log(updatedId);
-            },
-            function (error) {
-              Xrm.Navigation.openErrorDialog({
-                details: error,
-                errorCode: 400,
-                message: error.message
-              });
-            }
-          );
-        }
-
-
-        // console.log('jsonForConverting');
-        // console.log(jsonForConverting);
-
-      },
-      function (error) {
-        Xrm.Navigation.openErrorDialog({
-          details: error,
-          errorCode: 400,
-          message: error.message
-        });
-      }
-    );
-  }
+  if (replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '') !== null) await transactionCurrencyNotNull();
 
   await getProductTypes();
   await getUnits();
@@ -6550,6 +6405,85 @@ async function setClientApiContext(Xrm, formContext) {
 
 
   Xrm.Utility.closeProgressIndicator();
+
+
+
+
+
+  // Check if string is guid or not
+  function isGuid(value) {
+    const guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    return guidPattern.test(value);
+  }
+
+  async function transactionCurrencyIdChanged() {
+    var record = {};
+    record.extreme_chfexchangerate = null; // Decimal
+    record.extreme_dollarexchangerate = null; // Decimal
+    record.extreme_euroexchangerate = null; // Decimal
+    record.extreme_gbpexchangerate = null; // Decimal
+    record.extreme_macedoniandenarexchangerate = null; // Decimal
+    record.extreme_rsdexchangerate = null; // Decimal
+
+    await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record).then(
+      function success(result) {
+        var updatedId = result.id;
+        // // console.log(updatedId);
+      },
+      function (error) {
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
+      }
+    );
+  }
+
+  async function transactionCurrencyNotNull() {
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", `?$select=extreme_value,extreme_key&$filter=extreme_key eq '${quoteCurrency}'`).then(
+      async function success(results) {
+        // console.log(results);
+        var result = results.entities[0];
+        // Columns
+        var extreme_configurationid = result["extreme_configurationid"]; // Guid
+        var extreme_value = result["extreme_value"]; // Text
+        var extreme_key = result["extreme_key"]; // Text
+
+        if (exchangeRatesForm.extreme_chfexchangerate) {
+          jsonForConverting = {
+            "EUR": exchangeRatesForm.extreme_euroexchangerate,
+            "USD": exchangeRatesForm.extreme_dollarexchangerate,
+            "CHF": exchangeRatesForm.extreme_chfexchangerate,
+            "RSD": exchangeRatesForm.extreme_rsdexchangerate,
+            "MKD": exchangeRatesForm.extreme_macedoniandenarexchangerate,
+            "GBP": exchangeRatesForm.extreme_gbpexchangerate
+          }
+        }
+        else {
+          jsonForConverting = JSON.parse(extreme_value);
+
+          var record = {};
+          record.extreme_euroexchangerate = jsonForConverting["EUR"]; // Decimal
+          record.extreme_dollarexchangerate = jsonForConverting["USD"]; // Decimal
+          record.extreme_chfexchangerate = jsonForConverting["CHF"]; // Decimal
+          record.extreme_rsdexchangerate = jsonForConverting["RSD"]; // Decimal
+          record.extreme_macedoniandenarexchangerate = jsonForConverting["MKD"]; // Decimal
+          record.extreme_gbpexchangerate = jsonForConverting["GBP"]; // Decimal
+
+          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record);
+        }
+
+      },
+      function (error) {
+        Xrm.Navigation.openErrorDialog({
+          details: error,
+          errorCode: 400,
+          message: error.message
+        });
+      }
+    );
+  }
 
 }
 
