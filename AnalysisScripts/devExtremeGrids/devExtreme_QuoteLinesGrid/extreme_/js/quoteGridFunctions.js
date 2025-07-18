@@ -1,4 +1,5 @@
-const Xrm = parent.window.Xrm;
+// const Xrm = parent.window.Xrm;
+let productTypesArray = [];
 
 // Recalculate amounts for each row based on changed value
 const recalculateAmounts = ({
@@ -364,36 +365,31 @@ async function transactionCurrencyNotNull() {
   );
 }
 
-// Resize web resource as needed
-const wrControl = formContext.getControl("WebResource_quoteLines");
-wrControl.getContentWindow().then(function (contentWindow) {
-  // // console.log('HEIGHT MAIN CONTAINER:');
-  // // console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
-  gridContainer = contentWindow.document.getElementById("gridContainer");
-  // // console.log(gridContainer);
+async function loadProductTypes() {
+  try {
+    const productTypeDefs = await Xrm.Utility.getEntityMetadata("quotedetail", [
+      "extreme_producttype",
+    ]);
 
-  // Create a MutationObserver instance
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.attributeName === "style" || mutation.type === "childList") {
-        // Get the current height of the gridContainer
-        const gridContainerHeight = gridContainer.offsetHeight;
-        // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
-        const iframe = wrControl.getObject();
-        if (heightAuto === true) {
-          if (gridContainerHeight > 250) {
-            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-          } else {
-            iframe.style.minHeight = "255px";
-          }
-        }
-      }
-    });
-  });
+    const objOfObjs =
+      productTypeDefs.Attributes._collection.extreme_producttype.OptionSet;
+    const arrayOfObjs = Object.keys(objOfObjs).map((key) => objOfObjs[key]);
 
-  // Configuration of the observer
-  const config = { attributes: true, childList: true, subtree: true };
+    const productTypesArray = arrayOfObjs.map((elm) => ({
+      id: elm.value,
+      name: elm.text,
+    }));
 
-  // Start observing the gridContainer for changes
-  observer.observe(gridContainer, config);
+    console.log(productTypesArray);
+    return productTypesArray;
+  } catch (error) {
+    console.error("Failed to load product types:", error);
+    return [];
+  }
+}
+
+// Usage
+loadProductTypes().then((productTypesArrayResult) => {
+  // Do something with the array
+  productTypesArray = productTypesArrayResult;
 });

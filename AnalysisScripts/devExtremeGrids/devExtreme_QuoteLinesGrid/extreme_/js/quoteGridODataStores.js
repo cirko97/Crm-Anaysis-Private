@@ -3,7 +3,7 @@ const quoteId = Xrm.Page.data.entity.getId().slice(1, -1);
 
 const quotedetailODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/quotedetails",
@@ -49,14 +49,14 @@ const quotedetailODataStore = new DevExpress.data.ODataStore({
     "extreme_productdescription",
     "extreme_uomid",
     "sequencenumber",
+    "_quoteid_value",
   ],
   expand: ["productid($select=productnumber)"],
-  filter: ["_quoteid_value", "=", quoteId],
 });
 
 const productPriceLevelODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/productpricelevels",
@@ -73,7 +73,7 @@ const productPriceLevelODataStore = new DevExpress.data.ODataStore({
 
 const uomODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/uoms",
   key: "uomid",
   keyType: "Guid",
@@ -82,7 +82,7 @@ const uomODataStore = new DevExpress.data.ODataStore({
 
 const transactionCurrencyODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/transactioncurrencies",
@@ -99,7 +99,7 @@ const transactionCurrencyODataStore = new DevExpress.data.ODataStore({
 
 const extremeAreaODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/extreme_areas",
@@ -110,7 +110,7 @@ const extremeAreaODataStore = new DevExpress.data.ODataStore({
 
 const extremeTechnologyODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/extreme_technologies",
@@ -121,7 +121,7 @@ const extremeTechnologyODataStore = new DevExpress.data.ODataStore({
 
 const vatSettingODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/extreme_vatsettings",
@@ -136,7 +136,7 @@ const vatSettingODataStore = new DevExpress.data.ODataStore({
 const vendorSupplierODataStore = new DevExpress.data.ODataStore({
   // type: "odata",
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/accounts",
   key: "accountid",
@@ -152,7 +152,7 @@ const vendorSupplierODataStore = new DevExpress.data.ODataStore({
 const productsODataStore = new DevExpress.data.ODataStore({
   // type: "odata",
   version: 4,
-  filterToLower: false,
+  filterToLower: true,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/products",
   key: "productid",
