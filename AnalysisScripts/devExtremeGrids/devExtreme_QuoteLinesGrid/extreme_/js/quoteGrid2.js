@@ -37,6 +37,7 @@ $(async function () {
         dataField: "productid",
         caption: "Product ID",
         width: 120,
+        calculateDisplayValue: "productnumber",
         lookup: {
           dataSource: {
             store: productsODataStore,
