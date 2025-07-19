@@ -496,6 +496,16 @@ $(async function () {
     ],
     allowColumnReordering: true,
     allowColumnResizing: true,
+    onEditorPreparing: function (e) {
+      console.log(e);
+      console.log(e.editorOptions.dataSource);
+      console.log(e.row.data.productid.productid._value);
+      if (e.dataField == "extreme_pricelist") {
+        e.editorOptions.dataSource = productPriceLevelDataSource(
+          e.row.data.productid.productid._value
+        );
+      }
+    },
   });
 });
 
@@ -505,18 +515,26 @@ const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 wrControl.getContentWindow().then(function (contentWindow) {
   gridContainer = contentWindow.document.getElementById("treeList");
 
+  console.log("gridContainer");
+  console.log(gridContainer);
+
   // Create a MutationObserver instance
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === "style" || mutation.type === "childList") {
         // Get the current height of the gridContainer
         const gridContainerHeight = gridContainer.offsetHeight;
+
+        console.log("gridContainerHeight");
+        console.log(gridContainerHeight);
         // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
         const iframe = wrControl.getObject();
-        if (gridContainerHeight > 250) {
-          iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-        } else {
-          iframe.style.minHeight = "255px";
+        if (heightAuto === true) {
+          if (gridContainerHeight > 250) {
+            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+          } else {
+            iframe.style.minHeight = "255px";
+          }
         }
       }
     });
