@@ -509,20 +509,22 @@ $(async function () {
   });
 });
 
-let gridContainer = null;
-// Resize web resource as needed
+// // Select the gridContainer element
+// let gridContainer;
+
 // const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 // wrControl.getContentWindow().then(function (contentWindow) {
+//   // // console.log('HEIGHT MAIN CONTAINER:');
+//   // // console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
 //   gridContainer = contentWindow.document.getElementById("treeList");
+//   // // console.log(gridContainer);
+
 //   // Create a MutationObserver instance
 //   const observer = new MutationObserver((mutations) => {
 //     mutations.forEach((mutation) => {
 //       if (mutation.attributeName === "style" || mutation.type === "childList") {
 //         // Get the current height of the gridContainer
 //         const gridContainerHeight = gridContainer.offsetHeight;
-
-//         console.log("gridContainerHeight");
-//         console.log(gridContainerHeight);
 //         // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
 //         const iframe = wrControl.getObject();
 //         if (heightAuto === true) {
