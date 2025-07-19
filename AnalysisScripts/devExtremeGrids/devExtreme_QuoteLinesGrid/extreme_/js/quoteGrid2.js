@@ -1,12 +1,9 @@
 let heightAuto = true;
 
 $(async function () {
-  $("#treeList").dxTreeList({
+  const treeList = $("#treeList").dxTreeList({
     // Configuration goes here
-    dataSource: {
-      store: quotedetailODataStore,
-      filter: ["_quoteid_value", "=", quoteId],
-    },
+    dataSource: quoteDetailsDataSource,
     showRowLines: true,
     showBorders: true,
     rootValue: null,
@@ -24,6 +21,14 @@ $(async function () {
       allowUpdating: true,
       allowDeleting: true,
       allowAdding: true,
+      useIcons: true,
+    },
+    rowDragging: {
+      allowDropInsideItem: true,
+      allowReordering: true,
+      onReorder: async function (e) {
+        console.log(e);
+      },
     },
     columns: [
       {
@@ -37,13 +42,9 @@ $(async function () {
         dataField: "productid",
         caption: "Product ID",
         width: 120,
-        calculateDisplayValue: "productnumber",
+        calculateDisplayValue: "productid.productnumber",
         lookup: {
-          dataSource: {
-            store: productsODataStore,
-            paginate: true,
-            pageSize: 20,
-          },
+          dataSource: productsDataSource,
           displayExpr: "productnumber",
           valueExpr: "productid",
         },
@@ -85,6 +86,11 @@ $(async function () {
           onFocusOut: function (e) {
             heightAuto = true;
           },
+          setCellValue: async function (newData, value, currentRowData) {
+            await Xrm.WebApi.updateRecord("quotedetail", quoteId, {
+              "productid@odata.bind": `/products(${value})`,
+            });
+          },
         },
         validationRules: [
           { type: "required" },
@@ -120,13 +126,13 @@ $(async function () {
         width: 44,
       },
       {
-        dataField: "uomid",
+        dataField: "_uomid_value",
         caption: "Unit",
         width: 60,
         lookup: {
-          dataSource: uomODataStore,
+          dataSource: uomDataSource,
           displayExpr: "name",
-          valueExpr: "id",
+          valueExpr: "uomid",
         },
       },
       {
@@ -212,30 +218,41 @@ $(async function () {
         caption: "VAT %",
         width: 60,
         lookup: {
-          store: vatSettingODataStore,
-          displayExpr: "varPercentFormat",
-          valueExpr: "id",
+          dataSource: vatSettingDataSource,
+          displayExpr: "extreme_VATGroup.extreme_vat",
+          valueExpr: "extreme_vatsettingid",
         },
         editorOptions: {
           acceptCustomValue: false,
           searchEnabled: true,
-          searchExpr: ["name", "code", "varPercentFormat"],
+          searchExpr: [
+            "extreme_VATGroup.extreme_description",
+            "extreme_VATGroup.extreme_code",
+            "extreme_VATGroup.extreme_vat",
+          ],
           itemTemplate: function (data, index, container) {
+            console.log(data);
             var containerFluid = $("<div>").addClass("container-fluid");
             var row = $("<div>").addClass("row text-wrap");
             $("<div>")
               .addClass("col-2")
               .text(
                 productTypesArray.find(
-                  (item) => item.id === data["productTypeCode"]
+                  (item) => item.id === data["extreme_producttype"]
                 ).name
               )
               .appendTo(row);
-            $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
-            $("<div>").addClass("col-2").text(data["code"]).appendTo(row);
+            $("<div>")
+              .addClass("col-6")
+              .text(data["extreme_VATGroup"]["extreme_description"])
+              .appendTo(row);
             $("<div>")
               .addClass("col-2")
-              .text(data["varPercentFormat"])
+              .text(data["extreme_VATGroup"]["extreme_code"])
+              .appendTo(row);
+            $("<div>")
+              .addClass("col-2")
+              .text(data["extreme_VATGroup"]["extreme_vat"])
               .appendTo(row);
             row.appendTo(containerFluid);
             container.append(containerFluid);
@@ -298,7 +315,7 @@ $(async function () {
         width: 130,
         wordWrapEnabled: false,
         lookup: {
-          dataSource: productPriceLevelODataStore,
+          dataSource: productPriceLevelDataSource(),
           displayExpr: "name",
           valueExpr: "id",
         },
@@ -355,8 +372,8 @@ $(async function () {
                 data: productTypesArray,
                 key: "id",
               },
-              paginate: true,
-              pageSize: 20,
+              // paginate: true,
+              // pageSize: 20,
             };
           },
           displayExpr: "name",
@@ -368,7 +385,7 @@ $(async function () {
         dataField: "extreme_area",
         caption: "Area",
         lookup: {
-          store: extremeAreaODataStore,
+          dataSource: extremeAreaDataSource,
           displayExpr: "name",
           valueExpr: "id",
         },
@@ -397,7 +414,7 @@ $(async function () {
         dataField: "extreme_technology",
         caption: "Technology",
         lookup: {
-          store: extremeTechnologyODataStore,
+          dataSource: extremeTechnologyDataSource,
           displayExpr: "name",
           valueExpr: "id",
         },
@@ -426,7 +443,7 @@ $(async function () {
         dataField: "extreme_vendorsupplier",
         caption: "Vendor/Supplier",
         lookup: {
-          store: vendorSupplierODataStore,
+          dataSource: vendorSupplierDataSource,
           displayExpr: "name",
           valueExpr: "accountid",
         },
@@ -479,13 +496,23 @@ $(async function () {
     ],
     allowColumnReordering: true,
     allowColumnResizing: true,
-    filterRow: { visible: true },
-    searchPanel: { visible: true },
+    onEditorPreparing: function (e) {
+      console.log(e);
+      console.log(e.editorOptions.dataSource);
+      console.log(e.row.data.productid.productid._value);
+      if (e.dataField == "extreme_pricelist") {
+        e.editorOptions.dataSource = productPriceLevelDataSource(
+          e.row.data.productid.productid._value
+        );
+      }
+    },
   });
 });
 
-// Resize web resource as needed
-const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
+// Select the gridContainer element
+let gridContainer;
+
+const wrControl = formContext.getControl("WebResource_quoteLinesGrid2");
 wrControl.getContentWindow().then(function (contentWindow) {
   // // console.log('HEIGHT MAIN CONTAINER:');
   // // console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
@@ -500,10 +527,12 @@ wrControl.getContentWindow().then(function (contentWindow) {
         const gridContainerHeight = gridContainer.offsetHeight;
         // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
         const iframe = wrControl.getObject();
-        if (gridContainerHeight > 250) {
-          iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-        } else {
-          iframe.style.minHeight = "255px";
+        if (heightAuto === true) {
+          if (gridContainerHeight > 250) {
+            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+          } else {
+            iframe.style.minHeight = "255px";
+          }
         }
       }
     });
@@ -515,3 +544,5 @@ wrControl.getContentWindow().then(function (contentWindow) {
   // Start observing the gridContainer for changes
   observer.observe(gridContainer, config);
 });
+
+Xrm.Utility.closeProgressIndicator();
