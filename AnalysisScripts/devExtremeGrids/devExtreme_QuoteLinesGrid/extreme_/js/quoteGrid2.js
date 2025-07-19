@@ -1,7 +1,7 @@
 let heightAuto = true;
 
 $(async function () {
-  const treeList = $("#treeList").dxTreeList({
+  $("#treeList").dxTreeList({
     // Configuration goes here
     dataSource: quoteDetailsDataSource,
     showRowLines: true,

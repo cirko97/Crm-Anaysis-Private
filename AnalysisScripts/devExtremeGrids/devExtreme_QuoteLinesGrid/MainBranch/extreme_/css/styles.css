@@ -1,0 +1,62 @@
+#data-grid-demo {
+  min-height: 400px;
+}
+
+#gridDeleteSelected {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  margin: 1px;
+  top: 0;
+}
+
+#gridDeleteSelected .dx-button-text {
+  line-height: 0;
+}
+
+.grid-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-right: 15px;
+}
+
+.spacer {
+  margin-right: 5px;
+}
+
+/* Chrome, Safari, Edge, Opera */
+input.currencyRates::-webkit-outer-spin-button,
+input.currencyRates::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input.currencyRates[type=number] {
+  -moz-appearance: textfield;
+}
+
+.dx-datagrid-revert-tooltip {
+  display: none;
+}
+
+.dx-datagrid-nowrap .dx-header-row>td>.dx-datagrid-text-content {
+  white-space: normal !important;
+}
+
+.cell-highlighted {
+  background-color: #f2f2f2;
+}
+
+.child-grid td.dx-command-drag {
+  text-align: right !important;
+}
+
+.dx-editor-cell .dx-texteditor:not(.dx-tagbox) .dx-texteditor-input {
+  /* height: auto !important; */
+  line-height: 1.6 !important;
+}
+
+.textarea-fields {
+  white-space: break-spaces !important;
+}
