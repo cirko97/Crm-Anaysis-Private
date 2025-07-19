@@ -509,40 +509,36 @@ $(async function () {
   });
 });
 
-let gridContainer;
+let gridContainer = null;
 // Resize web resource as needed
-const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
-wrControl.getContentWindow().then(function (contentWindow) {
-  gridContainer = contentWindow.document.getElementById("treeList");
+// const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
+// wrControl.getContentWindow().then(function (contentWindow) {
+//   gridContainer = contentWindow.document.getElementById("treeList");
+//   // Create a MutationObserver instance
+//   const observer = new MutationObserver((mutations) => {
+//     mutations.forEach((mutation) => {
+//       if (mutation.attributeName === "style" || mutation.type === "childList") {
+//         // Get the current height of the gridContainer
+//         const gridContainerHeight = gridContainer.offsetHeight;
 
-  console.log("gridContainer");
-  console.log(gridContainer);
+//         console.log("gridContainerHeight");
+//         console.log(gridContainerHeight);
+//         // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
+//         const iframe = wrControl.getObject();
+//         if (heightAuto === true) {
+//           if (gridContainerHeight > 250) {
+//             iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+//           } else {
+//             iframe.style.minHeight = "255px";
+//           }
+//         }
+//       }
+//     });
+//   });
 
-  // Create a MutationObserver instance
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.attributeName === "style" || mutation.type === "childList") {
-        // Get the current height of the gridContainer
-        const gridContainerHeight = gridContainer.offsetHeight;
+//   // Configuration of the observer
+//   const config = { attributes: true, childList: true, subtree: true };
 
-        console.log("gridContainerHeight");
-        console.log(gridContainerHeight);
-        // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
-        const iframe = wrControl.getObject();
-        if (heightAuto === true) {
-          if (gridContainerHeight > 250) {
-            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-          } else {
-            iframe.style.minHeight = "255px";
-          }
-        }
-      }
-    });
-  });
-
-  // Configuration of the observer
-  const config = { attributes: true, childList: true, subtree: true };
-
-  // Start observing the gridContainer for changes
-  observer.observe(gridContainer, config);
-});
+//   // Start observing the gridContainer for changes
+//   observer.observe(gridContainer, config);
+// });
