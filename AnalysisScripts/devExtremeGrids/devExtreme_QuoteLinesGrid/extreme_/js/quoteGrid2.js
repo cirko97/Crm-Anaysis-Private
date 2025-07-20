@@ -1772,7 +1772,6 @@ $(async function () {
         }, 100);
       },
       onSelectionChanged: function (e) {
-        getRowIndexByKey(e.key);
         console.log(e);
       },
     })
