@@ -1,6 +1,14 @@
 let heightAuto = true;
+let jsonForConverting = {};
 
 $(async function () {
+  const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
+    "quote",
+    `${quoteId}`,
+    "?$select=extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate"
+  );
+  await transactionCurrencyNotNull(exchangeRatesForm);
+
   const treeList = $("#treeList")
     .dxTreeList({
       // Configuration goes here
@@ -12,6 +20,9 @@ $(async function () {
       parentIdExpr: "_extreme_parentquoteline_value",
       sort: { selector: "sequencenumber", desc: false },
       autoExpandAll: false,
+      selection: {
+        mode: "multiple",
+      },
       scrolling: {
         mode: "standard",
         scrollByContent: true,
@@ -42,7 +53,7 @@ $(async function () {
         {
           dataField: "productid",
           caption: "Product ID",
-          width: 120,
+          width: 150,
           calculateDisplayValue: "productid.productnumber",
           lookup: {
             dataSource: productsDataSource,
@@ -758,6 +769,34 @@ $(async function () {
           caption: "Description",
           dataType: "string",
           visible: false,
+        },
+        {
+          type: "buttons",
+          width: 70,
+          buttons: [
+            {
+              hint: "Description",
+              icon: "edit",
+              visible: true,
+              disabled: false,
+              onClick(e) {
+                showModal();
+              },
+            },
+            {
+              hint: "Delete",
+              icon: "trash",
+              visible: true,
+              disabled: false,
+              onClick(e) {
+                // showDeleteModal();
+                showDeleteIcon(() => {
+                  console.log("Item deleted.");
+                  // Place your actual delete logic here
+                });
+              },
+            },
+          ],
         },
       ],
       toolbar: {
@@ -1584,7 +1623,7 @@ $(async function () {
                       id: currency,
                       class: "currencyRates",
                       value: rate,
-                      disabled: !isDraftStatus,
+                      disabled: false,
                     })
                     .css({
                       "max-width": "50px",
@@ -1692,7 +1731,7 @@ $(async function () {
       allowColumnReordering: true,
       allowColumnResizing: true,
       onEditorPreparing: function (e) {
-        if (e.row.data?.productid?.productid?._value) {
+        if (e?.row?.data?.productid?.productid?._value) {
           if (e.dataField == "_extreme_pricelist_value") {
             e.editorOptions.dataSource = productPriceLevelDataSource(
               e.row.data.productid.productid._value
@@ -1735,3 +1774,49 @@ wrControl.getContentWindow().then(function (contentWindow) {
   // Start observing the gridContainer for changes
   observer.observe(gridContainer, config);
 });
+
+async function transactionCurrencyNotNull(exchangeRatesForm) {
+  await Xrm.WebApi.retrieveMultipleRecords(
+    "extreme_configuration",
+    `?$select=extreme_value,extreme_key&$filter=extreme_key eq 'RSD'`
+  ).then(
+    async function success(results) {
+      // console.log(results);
+      var result = results.entities[0];
+      // Columns
+      var extreme_configurationid = result["extreme_configurationid"]; // Guid
+      var extreme_value = result["extreme_value"]; // Text
+      var extreme_key = result["extreme_key"]; // Text
+
+      if (exchangeRatesForm.extreme_chfexchangerate) {
+        jsonForConverting = {
+          EUR: exchangeRatesForm.extreme_euroexchangerate,
+          USD: exchangeRatesForm.extreme_dollarexchangerate,
+          CHF: exchangeRatesForm.extreme_chfexchangerate,
+          RSD: exchangeRatesForm.extreme_rsdexchangerate,
+          MKD: exchangeRatesForm.extreme_macedoniandenarexchangerate,
+          GBP: exchangeRatesForm.extreme_gbpexchangerate,
+        };
+      } else {
+        jsonForConverting = JSON.parse(extreme_value);
+
+        var record = {};
+        record.extreme_euroexchangerate = jsonForConverting["EUR"]; // Decimal
+        record.extreme_dollarexchangerate = jsonForConverting["USD"]; // Decimal
+        record.extreme_chfexchangerate = jsonForConverting["CHF"]; // Decimal
+        record.extreme_rsdexchangerate = jsonForConverting["RSD"]; // Decimal
+        record.extreme_macedoniandenarexchangerate = jsonForConverting["MKD"]; // Decimal
+        record.extreme_gbpexchangerate = jsonForConverting["GBP"]; // Decimal
+
+        await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record);
+      }
+    },
+    function (error) {
+      Xrm.Navigation.openErrorDialog({
+        details: error,
+        errorCode: 400,
+        message: error.message,
+      });
+    }
+  );
+}

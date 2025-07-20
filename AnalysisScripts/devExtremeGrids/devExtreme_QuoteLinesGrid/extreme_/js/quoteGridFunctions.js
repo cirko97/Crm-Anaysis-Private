@@ -4,7 +4,6 @@ let taxPercentOfAccount;
 let ROUNDING_PRICE_PER_UNIT_CONFIG;
 let productTypesArray = [];
 let customerId = [];
-let jsonForConverting = {};
 
 // Recalculate amounts for each row based on changed value
 const recalculateAmounts = ({
@@ -398,6 +397,243 @@ loadProductTypes().then((productTypesArrayResult) => {
   // Do something with the array
   productTypesArray = productTypesArrayResult;
 });
+
+function showModal() {
+  const parentDoc = parent.document;
+
+  if (parentDoc.getElementById("custom-modal-overlay")) return;
+
+  // Create overlay
+  const overlay = parentDoc.createElement("div");
+  overlay.id = "custom-modal-overlay";
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  `;
+
+  // Create modal box
+  const modal = parentDoc.createElement("div");
+  modal.style.cssText = `
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+    animation: fadeIn 0.2s ease-in-out;
+  `;
+
+  modal.innerHTML = `
+    <h2 style="margin-top:0; font-size: 20px;">Enter Description</h2>
+    <textarea id="descInput" style="width:100%;height:100px;padding:10px;margin-top:10px;margin-bottom:20px;box-sizing:border-box;font-size:14px;border:1px solid #ccc;border-radius:4px;"></textarea>
+    <div style="text-align: right;">
+      <button id="cancelBtn" style="
+        background:#6c757d;
+        color:white;
+        border:none;
+        padding:8px 16px;
+        margin-right:10px;
+        border-radius:4px;
+        cursor:pointer;
+      ">Cancel</button>
+      <button id="saveBtn" style="
+        background:#007bff;
+        color:white;
+        border:none;
+        padding:8px 16px;
+        border-radius:4px;
+        cursor:pointer;
+      ">Save</button>
+    </div>
+  `;
+
+  // Optional keyframes for fade in
+  const style = parentDoc.createElement("style");
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  `;
+  parentDoc.head.appendChild(style);
+
+  overlay.appendChild(modal);
+  parentDoc.body.appendChild(overlay);
+
+  // Events
+  const cancelBtn = modal.querySelector("#cancelBtn");
+  const saveBtn = modal.querySelector("#saveBtn");
+  const textarea = modal.querySelector("#descInput");
+
+  const cleanup = () => {
+    parentDoc.body.removeChild(overlay);
+    if (style && style.parentNode) style.parentNode.removeChild(style);
+  };
+
+  cancelBtn.onclick = cleanup;
+
+  saveBtn.onclick = () => {
+    const value = textarea.value;
+    console.log("Saved description:", value);
+    cleanup();
+  };
+}
+
+function showDeleteModal(onConfirm) {
+  const parentDoc = parent.document;
+
+  if (parentDoc.getElementById("custom-modal-overlay")) return;
+
+  // Create overlay
+  const overlay = parentDoc.createElement("div");
+  overlay.id = "custom-modal-overlay";
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  `;
+
+  // Create modal box
+  const modal = parentDoc.createElement("div");
+  modal.style.cssText = `
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+    animation: fadeIn 0.2s ease-in-out;
+  `;
+
+  modal.innerHTML = `
+    <h3 style="margin-top:0; font-size: 18px;">Confirm Deletion</h3>
+    <p style="font-size: 14px; color: #333;">Are you sure you want to delete this item?</p>
+    <div style="text-align: right; margin-top: 20px;">
+      <button id="noBtn" style="
+        background:#6c757d;
+        color:white;
+        border:none;
+        padding:8px 16px;
+        margin-right:10px;
+        border-radius:4px;
+        cursor:pointer;
+      ">No</button>
+      <button id="yesBtn" style="
+        background:#dc3545;
+        color:white;
+        border:none;
+        padding:8px 16px;
+        border-radius:4px;
+        cursor:pointer;
+      ">Yes</button>
+    </div>
+  `;
+
+  // Optional keyframes
+  const style = parentDoc.createElement("style");
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  `;
+  parentDoc.head.appendChild(style);
+
+  overlay.appendChild(modal);
+  parentDoc.body.appendChild(overlay);
+
+  const cleanup = () => {
+    parentDoc.body.removeChild(overlay);
+    if (style && style.parentNode) style.parentNode.removeChild(style);
+  };
+
+  // Button events
+  modal.querySelector("#noBtn").onclick = cleanup;
+
+  modal.querySelector("#yesBtn").onclick = () => {
+    cleanup();
+    if (typeof onConfirm === "function") {
+      onConfirm(); // Call your delete handler here
+    }
+  };
+}
+
+// Inject the floating delete icon
+function createFloatingDeleteIcon(onConfirmDelete) {
+  const parentDoc = parent.document;
+
+  if (parentDoc.getElementById("floating-delete-icon")) return;
+
+  // Container button
+  const icon = parentDoc.createElement("div");
+  icon.id = "floating-delete-icon";
+  icon.title = "Delete";
+  icon.style.cssText = `
+    position: fixed;
+    width: 50px;
+    height: 50px;
+    bottom: 30px;
+    right: 30px;
+    background-color: #dc3545;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    cursor: pointer;
+    z-index: 9999;
+    transition: transform 0.2s;
+  `;
+  icon.onmouseover = () => (icon.style.transform = "scale(1.1)");
+  icon.onmouseout = () => (icon.style.transform = "scale(1.0)");
+
+  // SVG icon inside
+  icon.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="white" viewBox="0 0 24 24">
+      <path d="M3 6h18v2H3V6zm2 3h14l-1.4 12.6c-.1.8-.8 1.4-1.6 1.4H8c-.8 0-1.5-.6-1.6-1.4L5 9zm5 2v8h2v-8H10zm4 0v8h2v-8h-2zM9 4V3c0-.6.4-1 1-1h4c.6 0 1 .4 1 1v1h5v2H4V4h5z"/>
+    </svg>
+  `;
+
+  icon.onclick = () => {
+    showDeleteModal(onConfirmDelete);
+  };
+
+  parentDoc.body.appendChild(icon);
+}
+
+// Show the icon
+function showDeleteIcon(onConfirmDelete) {
+  const icon = parent.document.getElementById("floating-delete-icon");
+  if (icon) {
+    icon.style.display = "flex";
+  } else {
+    createFloatingDeleteIcon(onConfirmDelete);
+  }
+}
+
+// Hide the icon
+function hideDeleteIcon() {
+  const icon = parent.document.getElementById("floating-delete-icon");
+  if (icon) {
+    icon.style.display = "none";
+  }
+}
 
 (async () => {
   const customerResponse = await Xrm.WebApi.retrieveRecord(
