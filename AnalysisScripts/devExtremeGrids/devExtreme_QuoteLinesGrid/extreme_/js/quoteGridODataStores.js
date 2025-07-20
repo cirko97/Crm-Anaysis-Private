@@ -3,7 +3,7 @@ const quoteId = Xrm.Page.data.entity.getId().slice(1, -1);
 
 const quotedetailODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/quotedetails",
@@ -27,9 +27,9 @@ const quotedetailODataStore = new DevExpress.data.ODataStore({
         e.payload["productid@odata.bind"] = `/products(${productId})`;
       }
 
-      if (e.payload?.extreme_vatsetting?._value) {
-        const vatSettingId = e.payload.extreme_vatsetting._value;
-        delete e.payload.extreme_vatsetting;
+      if (e.payload?._extreme_vatsetting_value?._value) {
+        const vatSettingId = e.payload._extreme_vatsetting_value._value;
+        delete e.payload._extreme_vatsetting_value;
         e.payload["extreme_VATSetting@odata.bind"] =
           `/extreme_vatsettings(${vatSettingId})`;
       }
@@ -38,6 +38,32 @@ const quotedetailODataStore = new DevExpress.data.ODataStore({
         const uomId = e.payload._uomid_value._value;
         delete e.payload._uomid_value;
         e.payload["uomid@odata.bind"] = `/uoms(${uomId})`;
+      }
+
+      if (e.payload?._extreme_pricelist_value?._value) {
+        const priceListId = e.payload._extreme_pricelist_value._value;
+        delete e.payload._extreme_pricelist_value;
+        e.payload["extreme_pricelist@odata.bind"] =
+          `/pricelevels(${priceListId})`;
+      }
+
+      if (e.payload?._extreme_area_value?._value) {
+        const areaId = e.payload._extreme_area_value._value;
+        delete e.payload._extreme_area_value;
+        e.payload["extreme_Area@odata.bind"] = `/extreme_areas(${areaId})`;
+      }
+
+      if (e.payload?._extreme_technology_value?._value) {
+        const techId = e.payload._extreme_technology_value._value;
+        delete e.payload._extreme_technology_value;
+        e.payload["extreme_Technology@odata.bind"] =
+          `/extreme_technologies(${techId})`;
+      }
+
+      if (e.payload?._extreme_vendorsupplier_value?._value) {
+        const accId = e.payload._extreme_vendorsupplier_value._value;
+        delete e.payload._extreme_vendorsupplier_value;
+        e.payload["extreme_VendorSupplier@odata.bind"] = `/accounts(${accId})`;
       }
 
       if (e.payload?._extreme_parentquoteline_value?._value) {
@@ -106,11 +132,22 @@ const quoteDetailsDataSource = {
 const productsODataStore = new DevExpress.data.ODataStore({
   // type: "odata",
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/products",
   key: "productid",
   keyType: "Guid",
+  beforeSend: function (e) {
+    if (e.method.toLowerCase() == "get") {
+      e.headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        Prefer: "odata.include-annotations=*",
+      };
+    }
+  },
 });
 const productsDataSource = {
   store: productsODataStore,
@@ -130,17 +167,27 @@ const productsDataSource = {
 
 const productPriceLevelODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/productpricelevels",
   key: "productpricelevelid",
   keyType: "Guid",
+  beforeSend: function (e) {
+    if (e.method.toLowerCase() == "get") {
+      e.headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        Prefer: "odata.include-annotations=*",
+      };
+    }
+  },
 });
 const productPriceLevelDataSource = (productId = null) => {
   return {
     store: productPriceLevelODataStore,
-    filter: productId == null ? null : ["_productid_value", "=", productId],
     select: [
       "amount",
       "_transactioncurrencyid_value",
@@ -148,21 +195,33 @@ const productPriceLevelDataSource = (productId = null) => {
       "_productid_value",
     ],
     expand: ["pricelevelid($select=enddate,statuscode)"],
+    filter: productId == null ? null : ["_productid_value", "=", productId],
   };
 };
 
 const uomODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url: Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/uoms",
   key: "uomid",
   keyType: "Guid",
+  beforeSend: function (e) {
+    if (e.method.toLowerCase() == "get") {
+      e.headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        Prefer: "odata.include-annotations=*",
+      };
+    }
+  },
 });
 const uomDataSource = { store: uomODataStore, select: ["uomid", "name"] };
 
 const transactionCurrencyODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/transactioncurrencies",
@@ -179,12 +238,23 @@ const transactionCurrencyODataStore = new DevExpress.data.ODataStore({
 
 const extremeAreaODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/extreme_areas",
   key: "extreme_areaid",
   keyType: "Guid",
+  beforeSend: function (e) {
+    if (e.method.toLowerCase() == "get") {
+      e.headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        Prefer: "odata.include-annotations=*",
+      };
+    }
+  },
 });
 const extremeAreaDataSource = {
   store: extremeAreaODataStore,
@@ -193,12 +263,23 @@ const extremeAreaDataSource = {
 
 const extremeTechnologyODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/extreme_technologies",
   key: "extreme_technologyid",
   keyType: "Guid",
+  beforeSend: function (e) {
+    if (e.method.toLowerCase() == "get") {
+      e.headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        Prefer: "odata.include-annotations=*",
+      };
+    }
+  },
 });
 const extremeTechnologyDataSource = {
   store: extremeTechnologyODataStore,
@@ -207,29 +288,74 @@ const extremeTechnologyDataSource = {
 
 const vatSettingODataStore = new DevExpress.data.ODataStore({
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() +
     "/api/data/v9.2/extreme_vatsettings",
   key: "extreme_vatsettingid",
   keyType: "Guid",
+  beforeSend: function (e) {
+    if (e.method.toLowerCase() == "get") {
+      e.headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        Prefer: "odata.include-annotations=*",
+      };
+    }
+  },
 });
-const vatSettingDataSource = {
-  store: vatSettingODataStore,
-  select: ["extreme_vatsettingid", "extreme_producttype"],
-  expand: [
-    "extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)",
-  ],
-};
+const customVatSettingStore = new DevExpress.data.CustomStore({
+  byKey: (key) => vatSettingODataStore.byKey(key),
+  load: (options) => {
+    return vatSettingODataStore
+      .load({
+        select: ["extreme_vatsettingid", "extreme_producttype"],
+        expand: [
+          "extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)",
+        ],
+      })
+      .then((response) => {
+        console.log(response);
+        const flatData = response.map((item) => ({
+          ...item,
+          ...item.extreme_VATGroup,
+          extreme_VATGroup: null,
+        }));
+        console.log(flatData);
+
+        return flatData;
+      });
+  },
+});
+// const vatSettingDataSource = {
+//   store: customVatSettingsStore,
+//   select: ["extreme_vatsettingid", "extreme_producttype"],
+//   expand: [
+//     "extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)",
+//   ],
+// };
 
 const vendorSupplierODataStore = new DevExpress.data.ODataStore({
   // type: "odata",
   version: 4,
-  filterToLower: true,
+  filterToLower: false,
   url:
     Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/accounts",
   key: "accountid",
   keyType: "Guid",
+  beforeSend: function (e) {
+    if (e.method.toLowerCase() == "get") {
+      e.headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        Prefer: "odata.include-annotations=*",
+      };
+    }
+  },
 });
 const vendorSupplierDataSource = {
   store: vendorSupplierODataStore,

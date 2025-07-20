@@ -1,5 +1,10 @@
-// const Xrm = parent.window.Xrm;
+let primaryDefaultUnit;
+let defaultMargin;
+let taxPercentOfAccount;
+let ROUNDING_PRICE_PER_UNIT_CONFIG;
 let productTypesArray = [];
+let customerId = [];
+let jsonForConverting = {};
 
 // Recalculate amounts for each row based on changed value
 const recalculateAmounts = ({
@@ -319,10 +324,10 @@ function isGuid(value) {
   return guidPattern.test(value);
 }
 
-async function transactionCurrencyNotNull() {
+async function transactionCurrencyNotNull(exchangeRatesForm) {
   await Xrm.WebApi.retrieveMultipleRecords(
     "extreme_configuration",
-    `?$select=extreme_value,extreme_key&$filter=extreme_key eq '${quoteCurrency}'`
+    `?$select=extreme_value,extreme_key&$filter=extreme_key eq 'RSD'`
   ).then(
     async function success(results) {
       // console.log(results);
@@ -393,3 +398,49 @@ loadProductTypes().then((productTypesArrayResult) => {
   // Do something with the array
   productTypesArray = productTypesArrayResult;
 });
+
+(async () => {
+  const customerResponse = await Xrm.WebApi.retrieveRecord(
+    "quote",
+    quoteId,
+    "?$select=_customerid_value"
+  );
+  customerId = customerResponse._customerid_value;
+  taxPercentOfAccount = await Xrm.WebApi.retrieveRecord(
+    "account",
+    customerId,
+    "?$select=extreme_tax"
+  );
+  const responsePrimaryDefaultUnit = await Xrm.WebApi.retrieveMultipleRecords(
+    "extreme_configuration",
+    "?$select=extreme_value&$filter=extreme_key eq 'PrimaryDefaultUnit'"
+  );
+  const responseDefaultUomId = await Xrm.WebApi.retrieveMultipleRecords(
+    "uom",
+    "?$select=uomid&$filter=name eq 'KOM'&$top=1"
+  );
+  primaryDefaultUnit = responseDefaultUomId.entities[0].uomid;
+
+  const responseDefaultMargin = await Xrm.WebApi.retrieveMultipleRecords(
+    "extreme_configuration",
+    "?$select=extreme_key,extreme_value&$filter=extreme_key eq 'QUOTE_MARGIN'"
+  );
+  defaultMargin = parseFloat(
+    responseDefaultMargin.entities[0]["extreme_value"]
+  );
+
+  const roundInfo = await Xrm.WebApi.retrieveMultipleRecords(
+    "extreme_configuration",
+    "?$select=extreme_value&$filter=extreme_key eq 'salesAmountRounding'"
+  );
+  ROUNDING_PRICE_PER_UNIT_CONFIG = roundInfo.entities[0]["extreme_value"];
+
+  const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
+    "quote",
+    `${quoteId}`,
+    "?$select=extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate"
+  );
+  await transactionCurrencyNotNull(exchangeRatesForm);
+
+  console.log(jsonForConverting);
+})();
