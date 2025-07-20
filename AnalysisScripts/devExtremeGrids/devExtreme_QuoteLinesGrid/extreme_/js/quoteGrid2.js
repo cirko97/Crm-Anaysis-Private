@@ -1739,6 +1739,42 @@ $(async function () {
           }
         }
       },
+      onRowUpdated: function (e) {
+        console.log(e);
+        setTimeout(() => {
+          let dataFields = Object.keys(e.data);
+          const rowIndex = treeList.getRowIndexByKey(e.key);
+
+          for (let dataField of dataFields) {
+            console.log(dataField);
+            const cellElement =
+              treeList.getCellElement(rowIndex, dataField) == undefined ||
+              treeList.getCellElement(rowIndex, dataField) == null
+                ? null
+                : treeList.getCellElement(rowIndex, dataField)[0];
+            console.log(cellElement);
+            if (cellElement !== null && cellElement !== undefined) {
+              cellElement.style.transition = "font-weight 0.3s ease";
+              cellElement.style.fontWeight = "750";
+              setTimeout(() => {
+                cellElement.style.fontWeight = "400";
+              }, 2000);
+            }
+          }
+
+          const rowElement = treeList.getRowElement(rowIndex)[0];
+          const originalBg = rowElement.style.backgroundColor || "";
+          rowElement.style.transition = "background-color 0.3s ease";
+          rowElement.style.backgroundColor = "#d4edda"; // light green
+          setTimeout(() => {
+            rowElement.style.backgroundColor = originalBg;
+          }, 300);
+        }, 100);
+      },
+      onSelectionChanged: function (e) {
+        getRowIndexByKey(e.key);
+        console.log(e);
+      },
     })
     .dxTreeList("instance");
 });
