@@ -497,50 +497,45 @@ $(async function () {
     allowColumnReordering: true,
     allowColumnResizing: true,
     onEditorPreparing: function (e) {
-      console.log(e);
-      console.log(e.editorOptions.dataSource);
-      console.log(e.row.data.productid.productid._value);
-      if (e.dataField == "extreme_pricelist") {
-        e.editorOptions.dataSource = productPriceLevelDataSource(
-          e.row.data.productid.productid._value
-        );
+      if (e.row.data?.productid?.productid?._value) {
+        if (e.dataField == "extreme_pricelist") {
+          e.editorOptions.dataSource = productPriceLevelDataSource(
+            e.row.data.productid.productid._value
+          );
+        }
       }
     },
   });
 });
 
-// // Select the gridContainer element
-// let gridContainer;
+// Select the gridContainer element
+let gridContainer;
 
-// const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
-// wrControl.getContentWindow().then(function (contentWindow) {
-//   // // console.log('HEIGHT MAIN CONTAINER:');
-//   // // console.log(contentWindow.document.getElementById('gridContainer').offsetHeight);
-//   gridContainer = contentWindow.document.getElementById("treeList");
-//   // // console.log(gridContainer);
+const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
+wrControl.getContentWindow().then(function (contentWindow) {
+  gridContainer = contentWindow.document.getElementById("treeList");
+  // Create a MutationObserver instance
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === "style" || mutation.type === "childList") {
+        // Get the current height of the gridContainer
+        const gridContainerHeight = gridContainer.offsetHeight;
+        // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
+        const iframe = wrControl.getObject();
+        if (heightAuto === true) {
+          if (gridContainerHeight > 250) {
+            iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+          } else {
+            iframe.style.minHeight = "255px";
+          }
+        }
+      }
+    });
+  });
 
-//   // Create a MutationObserver instance
-//   const observer = new MutationObserver((mutations) => {
-//     mutations.forEach((mutation) => {
-//       if (mutation.attributeName === "style" || mutation.type === "childList") {
-//         // Get the current height of the gridContainer
-//         const gridContainerHeight = gridContainer.offsetHeight;
-//         // Set the min-height of the iframe based on the gridContainer's height if it exceeds 200px
-//         const iframe = wrControl.getObject();
-//         if (heightAuto === true) {
-//           if (gridContainerHeight > 250) {
-//             iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-//           } else {
-//             iframe.style.minHeight = "255px";
-//           }
-//         }
-//       }
-//     });
-//   });
+  // Configuration of the observer
+  const config = { attributes: true, childList: true, subtree: true };
 
-//   // Configuration of the observer
-//   const config = { attributes: true, childList: true, subtree: true };
-
-//   // Start observing the gridContainer for changes
-//   observer.observe(gridContainer, config);
-// });
+  // Start observing the gridContainer for changes
+  observer.observe(gridContainer, config);
+});
