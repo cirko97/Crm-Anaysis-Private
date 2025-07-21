@@ -21,60 +21,94 @@ const quotedetailODataStore = new DevExpress.data.ODataStore({
     }
     console.log(e);
     if (e.method === "PATCH" || e.method === "POST") {
-      if (e.payload?.productid?._value) {
-        const productId = e.payload.productid._value;
+      if (e.payload?.productid?._value || isGuid(e.payload?.productid)) {
+        const productId = e.payload.productid._value || e.payload.productid;
         delete e.payload.productid; // remove old format
         e.payload["productid@odata.bind"] = `/products(${productId})`;
       }
 
-      if (e.payload?._extreme_vatsetting_value?._value) {
-        const vatSettingId = e.payload._extreme_vatsetting_value._value;
+      if (
+        e.payload?._extreme_vatsetting_value?._value ||
+        isGuid(e.payload?._extreme_vatsetting_value)
+      ) {
+        const vatSettingId =
+          e.payload._extreme_vatsetting_value._value ||
+          e.payload._extreme_vatsetting_value;
         delete e.payload._extreme_vatsetting_value;
-        e.payload["extreme_VATSetting@odata.bind"] =
-          `/extreme_vatsettings(${vatSettingId})`;
+        e.payload[
+          "extreme_VATSetting@odata.bind"
+        ] = `/extreme_vatsettings(${vatSettingId})`;
       }
 
-      if (e.payload?._uomid_value?._value) {
-        const uomId = e.payload._uomid_value._value;
+      if (e.payload?._uomid_value?._value || isGuid(e.payload?._uomid_value)) {
+        const uomId = e.payload._uomid_value._value || e.payload._uomid_value;
         delete e.payload._uomid_value;
         e.payload["uomid@odata.bind"] = `/uoms(${uomId})`;
       }
 
-      if (e.payload?._extreme_pricelist_value?._value) {
-        const priceListId = e.payload._extreme_pricelist_value._value;
+      if (
+        e.payload?._extreme_pricelist_value?._value ||
+        isGuid(e.payload?._extreme_pricelist_value)
+      ) {
+        const priceListId =
+          e.payload._extreme_pricelist_value._value ||
+          e.payload._extreme_pricelist_value;
         delete e.payload._extreme_pricelist_value;
-        e.payload["extreme_pricelist@odata.bind"] =
-          `/pricelevels(${priceListId})`;
+        e.payload[
+          "extreme_pricelist@odata.bind"
+        ] = `/pricelevels(${priceListId})`;
       }
 
-      if (e.payload?._extreme_area_value?._value) {
-        const areaId = e.payload._extreme_area_value._value;
+      if (
+        e.payload?._extreme_area_value?._value ||
+        isGuid(e.payload?._extreme_area_value)
+      ) {
+        const areaId =
+          e.payload._extreme_area_value._value || e.payload._extreme_area_value;
         delete e.payload._extreme_area_value;
         e.payload["extreme_Area@odata.bind"] = `/extreme_areas(${areaId})`;
       }
 
-      if (e.payload?._extreme_technology_value?._value) {
-        const techId = e.payload._extreme_technology_value._value;
+      if (
+        e.payload?._extreme_technology_value?._value ||
+        isGuid(e.payload?._extreme_technology_value)
+      ) {
+        const techId =
+          e.payload._extreme_technology_value._value ||
+          e.payload._extreme_technology_value;
         delete e.payload._extreme_technology_value;
-        e.payload["extreme_Technology@odata.bind"] =
-          `/extreme_technologies(${techId})`;
+        e.payload[
+          "extreme_Technology@odata.bind"
+        ] = `/extreme_technologies(${techId})`;
       }
 
-      if (e.payload?._extreme_vendorsupplier_value?._value) {
-        const accId = e.payload._extreme_vendorsupplier_value._value;
+      if (
+        e.payload?._extreme_vendorsupplier_value?._value ||
+        isGuid(e.payload?._extreme_vendorsupplier_value)
+      ) {
+        const accId =
+          e.payload._extreme_vendorsupplier_value._value ||
+          e.payload._extreme_vendorsupplier_value;
         delete e.payload._extreme_vendorsupplier_value;
         e.payload["extreme_VendorSupplier@odata.bind"] = `/accounts(${accId})`;
       }
 
-      if (e.payload?._extreme_parentquoteline_value?._value) {
+      if (
+        e.payload?._extreme_parentquoteline_value?._value ||
+        isGuid(e.payload?._extreme_parentquoteline_value)
+      ) {
         const parentQuoteLineId =
-          e.payload._extreme_parentquoteline_value._value;
+          e.payload._extreme_parentquoteline_value._value ||
+          e.payload._extreme_parentquoteline_value;
         delete e.payload._extreme_parentquoteline_value;
-        e.payload["extreme_ParentQuoteLine@odata.bind"] =
-          `/quotedetails(${parentQuoteLineId})`;
-      } else if (e.payload?._extreme_parentquoteline_value == null) {
-        delete e.payload._extreme_parentquoteline_value;
-        e.payload["extreme_ParentQuoteLine@odata.bind"] = null;
+        e.payload[
+          "extreme_ParentQuoteLine@odata.bind"
+        ] = `/quotedetails(${parentQuoteLineId})`;
+      } else if (e.payload.hasOwnProperty("_extreme_parentquoteline_value")) {
+        if (e.payload._extreme_parentquoteline_value == null) {
+          delete e.payload._extreme_parentquoteline_value;
+          e.payload["extreme_ParentQuoteLine@odata.bind"] = null;
+        }
       }
 
       e.payload["quoteid@odata.bind"] = `/quotes(${quoteId})`;
@@ -185,18 +219,62 @@ const productPriceLevelODataStore = new DevExpress.data.ODataStore({
     }
   },
 });
+// const customPriceLevelStore = new DevExpress.data.CustomStore({
+//   byKey: (key) => productPriceLevelODataStore.byKey(key),
+//   load: (options) => {
+//     return productPriceLevelODataStore
+//       .load({
+//         select: [
+//           "amount",
+//           "_transactioncurrencyid_value",
+//           "_pricelevelid_value",
+//           "_productid_value",
+//         ],
+//         expand: ["pricelevelid($select=enddate,name,statuscode)"],
+//         filter: productId == null ? null : ["_productid_value", "=", productId],
+//       })
+//       .then((response) => {
+//         console.log(response);
+//         const flatData = response.map((item) => ({
+//           ...item,
+//           ...item.pricelevelid,
+//           pricelevelid: null,
+//         }));
+//         console.log(flatData);
+
+//         return flatData;
+//       });
+//   },
+// });
 const productPriceLevelDataSource = (productId = null) => {
-  return {
-    store: productPriceLevelODataStore,
-    select: [
-      "amount",
-      "_transactioncurrencyid_value",
-      "_pricelevelid_value",
-      "_productid_value",
-    ],
-    expand: ["pricelevelid($select=enddate,statuscode)"],
-    filter: productId == null ? null : ["_productid_value", "=", productId],
-  };
+  return new DevExpress.data.CustomStore({
+    byKey: (key) => productPriceLevelODataStore.byKey(key),
+    load: (options) => {
+      return productPriceLevelODataStore
+        .load({
+          select: [
+            "amount",
+            "_transactioncurrencyid_value",
+            "_pricelevelid_value",
+            "_productid_value",
+          ],
+          expand: ["pricelevelid($select=enddate,name,statuscode)"],
+          filter:
+            productId == null ? null : ["_productid_value", "=", productId],
+        })
+        .then((response) => {
+          console.log(response);
+          const flatData = response.map((item) => ({
+            ...item,
+            ...item.pricelevelid,
+            pricelevelid: null,
+          }));
+          console.log(flatData);
+
+          return flatData;
+        });
+    },
+  });
 };
 
 const uomODataStore = new DevExpress.data.ODataStore({
@@ -306,29 +384,35 @@ const vatSettingODataStore = new DevExpress.data.ODataStore({
     }
   },
 });
-const customVatSettingStore = new DevExpress.data.CustomStore({
-  byKey: (key) => vatSettingODataStore.byKey(key),
-  load: (options) => {
-    return vatSettingODataStore
-      .load({
-        select: ["extreme_vatsettingid", "extreme_producttype"],
-        expand: [
-          "extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)",
-        ],
-      })
-      .then((response) => {
-        console.log(response);
-        const flatData = response.map((item) => ({
-          ...item,
-          ...item.extreme_VATGroup,
-          extreme_VATGroup: null,
-        }));
-        console.log(flatData);
+const customVatSettingStore = (productType = null) => {
+  return new DevExpress.data.CustomStore({
+    byKey: (key) => vatSettingODataStore.byKey(key),
+    load: (options) => {
+      return vatSettingODataStore
+        .load({
+          select: ["extreme_vatsettingid", "extreme_producttype"],
+          expand: [
+            "extreme_VATGroup($select=extreme_vatgroupid,extreme_code,extreme_description,extreme_vat)",
+          ],
+          filter:
+            productType == null
+              ? null
+              : ["extreme_producttype", "=", productType],
+        })
+        .then((response) => {
+          console.log(response);
+          const flatData = response.map((item) => ({
+            ...item,
+            ...item.extreme_VATGroup,
+            extreme_VATGroup: null,
+          }));
+          console.log(flatData);
 
-        return flatData;
-      });
-  },
-});
+          return flatData;
+        });
+    },
+  });
+};
 // const vatSettingDataSource = {
 //   store: customVatSettingsStore,
 //   select: ["extreme_vatsettingid", "extreme_producttype"],

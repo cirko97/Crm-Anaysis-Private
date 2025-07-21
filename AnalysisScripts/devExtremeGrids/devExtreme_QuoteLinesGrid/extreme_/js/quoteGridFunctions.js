@@ -683,6 +683,85 @@ function replaceLoader() {
   document.head.appendChild(style);
 }
 
+// function for checking classify needed rows
+const checkClassifyRows = () => {
+  classifyNeededRows = 0;
+
+  if (quoteLinesData._array.length > 0) {
+    quoteLinesData._array
+      .filter(
+        (item) =>
+          // item.extreme_isparentitem === false &&
+          item.extreme_area === null ||
+          item.extreme_area === undefined ||
+          item.extreme_technology === null ||
+          item.extreme_technology === undefined ||
+          item.extreme_vendorsupplier === null ||
+          item.extreme_vendorsupplier === undefined
+      )
+      .forEach((item) => {
+        classifyNeededRows += 1;
+      });
+  }
+
+  if (classifyNeededRows > 0) {
+    $("#classifyBtn")[0].style.backgroundColor = "#fce3c2";
+    $("#classifyBtn")[0].style.display = "inline-flex";
+  } else {
+    $("#classifyBtn")[0].style.backgroundColor = "#fff";
+    $("#classifyBtn")[0].style.display = "none";
+  }
+
+  // // console.log('CLASSIFY NEEDED ROWS');
+  // // console.log(classifyNeededRows);
+};
+
+// Function to get Inventory Info and display it as pop-up dialog
+async function inventoryInfo(productGuid, quoteDetailGuid) {
+  const globalContext = Xrm.Utility.getGlobalContext();
+  const productName = await Xrm.WebApi.retrieveRecord(
+    "product",
+    productGuid,
+    "?$select=name,productnumber"
+  );
+
+  const pageInput = {
+    pageType: "webresource",
+    webresourceName: "extreme_InventoryInfo.html",
+    data: JSON.stringify({
+      baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
+      baseUrlWithApp: globalContext.getCurrentAppUrl(),
+      entityId: formContext.data.entity.getId().slice(1, -1),
+      quoteDetailGuid: quoteDetailGuid,
+      productGuid: productGuid,
+      productName: productName.name,
+    }),
+  };
+
+  const navigationOptions = {
+    target: 2,
+    height: { value: 500, unit: "px" },
+    width: { value: 800, unit: "px" },
+    position: 1,
+    title: productName.productnumber + " | " + productName.name,
+  };
+
+  Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
+    function success() {
+      // Run code on success
+      // // console.log("Success");
+    },
+    function error(error) {
+      // Handle errors
+      Xrm.Navigation.openErrorDialog({
+        details: error,
+        errorCode: 400,
+        message: error.message,
+      });
+    }
+  );
+}
+
 (async () => {
   const customerResponse = await Xrm.WebApi.retrieveRecord(
     "quote",

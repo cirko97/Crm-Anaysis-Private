@@ -1,5 +1,6 @@
 let heightAuto = true;
 let jsonForConverting = {};
+let treeList = null;
 
 $(async function () {
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
@@ -9,7 +10,7 @@ $(async function () {
   );
   await transactionCurrencyNotNull(exchangeRatesForm);
 
-  const treeList = $("#treeList")
+  treeList = $("#treeList")
     .dxTreeList({
       // Configuration goes here
       dataSource: quoteDetailsDataSource,
@@ -38,8 +39,63 @@ $(async function () {
       rowDragging: {
         allowDropInsideItem: true,
         allowReordering: true,
+        onDragChange(e) {
+          const visibleRows = treeList.getVisibleRows();
+          const sourceNode = treeList.getNodeByKey(e.itemData.quotedetailid);
+          let targetNode = visibleRows[e.toIndex].node;
+
+          while (targetNode && targetNode.data) {
+            if (
+              targetNode.data.quotedetailid === sourceNode.data.quotedetailid ||
+              targetNode.data._extreme_parentquoteline_value
+            ) {
+              e.cancel = true;
+              break;
+            }
+            targetNode = targetNode.parent;
+          }
+        },
         onReorder: async function (e) {
-          console.log(e);
+          Xrm.Utility.showProgressIndicator("");
+          const store = quotedetailODataStore;
+          const treeList = e.component;
+          const visibleRows = treeList.getVisibleRows();
+          const sourceData = e.itemData;
+          const sourceId = sourceData.quotedetailid;
+
+          let parentId = null;
+
+          if (e.dropInsideItem) {
+            // Dropped inside an item — make it a child
+            parentId = visibleRows[e.toIndex].key;
+          } else {
+            // Dropped between items
+            const toIndex = e.fromIndex > e.toIndex ? e.toIndex - 1 : e.toIndex;
+            let targetData =
+              toIndex >= 0 ? visibleRows[toIndex].node.data : null;
+
+            if (
+              targetData &&
+              treeList.isRowExpanded(targetData.quotedetailid)
+            ) {
+              // Treat as child of expanded item
+              parentId = targetData.quotedetailid;
+            } else {
+              // Stay at same parent level as target
+              parentId = targetData?._extreme_parentquoteline_value || null;
+            }
+          }
+
+          try {
+            await store.update(sourceId, {
+              _extreme_parentquoteline_value: parentId,
+            });
+            await treeList.refresh();
+            Xrm.Utility.closeProgressIndicator();
+          } catch (err) {
+            Xrm.Utility.closeProgressIndicator();
+            console.error("Reorder update failed", err);
+          }
         },
       },
       columns: [
@@ -115,7 +171,7 @@ $(async function () {
                 TaxPercent: 0,
               });
 
-              newData._uomid_value = { _value: primaryDefaultUnit };
+              newData._uomid_value = primaryDefaultUnit;
               newData.extreme_margin = recalcResult.margin;
               newData.quantity = recalcResult.quantity;
               newData.extreme_supplierpriceperunit =
@@ -141,7 +197,7 @@ $(async function () {
               currentRowData.extreme_isparentitem === true
             ) {
               newData.productid = value;
-              newData._uomid_value = { _value: primaryDefaultUnit };
+              newData._uomid_value = primaryDefaultUnit;
               newData.quantity = 1;
 
               return;
@@ -483,8 +539,9 @@ $(async function () {
           dataField: "_extreme_vatsetting_value",
           caption: "VAT %",
           width: 60,
+          calculateDisplayValue: "extreme_tax",
           lookup: {
-            dataSource: customVatSettingStore,
+            dataSource: customVatSettingStore(),
             displayExpr: "extreme_vat",
             valueExpr: "extreme_vatsettingid",
           },
@@ -582,12 +639,9 @@ $(async function () {
           caption: "Price list",
           width: 130,
           wordWrapEnabled: false,
-          calculateDisplayValue:
-            "_extreme_pricelist_value@OData.Community.Display.V1.FormattedValue",
           lookup: {
             dataSource: productPriceLevelDataSource(),
-            displayExpr:
-              "_pricelevelid_value@OData.Community.Display.V1.FormattedValue",
+            displayExpr: "name",
             valueExpr: "_pricelevelid_value",
           },
           editorOptions: {
@@ -597,14 +651,7 @@ $(async function () {
             itemTemplate: function (data, index, container) {
               var containerFluid = $("<div>").addClass("container-fluid");
               var row = $("<div>").addClass("row text-wrap");
-              $("<div>")
-                .addClass("col-6")
-                .text(
-                  data[
-                    "_pricelevelid_value@OData.Community.Display.V1.FormattedValue"
-                  ]
-                )
-                .appendTo(row);
+              $("<div>").addClass("col-6").text(data["name"]).appendTo(row);
               $("<div>")
                 .addClass("col-6")
                 .text(data["amount@OData.Community.Display.V1.FormattedValue"])
@@ -811,149 +858,6 @@ $(async function () {
       ],
       toolbar: {
         items: [
-          // {
-          //   location: 'before',
-          //   template() {
-          //     return $('<div>')
-          //       .addClass('grid-title')
-          //       .text(`${quoteLinesDisplayName}`)
-          //   },
-          // },
-          {
-            location: "before",
-            widget: "dxButton",
-            locateInMenu: "auto",
-            options: {
-              icon: "bulletlist",
-              text: "Add existing",
-              width: "auto",
-              disabled: false,
-              // onClick(e) {
-              //   // console.log(e);
-              //   // console.log(treeList);
-
-              //   isAddingSet = false;
-              //   // console.log("isAddingSet: ", isAddingSet);
-
-              //   treeList.columnOption("productid", "editorOptions", {
-              //     acceptCustomValue: false,
-              //     // popupWidth: 600,
-              //     searchEnabled: true,
-              //     // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
-              //     searchExpr: ["productnumber", "name"],
-              //     itemTemplate: function (data, index, container) {
-              //       var row = $("<div>").addClass("row text-wrap");
-              //       var containerFluid = $("<div>").addClass("container-fluid");
-              //       $("<div>")
-              //         .addClass("col-3")
-              //         .text(data["productnumber"])
-              //         .appendTo(row);
-              //       $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
-              //       // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
-              //       row.appendTo(containerFluid);
-              //       container.append(containerFluid);
-              //     },
-              //     onCustomItemCreating: function (args) {
-              //       if (!args.text) {
-              //         args.customItem = null;
-              //         return;
-              //       }
-
-              //       var newItem = {};
-              //       newItem.productid = newIdForCustomProducts++;
-              //       newItem.name = args.text;
-              //       newItem.productnumber = args.text;
-              //       customProductsStore.insert(newItem);
-              //       args.customItem = newItem;
-              //     },
-              //     onOpened: function (e) {
-              //       heightAuto = false;
-              //       if (heightAuto === false) {
-              //         const iframeCorrentHeight =
-              //           wrControl.getObject().offsetHeight;
-              //         if (iframeCorrentHeight < 450) {
-              //           wrControl.getObject().style.minHeight = "600px";
-              //         }
-              //       }
-              //       e.component._popup.option("width", 400);
-              //     },
-              //     onClosed: function (e) {
-              //       heightAuto = true;
-              //     },
-              //     onFocusOut: function (e) {
-              //       heightAuto = true;
-              //     },
-              //   });
-
-              //   treeList.columnOption("productid", "lookup", {
-              //     dataSource(options) {
-              //       let filterQuery = null;
-
-              //       if (options.data) {
-              //         options.data.extreme_isparentitem === true
-              //           ? (filterQuery = [
-              //               ["extreme_isparent", "=", true],
-              //               "and",
-              //               ["statecode", "=", 0],
-              //             ])
-              //           : (filterQuery = [
-              //               ["extreme_isparent", "<>", true],
-              //               "and",
-              //               ["statecode", "=", 0],
-              //             ]);
-              //       }
-
-              //       return {
-              //         store: productsODataStore,
-              //         // searchExpr: ["productnumber", "name"],
-              //         paginate: true,
-              //         pageSize: 100,
-              //         loadMode: "raw",
-              //         filter:
-              //           filterQuery === null
-              //             ? ["statecode", "=", 0]
-              //             : filterQuery,
-              //       };
-              //     },
-              //     displayExpr: "productnumber",
-              //     valueExpr: "productid",
-              //   });
-
-              //   treeList.columnOption(
-              //     "extreme_supplierpriceperunit",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("uomid", "allowEditing", true);
-              //   treeList.columnOption("uomid", "validationRules", [
-              //     { type: "required" },
-              //   ]);
-              //   treeList.columnOption(
-              //     "extreme_supplierdiscount",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("extreme_margin", "allowEditing", true);
-              //   treeList.columnOption("priceperunit", "allowEditing", true);
-              //   treeList.columnOption("baseamount", "allowEditing", true);
-              //   treeList.columnOption("extreme_discount", "allowEditing", true);
-              //   treeList.columnOption(
-              //     "extreme_fullpricewithdiscount",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("extreme_pricelist", "allowEditing", true);
-              //   treeList.columnOption(
-              //     "extreme_createasset",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("extreme_vatsetting", "allowEditing", true);
-
-              //   treeList.addRow();
-              // },
-            },
-          },
           {
             location: "before",
             locateInMenu: "auto",
@@ -967,111 +871,13 @@ $(async function () {
             locateInMenu: "auto",
             options: {
               icon: "plus",
-              text: "Add new",
+              text: "Add new Quote line",
               width: "auto",
               disabled: false,
               onClick(e) {
                 console.log(e);
                 treeList.addRow();
               },
-              // onClick(e) {
-              //   // console.log(e);
-              //   // console.log(treeList);
-
-              //   isAddingSet = false;
-              //   // console.log("isAddingSet: ", isAddingSet);
-
-              //   treeList.columnOption("productid", "editorOptions", {
-              //     acceptCustomValue: true,
-              //     // popupWidth: 600,
-              //     searchEnabled: true,
-              //     // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
-              //     searchExpr: ["productnumber", "name"],
-              //     itemTemplate: function (data, index, container) {
-              //       var row = $("<div>").addClass("row text-wrap");
-              //       var containerFluid = $("<div>").addClass("container-fluid");
-              //       $("<div>")
-              //         .addClass("col-3")
-              //         .text(data["productnumber"])
-              //         .appendTo(row);
-              //       $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
-              //       // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
-              //       row.appendTo(containerFluid);
-              //       container.append(containerFluid);
-              //     },
-              //     onCustomItemCreating: function (args) {
-              //       if (!args.text) {
-              //         args.customItem = null;
-              //         return;
-              //       }
-
-              //       var newItem = {};
-              //       newItem.productid = newIdForCustomProducts++;
-              //       newItem.name = args.text;
-              //       newItem.productnumber = args.text;
-              //       customProductsStore.insert(newItem);
-              //       args.customItem = newItem;
-              //     },
-              //     onOpened: function (e) {
-              //       heightAuto = false;
-              //       if (heightAuto === false) {
-              //         const iframeCorrentHeight =
-              //           wrControl.getObject().offsetHeight;
-              //         if (iframeCorrentHeight < 450) {
-              //           wrControl.getObject().style.minHeight = "600px";
-              //         }
-              //       }
-              //       e.component._popup.option("width", 400);
-              //     },
-              //     onClosed: function (e) {
-              //       heightAuto = true;
-              //     },
-              //     onFocusOut: function (e) {
-              //       heightAuto = true;
-              //     },
-              //   });
-
-              //   treeList.columnOption("productid", "lookup", {
-              //     dataSource: {
-              //       store: customProductsStore,
-              //     },
-              //     displayExpr: "productnumber",
-              //     valueExpr: "productid",
-              //   });
-
-              //   treeList.columnOption(
-              //     "extreme_supplierpriceperunit",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("uomid", "allowEditing", true);
-              //   treeList.columnOption("uomid", "validationRules", [
-              //     { type: "required" },
-              //   ]);
-              //   treeList.columnOption(
-              //     "extreme_supplierdiscount",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("extreme_margin", "allowEditing", true);
-              //   treeList.columnOption("priceperunit", "allowEditing", true);
-              //   treeList.columnOption("baseamount", "allowEditing", true);
-              //   treeList.columnOption("extreme_discount", "allowEditing", true);
-              //   treeList.columnOption(
-              //     "extreme_fullpricewithdiscount",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("extreme_pricelist", "allowEditing", true);
-              //   treeList.columnOption(
-              //     "extreme_createasset",
-              //     "allowEditing",
-              //     true
-              //   );
-              //   treeList.columnOption("extreme_vatsetting", "allowEditing", true);
-
-              //   treeList.addRow();
-              // },
             },
           },
           {
@@ -1079,261 +885,6 @@ $(async function () {
             locateInMenu: "auto",
             template() {
               return $("<div>").addClass("spacer").text("");
-            },
-          },
-          {
-            location: "before",
-            widget: "dxButton",
-            locateInMenu: "auto",
-            options: {
-              icon: "increaseindent",
-              text: "Add existing set",
-              width: "auto",
-              disabled: false,
-              // onClick(e) {
-              //   // console.log(e);
-              //   // console.log(treeList);
-
-              //   isAddingSet = true;
-              //   // console.log("isAddingSet: ", isAddingSet);
-
-              //   treeList.columnOption("productid", "editorOptions", {
-              //     acceptCustomValue: false,
-              //     // popupWidth: 600,
-              //     searchEnabled: true,
-              //     // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
-              //     searchExpr: ["productnumber", "name"],
-              //     itemTemplate: function (data, index, container) {
-              //       var row = $("<div>").addClass("row text-wrap");
-              //       var containerFluid = $("<div>").addClass("container-fluid");
-              //       $("<div>")
-              //         .addClass("col-3")
-              //         .text(data["productnumber"])
-              //         .appendTo(row);
-              //       $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
-              //       // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
-              //       row.appendTo(containerFluid);
-              //       container.append(containerFluid);
-              //     },
-              //     onCustomItemCreating: function (args) {
-              //       if (!args.text) {
-              //         args.customItem = null;
-              //         return;
-              //       }
-
-              //       var newItem = {};
-              //       newItem.productid = newIdForCustomProducts++;
-              //       newItem.name = args.text;
-              //       newItem.productnumber = args.text;
-              //       customProductsStore.insert(newItem);
-              //       args.customItem = newItem;
-              //     },
-              //     onOpened: function (e) {
-              //       heightAuto = false;
-              //       if (heightAuto === false) {
-              //         const iframeCorrentHeight =
-              //           wrControl.getObject().offsetHeight;
-              //         if (iframeCorrentHeight < 450) {
-              //           wrControl.getObject().style.minHeight = "600px";
-              //         }
-              //       }
-              //       e.component._popup.option("width", 400);
-              //     },
-              //     onClosed: function (e) {
-              //       heightAuto = true;
-              //     },
-              //     onFocusOut: function (e) {
-              //       heightAuto = true;
-              //     },
-              //   });
-
-              //   treeList.columnOption("productid", "lookup", {
-              //     dataSource(options) {
-              //       let filterQuery = null;
-
-              //       if (options.data) {
-              //         options.data.extreme_isparentitem === true
-              //           ? (filterQuery = [
-              //               ["extreme_isparent", "=", true],
-              //               "and",
-              //               ["statecode", "=", 0],
-              //             ])
-              //           : (filterQuery = [
-              //               ["extreme_isparent", "<>", true],
-              //               "and",
-              //               ["statecode", "=", 0],
-              //             ]);
-              //       }
-
-              //       return {
-              //         store: productsODataStore,
-              //         // searchExpr: ["productnumber", "name"],
-              //         paginate: true,
-              //         pageSize: 100,
-              //         loadMode: "raw",
-              //         filter:
-              //           filterQuery === null
-              //             ? ["statecode", "=", 0]
-              //             : filterQuery,
-              //       };
-              //     },
-              //     displayExpr: "productnumber",
-              //     valueExpr: "productid",
-              //   });
-
-              //   treeList.columnOption(
-              //     "extreme_supplierpriceperunit",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   // treeList.columnOption("uomid", "allowEditing", false);
-              //   // treeList.columnOption("uomid", "validationRules", null);
-              //   treeList.columnOption(
-              //     "extreme_supplierdiscount",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   treeList.columnOption("extreme_margin", "allowEditing", false);
-              //   treeList.columnOption("priceperunit", "allowEditing", false);
-              //   treeList.columnOption("baseamount", "allowEditing", false);
-              //   treeList.columnOption("extreme_discount", "allowEditing", false);
-              //   treeList.columnOption(
-              //     "extreme_fullpricewithdiscount",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   treeList.columnOption("extreme_pricelist", "allowEditing", false);
-              //   treeList.columnOption(
-              //     "extreme_createasset",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   treeList.columnOption(
-              //     "extreme_vatsetting",
-              //     "allowEditing",
-              //     false
-              //   );
-
-              //   treeList.addRow();
-              // },
-            },
-          },
-          {
-            location: "before",
-            locateInMenu: "auto",
-            template() {
-              return $("<div>").addClass("spacer").text("");
-            },
-          },
-          {
-            location: "before",
-            widget: "dxButton",
-            locateInMenu: "auto",
-            options: {
-              icon: "plus",
-              text: "Add new set",
-              width: "auto",
-              disabled: false,
-              // onClick(e) {
-              //   // console.log(e);
-              //   // console.log(treeList);
-
-              //   isAddingSet = true;
-              //   // console.log("isAddingSet: ", isAddingSet);
-
-              //   treeList.columnOption("productid", "editorOptions", {
-              //     acceptCustomValue: true,
-              //     // popupWidth: 600,
-              //     searchEnabled: true,
-              //     // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
-              //     searchExpr: ["productnumber", "name"],
-              //     itemTemplate: function (data, index, container) {
-              //       var row = $("<div>").addClass("row text-wrap");
-              //       var containerFluid = $("<div>").addClass("container-fluid");
-              //       $("<div>")
-              //         .addClass("col-3")
-              //         .text(data["productnumber"])
-              //         .appendTo(row);
-              //       $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
-              //       // $("<div>").addClass("col-4").text(data["priceListItemAmountFormatted"]).appendTo(row);
-              //       row.appendTo(containerFluid);
-              //       container.append(containerFluid);
-              //     },
-              //     onCustomItemCreating: function (args) {
-              //       if (!args.text) {
-              //         args.customItem = null;
-              //         return;
-              //       }
-
-              //       var newItem = {};
-              //       newItem.productid = newIdForCustomProducts++;
-              //       newItem.name = args.text;
-              //       newItem.productnumber = args.text;
-              //       customProductsStore.insert(newItem);
-              //       args.customItem = newItem;
-              //     },
-              //     onOpened: function (e) {
-              //       heightAuto = false;
-              //       if (heightAuto === false) {
-              //         const iframeCorrentHeight =
-              //           wrControl.getObject().offsetHeight;
-              //         if (iframeCorrentHeight < 450) {
-              //           wrControl.getObject().style.minHeight = "600px";
-              //         }
-              //       }
-              //       e.component._popup.option("width", 400);
-              //     },
-              //     onClosed: function (e) {
-              //       heightAuto = true;
-              //     },
-              //     onFocusOut: function (e) {
-              //       heightAuto = true;
-              //     },
-              //   });
-
-              //   treeList.columnOption("productid", "lookup", {
-              //     dataSource: {
-              //       store: customProductsStore,
-              //     },
-              //     displayExpr: "productnumber",
-              //     valueExpr: "productid",
-              //   });
-
-              //   treeList.columnOption(
-              //     "extreme_supplierpriceperunit",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   // treeList.columnOption("uomid", "allowEditing", false);
-              //   // treeList.columnOption("uomid", "validationRules", null);
-              //   treeList.columnOption(
-              //     "extreme_supplierdiscount",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   treeList.columnOption("extreme_margin", "allowEditing", false);
-              //   treeList.columnOption("priceperunit", "allowEditing", false);
-              //   treeList.columnOption("baseamount", "allowEditing", false);
-              //   treeList.columnOption("extreme_discount", "allowEditing", false);
-              //   treeList.columnOption(
-              //     "extreme_fullpricewithdiscount",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   treeList.columnOption("extreme_pricelist", "allowEditing", false);
-              //   treeList.columnOption(
-              //     "extreme_createasset",
-              //     "allowEditing",
-              //     false
-              //   );
-              //   treeList.columnOption(
-              //     "extreme_vatsetting",
-              //     "allowEditing",
-              //     false
-              //   );
-
-              //   treeList.addRow();
-              // },
             },
           },
           {
@@ -1545,15 +1096,9 @@ $(async function () {
                   [
                     ["_extreme_area_value", "=", null],
                     "or",
-                    ["_extreme_area_value", "=", undefined],
-                    "or",
                     ["_extreme_technology_value", "=", null],
                     "or",
-                    ["_extreme_technology_value", "=", undefined],
-                    "or",
                     ["_extreme_vendorsupplier_value", "=", null],
-                    "or",
-                    ["_extreme_vendorsupplier_value", "=", undefined],
                   ],
                 ]);
 
@@ -1577,10 +1122,15 @@ $(async function () {
               },
             },
           },
-
-          // BEFORE AND AFTER
           {
-            location: "after",
+            location: "before",
+            locateInMenu: "auto",
+            template() {
+              return $("<div>").addClass("spacer").text("");
+            },
+          },
+          {
+            location: "before",
             widget: "dxButton",
             locateInMenu: "auto",
             options: {
@@ -1596,13 +1146,9 @@ $(async function () {
               },
             },
           },
-          {
-            location: "after",
-            locateInMenu: "auto",
-            template() {
-              return $("<div>").addClass("spacer").text("");
-            },
-          },
+
+          // BEFORE AND AFTER
+
           {
             location: "after",
             locateInMenu: "auto",
@@ -1738,6 +1284,7 @@ $(async function () {
       allowColumnReordering: true,
       allowColumnResizing: true,
       onEditorPreparing: function (e) {
+        console.log(e);
         if (e?.row?.data?.productid?.productid?._value) {
           if (e.dataField == "_extreme_pricelist_value") {
             e.editorOptions.dataSource = productPriceLevelDataSource(
@@ -1745,6 +1292,18 @@ $(async function () {
             );
           }
         }
+        if (e?.row?.data?.extreme_producttype) {
+          if (e.dataField == "_extreme_vatsetting_value") {
+            e.editorOptions.dataSource = customVatSettingStore(
+              e.row.data.extreme_producttype
+            );
+          }
+        }
+      },
+      onRowInserted: function (e) {
+        console.log(e);
+        console.log(e.data);
+        console.log(e.key);
       },
       onRowUpdated: function (e) {
         console.log(e);
