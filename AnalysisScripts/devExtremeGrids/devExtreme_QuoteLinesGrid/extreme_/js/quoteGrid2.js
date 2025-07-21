@@ -847,7 +847,9 @@ $(async function () {
                 console.log(e);
                 showDeleteModal(async () => {
                   Xrm.Utility.showProgressIndicator(`Deleting...`);
-                  await quotedetailODataStore.remove(e.row.key._value);
+                  if (e.row.isNewRow == true) treeList.cancelEditData();
+                  else if (e.row?.key?._value)
+                    await quotedetailODataStore.remove(e.row.key._value);
                   Xrm.Utility.closeProgressIndicator();
                   await treeList.refresh();
                 });
