@@ -631,9 +631,13 @@ $(async function () {
           },
         },
         {
-          dataField: "extreme_parentquoteline",
+          dataField: "_extreme_parentquoteline_value",
           caption: "Parent QL",
-          dataType: "string",
+          lookup: {
+            dataSource: quoteDetailsDataSource,
+            displayExpr: "extreme_customproductname",
+            valueExpr: "quotedetailid",
+          },
           visible: false,
         },
         {
@@ -667,8 +671,8 @@ $(async function () {
           caption: "Area",
           lookup: {
             dataSource: extremeAreaDataSource,
-            displayExpr: "name",
-            valueExpr: "id",
+            displayExpr: "extreme_name",
+            valueExpr: "extreme_areaid",
           },
           editorOptions: {
             acceptCustomValue: false,
@@ -696,8 +700,8 @@ $(async function () {
           caption: "Technology",
           lookup: {
             dataSource: extremeTechnologyDataSource,
-            displayExpr: "name",
-            valueExpr: "id",
+            displayExpr: "extreme_name",
+            valueExpr: "extreme_technologyid",
           },
           editorOptions: {
             acceptCustomValue: false,
@@ -826,12 +830,12 @@ $(async function () {
               disabled: false,
               // onClick(e) {
               //   // console.log(e);
-              //   // console.log(dataGrid);
+              //   // console.log(treeList);
 
               //   isAddingSet = false;
               //   // console.log("isAddingSet: ", isAddingSet);
 
-              //   dataGrid.columnOption("productid", "editorOptions", {
+              //   treeList.columnOption("productid", "editorOptions", {
               //     acceptCustomValue: false,
               //     // popupWidth: 600,
               //     searchEnabled: true,
@@ -881,7 +885,7 @@ $(async function () {
               //     },
               //   });
 
-              //   dataGrid.columnOption("productid", "lookup", {
+              //   treeList.columnOption("productid", "lookup", {
               //     dataSource(options) {
               //       let filterQuery = null;
 
@@ -915,38 +919,38 @@ $(async function () {
               //     valueExpr: "productid",
               //   });
 
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_supplierpriceperunit",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("uomid", "allowEditing", true);
-              //   dataGrid.columnOption("uomid", "validationRules", [
+              //   treeList.columnOption("uomid", "allowEditing", true);
+              //   treeList.columnOption("uomid", "validationRules", [
               //     { type: "required" },
               //   ]);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_supplierdiscount",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("extreme_margin", "allowEditing", true);
-              //   dataGrid.columnOption("priceperunit", "allowEditing", true);
-              //   dataGrid.columnOption("baseamount", "allowEditing", true);
-              //   dataGrid.columnOption("extreme_discount", "allowEditing", true);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_margin", "allowEditing", true);
+              //   treeList.columnOption("priceperunit", "allowEditing", true);
+              //   treeList.columnOption("baseamount", "allowEditing", true);
+              //   treeList.columnOption("extreme_discount", "allowEditing", true);
+              //   treeList.columnOption(
               //     "extreme_fullpricewithdiscount",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_pricelist", "allowEditing", true);
+              //   treeList.columnOption(
               //     "extreme_createasset",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("extreme_vatsetting", "allowEditing", true);
+              //   treeList.columnOption("extreme_vatsetting", "allowEditing", true);
 
-              //   dataGrid.addRow();
+              //   treeList.addRow();
               // },
             },
           },
@@ -972,12 +976,12 @@ $(async function () {
               },
               // onClick(e) {
               //   // console.log(e);
-              //   // console.log(dataGrid);
+              //   // console.log(treeList);
 
               //   isAddingSet = false;
               //   // console.log("isAddingSet: ", isAddingSet);
 
-              //   dataGrid.columnOption("productid", "editorOptions", {
+              //   treeList.columnOption("productid", "editorOptions", {
               //     acceptCustomValue: true,
               //     // popupWidth: 600,
               //     searchEnabled: true,
@@ -1027,7 +1031,7 @@ $(async function () {
               //     },
               //   });
 
-              //   dataGrid.columnOption("productid", "lookup", {
+              //   treeList.columnOption("productid", "lookup", {
               //     dataSource: {
               //       store: customProductsStore,
               //     },
@@ -1035,38 +1039,38 @@ $(async function () {
               //     valueExpr: "productid",
               //   });
 
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_supplierpriceperunit",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("uomid", "allowEditing", true);
-              //   dataGrid.columnOption("uomid", "validationRules", [
+              //   treeList.columnOption("uomid", "allowEditing", true);
+              //   treeList.columnOption("uomid", "validationRules", [
               //     { type: "required" },
               //   ]);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_supplierdiscount",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("extreme_margin", "allowEditing", true);
-              //   dataGrid.columnOption("priceperunit", "allowEditing", true);
-              //   dataGrid.columnOption("baseamount", "allowEditing", true);
-              //   dataGrid.columnOption("extreme_discount", "allowEditing", true);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_margin", "allowEditing", true);
+              //   treeList.columnOption("priceperunit", "allowEditing", true);
+              //   treeList.columnOption("baseamount", "allowEditing", true);
+              //   treeList.columnOption("extreme_discount", "allowEditing", true);
+              //   treeList.columnOption(
               //     "extreme_fullpricewithdiscount",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("extreme_pricelist", "allowEditing", true);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_pricelist", "allowEditing", true);
+              //   treeList.columnOption(
               //     "extreme_createasset",
               //     "allowEditing",
               //     true
               //   );
-              //   dataGrid.columnOption("extreme_vatsetting", "allowEditing", true);
+              //   treeList.columnOption("extreme_vatsetting", "allowEditing", true);
 
-              //   dataGrid.addRow();
+              //   treeList.addRow();
               // },
             },
           },
@@ -1088,12 +1092,12 @@ $(async function () {
               disabled: false,
               // onClick(e) {
               //   // console.log(e);
-              //   // console.log(dataGrid);
+              //   // console.log(treeList);
 
               //   isAddingSet = true;
               //   // console.log("isAddingSet: ", isAddingSet);
 
-              //   dataGrid.columnOption("productid", "editorOptions", {
+              //   treeList.columnOption("productid", "editorOptions", {
               //     acceptCustomValue: false,
               //     // popupWidth: 600,
               //     searchEnabled: true,
@@ -1143,7 +1147,7 @@ $(async function () {
               //     },
               //   });
 
-              //   dataGrid.columnOption("productid", "lookup", {
+              //   treeList.columnOption("productid", "lookup", {
               //     dataSource(options) {
               //       let filterQuery = null;
 
@@ -1177,40 +1181,40 @@ $(async function () {
               //     valueExpr: "productid",
               //   });
 
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_supplierpriceperunit",
               //     "allowEditing",
               //     false
               //   );
-              //   // dataGrid.columnOption("uomid", "allowEditing", false);
-              //   // dataGrid.columnOption("uomid", "validationRules", null);
-              //   dataGrid.columnOption(
+              //   // treeList.columnOption("uomid", "allowEditing", false);
+              //   // treeList.columnOption("uomid", "validationRules", null);
+              //   treeList.columnOption(
               //     "extreme_supplierdiscount",
               //     "allowEditing",
               //     false
               //   );
-              //   dataGrid.columnOption("extreme_margin", "allowEditing", false);
-              //   dataGrid.columnOption("priceperunit", "allowEditing", false);
-              //   dataGrid.columnOption("baseamount", "allowEditing", false);
-              //   dataGrid.columnOption("extreme_discount", "allowEditing", false);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_margin", "allowEditing", false);
+              //   treeList.columnOption("priceperunit", "allowEditing", false);
+              //   treeList.columnOption("baseamount", "allowEditing", false);
+              //   treeList.columnOption("extreme_discount", "allowEditing", false);
+              //   treeList.columnOption(
               //     "extreme_fullpricewithdiscount",
               //     "allowEditing",
               //     false
               //   );
-              //   dataGrid.columnOption("extreme_pricelist", "allowEditing", false);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_pricelist", "allowEditing", false);
+              //   treeList.columnOption(
               //     "extreme_createasset",
               //     "allowEditing",
               //     false
               //   );
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_vatsetting",
               //     "allowEditing",
               //     false
               //   );
 
-              //   dataGrid.addRow();
+              //   treeList.addRow();
               // },
             },
           },
@@ -1232,12 +1236,12 @@ $(async function () {
               disabled: false,
               // onClick(e) {
               //   // console.log(e);
-              //   // console.log(dataGrid);
+              //   // console.log(treeList);
 
               //   isAddingSet = true;
               //   // console.log("isAddingSet: ", isAddingSet);
 
-              //   dataGrid.columnOption("productid", "editorOptions", {
+              //   treeList.columnOption("productid", "editorOptions", {
               //     acceptCustomValue: true,
               //     // popupWidth: 600,
               //     searchEnabled: true,
@@ -1287,7 +1291,7 @@ $(async function () {
               //     },
               //   });
 
-              //   dataGrid.columnOption("productid", "lookup", {
+              //   treeList.columnOption("productid", "lookup", {
               //     dataSource: {
               //       store: customProductsStore,
               //     },
@@ -1295,40 +1299,40 @@ $(async function () {
               //     valueExpr: "productid",
               //   });
 
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_supplierpriceperunit",
               //     "allowEditing",
               //     false
               //   );
-              //   // dataGrid.columnOption("uomid", "allowEditing", false);
-              //   // dataGrid.columnOption("uomid", "validationRules", null);
-              //   dataGrid.columnOption(
+              //   // treeList.columnOption("uomid", "allowEditing", false);
+              //   // treeList.columnOption("uomid", "validationRules", null);
+              //   treeList.columnOption(
               //     "extreme_supplierdiscount",
               //     "allowEditing",
               //     false
               //   );
-              //   dataGrid.columnOption("extreme_margin", "allowEditing", false);
-              //   dataGrid.columnOption("priceperunit", "allowEditing", false);
-              //   dataGrid.columnOption("baseamount", "allowEditing", false);
-              //   dataGrid.columnOption("extreme_discount", "allowEditing", false);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_margin", "allowEditing", false);
+              //   treeList.columnOption("priceperunit", "allowEditing", false);
+              //   treeList.columnOption("baseamount", "allowEditing", false);
+              //   treeList.columnOption("extreme_discount", "allowEditing", false);
+              //   treeList.columnOption(
               //     "extreme_fullpricewithdiscount",
               //     "allowEditing",
               //     false
               //   );
-              //   dataGrid.columnOption("extreme_pricelist", "allowEditing", false);
-              //   dataGrid.columnOption(
+              //   treeList.columnOption("extreme_pricelist", "allowEditing", false);
+              //   treeList.columnOption(
               //     "extreme_createasset",
               //     "allowEditing",
               //     false
               //   );
-              //   dataGrid.columnOption(
+              //   treeList.columnOption(
               //     "extreme_vatsetting",
               //     "allowEditing",
               //     false
               //   );
 
-              //   dataGrid.addRow();
+              //   treeList.addRow();
               // },
             },
           },
@@ -1351,81 +1355,75 @@ $(async function () {
                 id: "compactBtn",
               },
               disabled: true,
-              // onClick(e) {
-              //   // console.log(e);
-              //   // console.log(dataGrid);
-              //   dataGrid.columnOption(
-              //     "extreme_pricelistpriceperunit",
-              //     "visible",
-              //     false
-              //   );
-              //   // dataGrid.columnOption('extreme_pricelistcurrency', 'visible', !dataGrid.columnOption('extreme_pricelistcurrency', 'visible'));
-              //   dataGrid.columnOption(
-              //     "extreme_supplierdiscount",
-              //     "visible",
-              //     false
-              //   );
-              //   dataGrid.columnOption("extreme_pd", "visible", false);
-              //   dataGrid.columnOption("extreme_fullpd", "visible", false);
-              //   dataGrid.columnOption("manualdiscountamount", "visible", false);
-              //   dataGrid.columnOption("tax", "visible", false);
-              //   // e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
+              onClick(e) {
+                console.log(e);
+                treeList.columnOption(
+                  "extreme_pricelistpriceperunit",
+                  "visible",
+                  false
+                );
+                treeList.columnOption(
+                  "extreme_supplierdiscount",
+                  "visible",
+                  false
+                );
+                treeList.columnOption("extreme_pd", "visible", false);
+                treeList.columnOption("extreme_fullpd", "visible", false);
+                treeList.columnOption("manualdiscountamount", "visible", false);
+                treeList.columnOption("tax", "visible", false);
 
-              //   // reset all columns after classify
-              //   if (
-              //     $("#classifyBtn").dxButton("instance").option("disabled") ===
-              //     true
-              //   ) {
-              //     // console.log('ALL COLUMNS');
-              //     // console.log(dataGrid.option('columns'));
-              //     dataGrid.option("columns").forEach((col) => {
-              //       if (
-              //         col.dataField !== "extreme_pricelistpriceperunit" &&
-              //         col.dataField !== "extreme_supplierdiscount" &&
-              //         col.dataField !== "extreme_pd" &&
-              //         col.dataField !== "extreme_fullpd" &&
-              //         col.dataField !== "manualdiscountamount" &&
-              //         col.dataField !== "extreme_productdescription" &&
-              //         // other columns
-              //         col.dataField !== "sequencenumber" &&
-              //         col.dataField !== "extreme_pricelistcurrency" &&
-              //         col.dataField !== "extreme_tax" &&
-              //         col.dataField !== "extreme_parentquoteline" &&
-              //         col.dataField !== "extreme_isparentitem" &&
-              //         col.dataField !== "extreme_producttype"
-              //       ) {
-              //         dataGrid.columnOption(col.dataField, "visible", true);
-              //       }
-              //     });
+                // reset all columns after classify
+                if (
+                  $("#classifyBtn").dxButton("instance").option("disabled") ===
+                  true
+                ) {
+                  treeList.option("columns").forEach((col) => {
+                    if (
+                      col.dataField !== "extreme_pricelistpriceperunit" &&
+                      col.dataField !== "extreme_supplierdiscount" &&
+                      col.dataField !== "extreme_pd" &&
+                      col.dataField !== "extreme_fullpd" &&
+                      col.dataField !== "manualdiscountamount" &&
+                      col.dataField !== "extreme_productdescription" &&
+                      // other columns
+                      col.dataField !== "sequencenumber" &&
+                      col.dataField !== "extreme_pricelistcurrency" &&
+                      col.dataField !== "extreme_tax" &&
+                      col.dataField !== "_extreme_parentquoteline_value" &&
+                      col.dataField !== "extreme_isparentitem" &&
+                      col.dataField !== "extreme_producttype"
+                    ) {
+                      treeList.columnOption(col.dataField, "visible", true);
+                    }
+                  });
 
-              //     dataGrid.option("filterValue", [
-              //       [
-              //         ["extreme_parentquoteline", "=", null],
-              //         "and",
-              //         ["extreme_isparentitem", "=", false],
-              //       ],
-              //       "or",
-              //       [
-              //         ["extreme_parentquoteline", "=", null],
-              //         "and",
-              //         ["extreme_isparentitem", "=", true],
-              //       ],
-              //     ]);
+                  treeList.option("filterValue", null);
 
-              //     // dataGrid.columnOption('extreme_producttype', 'visible', false);
-              //     dataGrid.columnOption("extreme_area", "visible", false);
-              //     dataGrid.columnOption("extreme_technology", "visible", false);
-              //     dataGrid.columnOption(
-              //       "extreme_vendorsupplier",
-              //       "visible",
-              //       false
-              //     );
-              //   }
+                  treeList.columnOption(
+                    "_extreme_area_value",
+                    "visible",
+                    false
+                  );
+                  treeList.columnOption(
+                    "_extreme_technology_value",
+                    "visible",
+                    false
+                  );
+                  treeList.columnOption(
+                    "_extreme_vendorsupplier_value",
+                    "visible",
+                    false
+                  );
+                }
 
-              //   $("#extendedBtn").dxButton("instance").option("disabled", false);
-              //   $("#classifyBtn").dxButton("instance").option("disabled", false);
-              //   e.component.option("disabled", true);
-              // },
+                $("#extendedBtn")
+                  .dxButton("instance")
+                  .option("disabled", false);
+                $("#classifyBtn")
+                  .dxButton("instance")
+                  .option("disabled", false);
+                e.component.option("disabled", true);
+              },
             },
           },
           {
@@ -1447,81 +1445,69 @@ $(async function () {
                 id: "extendedBtn",
               },
               disabled: false,
-              // onClick(e) {
-              //   // console.log(e);
-              //   // console.log(dataGrid);
-              //   dataGrid.columnOption(
-              //     "extreme_pricelistpriceperunit",
-              //     "visible",
-              //     true
-              //   );
-              //   // dataGrid.columnOption('extreme_pricelistcurrency', 'visible', !dataGrid.columnOption('extreme_pricelistcurrency', 'visible'));
-              //   dataGrid.columnOption(
-              //     "extreme_supplierdiscount",
-              //     "visible",
-              //     true
-              //   );
-              //   dataGrid.columnOption("extreme_pd", "visible", true);
-              //   dataGrid.columnOption("extreme_fullpd", "visible", true);
-              //   dataGrid.columnOption("manualdiscountamount", "visible", true);
-              //   dataGrid.columnOption("tax", "visible", true);
-              //   // e.component.option('text', dataGrid.columnOption('extreme_pricelistpriceperunit', 'visible') ? 'Extended' : 'Compact');
+              onClick(e) {
+                console.log(e);
+                treeList.columnOption(
+                  "extreme_pricelistpriceperunit",
+                  "visible",
+                  true
+                );
+                treeList.columnOption(
+                  "extreme_supplierdiscount",
+                  "visible",
+                  true
+                );
+                treeList.columnOption("extreme_pd", "visible", true);
+                treeList.columnOption("extreme_fullpd", "visible", true);
+                treeList.columnOption("manualdiscountamount", "visible", true);
+                treeList.columnOption("tax", "visible", true);
+                // reset all columns after classify
+                if (
+                  $("#classifyBtn").dxButton("instance").option("disabled") ===
+                  true
+                ) {
+                  // console.log('ALL COLUMNS');
+                  // console.log(treeList.option('columns'));
+                  treeList.option("columns").forEach((col) => {
+                    if (
+                      col.dataField !== "extreme_productdescription" &&
+                      // other columns
+                      col.dataField !== "sequencenumber" &&
+                      col.dataField !== "extreme_pricelistcurrency" &&
+                      col.dataField !== "extreme_tax" &&
+                      col.dataField !== "_extreme_parentquoteline_value" &&
+                      col.dataField !== "extreme_isparentitem" &&
+                      col.dataField !== "extreme_producttype"
+                    ) {
+                      treeList.columnOption(col.dataField, "visible", true);
+                    }
+                  });
 
-              //   // reset all columns after classify
-              //   if (
-              //     $("#classifyBtn").dxButton("instance").option("disabled") ===
-              //     true
-              //   ) {
-              //     // console.log('ALL COLUMNS');
-              //     // console.log(dataGrid.option('columns'));
-              //     dataGrid.option("columns").forEach((col) => {
-              //       if (
-              //         // col.dataField !== "extreme_pricelistpriceperunit" &&
-              //         // col.dataField !== "extreme_supplierdiscount" &&
-              //         // col.dataField !== "extreme_pd" &&
-              //         // col.dataField !== "extreme_fullpd" &&
-              //         // col.dataField !== "manualdiscountamount" &&
-              //         col.dataField !== "extreme_productdescription" &&
-              //         // other columns
-              //         col.dataField !== "sequencenumber" &&
-              //         col.dataField !== "extreme_pricelistcurrency" &&
-              //         col.dataField !== "extreme_tax" &&
-              //         col.dataField !== "extreme_parentquoteline" &&
-              //         col.dataField !== "extreme_isparentitem" &&
-              //         col.dataField !== "extreme_producttype"
-              //       ) {
-              //         dataGrid.columnOption(col.dataField, "visible", true);
-              //       }
-              //     });
+                  treeList.option("filterValue", null);
 
-              //     dataGrid.option("filterValue", [
-              //       [
-              //         ["extreme_parentquoteline", "=", null],
-              //         "and",
-              //         ["extreme_isparentitem", "=", false],
-              //       ],
-              //       "or",
-              //       [
-              //         ["extreme_parentquoteline", "=", null],
-              //         "and",
-              //         ["extreme_isparentitem", "=", true],
-              //       ],
-              //     ]);
+                  treeList.columnOption(
+                    "_extreme_area_value",
+                    "visible",
+                    false
+                  );
+                  treeList.columnOption(
+                    "_extreme_technology_value",
+                    "visible",
+                    false
+                  );
+                  treeList.columnOption(
+                    "_extreme_vendorsupplier_value",
+                    "visible",
+                    false
+                  );
+                }
 
-              //     // dataGrid.columnOption('extreme_producttype', 'visible', false);
-              //     dataGrid.columnOption("extreme_area", "visible", false);
-              //     dataGrid.columnOption("extreme_technology", "visible", false);
-              //     dataGrid.columnOption(
-              //       "extreme_vendorsupplier",
-              //       "visible",
-              //       false
-              //     );
-              //   }
-
-              //   $("#compactBtn").dxButton("instance").option("disabled", false);
-              //   $("#classifyBtn").dxButton("instance").option("disabled", false);
-              //   e.component.option("disabled", true);
-              // },
+                $("#compactBtn").dxButton("instance").option("disabled", false);
+                $("#classifyBtn")
+                  .dxButton("instance")
+                  .option("disabled", false);
+                e.component.option("disabled", true);
+              },
             },
           },
           {
@@ -1542,61 +1528,53 @@ $(async function () {
                 id: "classifyBtn",
               },
               disabled: false,
-              // onClick(e) {
-              //   // console.log(e);
-              //   // console.log(dataGrid);
-              //   // console.log('GET VISIBLE COLUMNS');
-              //   // console.log(dataGrid.getVisibleColumns());
-              //   dataGrid.getVisibleColumns().forEach((col) => {
-              //     if (
-              //       col.dataField !== "productid" &&
-              //       col.dataField !== "extreme_customproductname" &&
-              //       // col.dataField !== 'extreme_productdescription' &&
-              //       col.dataType !== "detailExpand" &&
-              //       col.dataType !== "drag"
-              //     ) {
-              //       // // console.log(col);
-              //       dataGrid.columnOption(col.dataField, "visible", false);
-              //     }
-              //   });
+              onClick(e) {
+                console.log(e);
+                treeList.getVisibleColumns().forEach((col) => {
+                  if (
+                    col.dataField !== "productid" &&
+                    col.dataField !== "extreme_customproductname" &&
+                    col.dataType !== "detailExpand" &&
+                    col.dataType !== "drag"
+                  ) {
+                    treeList.columnOption(col.dataField, "visible", false);
+                  }
+                });
 
-              //   quoteLinesData._array
-              //     .filter((item) => item.extreme_isparentitem === true)
-              //     .forEach((elm) => {
-              //       dataGrid.collapseRow(elm.quotedetailid);
-              //     });
+                treeList.option("filterValue", [
+                  [
+                    ["_extreme_area_value", "=", null],
+                    "or",
+                    ["_extreme_area_value", "=", undefined],
+                    "or",
+                    ["_extreme_technology_value", "=", null],
+                    "or",
+                    ["_extreme_technology_value", "=", undefined],
+                    "or",
+                    ["_extreme_vendorsupplier_value", "=", null],
+                    "or",
+                    ["_extreme_vendorsupplier_value", "=", undefined],
+                  ],
+                ]);
 
-              //   dataGrid.option("filterValue", [
-              //     // [
-              //     //   ["extreme_area", "=", null], "or", ["extreme_area", "=", undefined], "or",
-              //     //   ["extreme_technology", "=", null], "or", ["extreme_technology", "=", undefined], "or",
-              //     //   ["extreme_vendorsupplier", "=", null], "or", ["extreme_vendorsupplier", "=", undefined]
-              //     // ], "and", ["extreme_isparentitem", "=", false]
-              //     [
-              //       // ["extreme_producttype", "=", null], "or", ["extreme_producttype", "=", undefined], "or",
-              //       ["extreme_area", "=", null],
-              //       "or",
-              //       ["extreme_area", "=", undefined],
-              //       "or",
-              //       ["extreme_technology", "=", null],
-              //       "or",
-              //       ["extreme_technology", "=", undefined],
-              //       "or",
-              //       ["extreme_vendorsupplier", "=", null],
-              //       "or",
-              //       ["extreme_vendorsupplier", "=", undefined],
-              //     ],
-              //   ]);
+                treeList.columnOption("_extreme_area_value", "visible", true);
+                treeList.columnOption(
+                  "_extreme_technology_value",
+                  "visible",
+                  true
+                );
+                treeList.columnOption(
+                  "_extreme_vendorsupplier_value",
+                  "visible",
+                  true
+                );
 
-              //   // dataGrid.columnOption('extreme_producttype', 'visible', true);
-              //   dataGrid.columnOption("extreme_area", "visible", true);
-              //   dataGrid.columnOption("extreme_technology", "visible", true);
-              //   dataGrid.columnOption("extreme_vendorsupplier", "visible", true);
-
-              //   $("#compactBtn").dxButton("instance").option("disabled", false);
-              //   $("#extendedBtn").dxButton("instance").option("disabled", false);
-              //   e.component.option("disabled", true);
-              // },
+                $("#compactBtn").dxButton("instance").option("disabled", false);
+                $("#extendedBtn")
+                  .dxButton("instance")
+                  .option("disabled", false);
+                e.component.option("disabled", true);
+              },
             },
           },
 
@@ -1797,7 +1775,7 @@ $(async function () {
           rowElement.style.backgroundColor = "#d4edda"; // light green
           setTimeout(() => {
             rowElement.style.backgroundColor = originalBg;
-          }, 300);
+          }, 1000);
         }, 100);
       },
       onSelectionChanged: function (e) {
@@ -1823,6 +1801,9 @@ $(async function () {
       onContentReady: function (e) {
         console.log(e);
         replaceLoader();
+        const parentDoc = parent.document;
+        if (parentDoc.getElementById("floating-delete-icon"))
+          parentDoc.getElementById("floating-delete-icon").remove();
       },
     })
     .dxTreeList("instance");
