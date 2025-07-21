@@ -515,7 +515,11 @@ $(async function () {
               $("<div>")
                 .addClass("col-2")
                 .text(
-                  `${data["extreme_vat"] || data["extreme_vat"] == 0 ? data["extreme_vat"] + " %" : ""}`
+                  `${
+                    data["extreme_vat"] || data["extreme_vat"] == 0
+                      ? data["extreme_vat"] + " %"
+                      : ""
+                  }`
                 )
                 .appendTo(row);
               row.appendTo(containerFluid);
@@ -789,10 +793,12 @@ $(async function () {
               visible: true,
               disabled: false,
               onClick(e) {
-                // showDeleteModal();
-                showDeleteIcon(() => {
-                  console.log("Item deleted.");
-                  // Place your actual delete logic here
+                console.log(e);
+                showDeleteModal(async () => {
+                  Xrm.Utility.showProgressIndicator(`Deleting...`);
+                  await quotedetailODataStore.remove(e.row.key._value);
+                  Xrm.Utility.closeProgressIndicator();
+                  await treeList.refresh();
                 });
               },
             },
@@ -1595,7 +1601,30 @@ $(async function () {
           },
 
           // BEFORE AND AFTER
-
+          {
+            location: "after",
+            widget: "dxButton",
+            locateInMenu: "auto",
+            options: {
+              icon: "refresh",
+              text: "",
+              width: "auto",
+              elementAttr: {
+                id: "refreshBtn",
+              },
+              disabled: false,
+              onClick(e) {
+                treeList.refresh();
+              },
+            },
+          },
+          {
+            location: "after",
+            locateInMenu: "auto",
+            template() {
+              return $("<div>").addClass("spacer").text("");
+            },
+          },
           {
             location: "after",
             locateInMenu: "auto",
@@ -1773,6 +1802,27 @@ $(async function () {
       },
       onSelectionChanged: function (e) {
         console.log(e);
+        if (e.selectedRowKeys.length > 0) {
+          showDeleteIcon(async () => {
+            const selectedKeys = treeList.getSelectedRowKeys();
+            if (selectedKeys.length == 0) return;
+            for (const [index, key] of selectedKeys.entries()) {
+              Xrm.Utility.showProgressIndicator(
+                `Deleting ${index + 1} / ${selectedKeys.length}`
+              );
+              await quotedetailODataStore.remove(key);
+            }
+            hideDeleteIcon();
+            Xrm.Utility.closeProgressIndicator();
+            await treeList.refresh();
+          });
+        } else {
+          hideDeleteIcon();
+        }
+      },
+      onContentReady: function (e) {
+        console.log(e);
+        replaceLoader();
       },
     })
     .dxTreeList("instance");

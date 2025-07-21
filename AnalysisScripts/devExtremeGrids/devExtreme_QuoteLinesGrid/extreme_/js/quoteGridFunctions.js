@@ -635,6 +635,54 @@ function hideDeleteIcon() {
   }
 }
 
+function replaceLoader() {
+  const wrappers = document.querySelectorAll(".dx-loadpanel-content-wrapper");
+
+  wrappers.forEach((wrapper) => {
+    // Clear existing content
+    wrapper.innerHTML = "";
+
+    // Create spinner container
+    const spinnerContainer = document.createElement("div");
+    spinnerContainer.style.display = "flex";
+    spinnerContainer.style.flexDirection = "column";
+    spinnerContainer.style.alignItems = "center";
+    spinnerContainer.style.justifyContent = "center";
+    spinnerContainer.style.height = "100%";
+
+    // Create spinner element
+    const spinner = document.createElement("div");
+    spinner.style.width = "40px";
+    spinner.style.height = "40px";
+    spinner.style.border = "4px solid #ccc";
+    spinner.style.borderTop = "4px solid #0078d4"; // Office blue
+    spinner.style.borderRadius = "50%";
+    spinner.style.animation = "spin 1s linear infinite";
+
+    // Create label
+    const label = document.createElement("div");
+    label.textContent = "Loading...";
+    label.style.marginTop = "10px";
+    label.style.fontSize = "14px";
+    label.style.color = "#444";
+
+    // Append elements
+    spinnerContainer.appendChild(spinner);
+    spinnerContainer.appendChild(label);
+    wrapper.appendChild(spinnerContainer);
+  });
+
+  // Add CSS keyframes if not already defined
+  const style = document.createElement("style");
+  style.textContent = `
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+  document.head.appendChild(style);
+}
+
 (async () => {
   const customerResponse = await Xrm.WebApi.retrieveRecord(
     "quote",
