@@ -635,6 +635,133 @@ function hideDeleteIcon() {
   }
 }
 
+function replaceLoader() {
+  const wrappers = document.querySelectorAll(".dx-loadpanel-content-wrapper");
+
+  wrappers.forEach((wrapper) => {
+    // Clear existing content
+    wrapper.innerHTML = "";
+
+    // Create spinner container
+    const spinnerContainer = document.createElement("div");
+    spinnerContainer.style.display = "flex";
+    spinnerContainer.style.flexDirection = "column";
+    spinnerContainer.style.alignItems = "center";
+    spinnerContainer.style.justifyContent = "center";
+    spinnerContainer.style.height = "100%";
+
+    // Create spinner element
+    const spinner = document.createElement("div");
+    spinner.style.width = "40px";
+    spinner.style.height = "40px";
+    spinner.style.border = "4px solid #ccc";
+    spinner.style.borderTop = "4px solid #0078d4"; // Office blue
+    spinner.style.borderRadius = "50%";
+    spinner.style.animation = "spin 1s linear infinite";
+
+    // Create label
+    const label = document.createElement("div");
+    label.textContent = "Loading...";
+    label.style.marginTop = "10px";
+    label.style.fontSize = "14px";
+    label.style.color = "#444";
+
+    // Append elements
+    spinnerContainer.appendChild(spinner);
+    spinnerContainer.appendChild(label);
+    wrapper.appendChild(spinnerContainer);
+  });
+
+  // Add CSS keyframes if not already defined
+  const style = document.createElement("style");
+  style.textContent = `
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+  document.head.appendChild(style);
+}
+
+// function for checking classify needed rows
+const checkClassifyRows = () => {
+  classifyNeededRows = 0;
+
+  if (quoteLinesData._array.length > 0) {
+    quoteLinesData._array
+      .filter(
+        (item) =>
+          // item.extreme_isparentitem === false &&
+          item.extreme_area === null ||
+          item.extreme_area === undefined ||
+          item.extreme_technology === null ||
+          item.extreme_technology === undefined ||
+          item.extreme_vendorsupplier === null ||
+          item.extreme_vendorsupplier === undefined
+      )
+      .forEach((item) => {
+        classifyNeededRows += 1;
+      });
+  }
+
+  if (classifyNeededRows > 0) {
+    $("#classifyBtn")[0].style.backgroundColor = "#fce3c2";
+    $("#classifyBtn")[0].style.display = "inline-flex";
+  } else {
+    $("#classifyBtn")[0].style.backgroundColor = "#fff";
+    $("#classifyBtn")[0].style.display = "none";
+  }
+
+  // // console.log('CLASSIFY NEEDED ROWS');
+  // // console.log(classifyNeededRows);
+};
+
+// Function to get Inventory Info and display it as pop-up dialog
+async function inventoryInfo(productGuid, quoteDetailGuid) {
+  const globalContext = Xrm.Utility.getGlobalContext();
+  const productName = await Xrm.WebApi.retrieveRecord(
+    "product",
+    productGuid,
+    "?$select=name,productnumber"
+  );
+
+  const pageInput = {
+    pageType: "webresource",
+    webresourceName: "extreme_InventoryInfo.html",
+    data: JSON.stringify({
+      baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
+      baseUrlWithApp: globalContext.getCurrentAppUrl(),
+      entityId: formContext.data.entity.getId().slice(1, -1),
+      quoteDetailGuid: quoteDetailGuid,
+      productGuid: productGuid,
+      productName: productName.name,
+    }),
+  };
+
+  const navigationOptions = {
+    target: 2,
+    height: { value: 500, unit: "px" },
+    width: { value: 800, unit: "px" },
+    position: 1,
+    title: productName.productnumber + " | " + productName.name,
+  };
+
+  Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
+    function success() {
+      // Run code on success
+      // // console.log("Success");
+    },
+    function error(error) {
+      // Handle errors
+      Xrm.Navigation.openErrorDialog({
+        details: error,
+        errorCode: 400,
+        message: error.message,
+      });
+    }
+  );
+}
+
 (async () => {
   const customerResponse = await Xrm.WebApi.retrieveRecord(
     "quote",

@@ -5612,10 +5612,10 @@ async function setClientApiContext(Xrm, formContext) {
       // onAdd Drag and Drop function
       async function onAdd(e) {
 
-        if (!isDraftStatus) {
-          Xrm.Navigation.openAlertDialog({ confirmButtonLabel: "Close", text: "Grid is in read-only mode.", title: "Cannot do that" });
-          return;
-        }
+        // if (!isDraftStatus) {
+        //   Xrm.Navigation.openAlertDialog({ confirmButtonLabel: "Close", text: "Grid is in read-only mode.", title: "Cannot do that" });
+        //   return;
+        // }
 
         Xrm.Utility.showProgressIndicator('');
 
