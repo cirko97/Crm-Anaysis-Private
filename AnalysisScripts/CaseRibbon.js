@@ -28,7 +28,7 @@ var CaseRibbon = window.CaseRibbon || {};
 			function success(results) {
 				return results.entities[0];
 			},
-			function(error) {
+			function (error) {
 				console.log(error.message);
 			}
 		);
@@ -36,7 +36,7 @@ var CaseRibbon = window.CaseRibbon || {};
 		var filename = report["filename"];
 
 		var arrReportSession = executeReport(caseId, reportid, reportName, formContext);
-		
+
 		var blobData = await convertResponseToPDF(arrReportSession); //3. Convert the response in base 64 string i.e. PDF.
 
 		Xrm.Utility.showProgressIndicator("Creating email...");
@@ -47,7 +47,7 @@ var CaseRibbon = window.CaseRibbon || {};
 		Xrm.Utility.showProgressIndicator("Creating attachment...");
 
 		await attachFileToDraftEmail(blobData, emailId, `${brojServisnogNaloga}.pdf`, "application/pdf"); //smisliti naming konvenciju za PDF
-		
+
 		Xrm.Utility.closeProgressIndicator();
 
 		var pageInput = {
@@ -57,16 +57,16 @@ var CaseRibbon = window.CaseRibbon || {};
 		};
 		var navigationOptions = {
 			target: 2,
-			height: {value: 80, unit:"%"},
-			width: {value: 70, unit:"%"},
+			height: { value: 80, unit: "%" },
+			width: { value: 70, unit: "%" },
 			position: 1
 		};
 		Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
 			function success() {
-					// Run code on success
+				// Run code on success
 			},
 			function error() {
-					// Handle errors
+				// Handle errors
 			}
 		);
 
@@ -75,30 +75,30 @@ var CaseRibbon = window.CaseRibbon || {};
 		return isSysAdminRole() || isServiceManager();
 	}
 	this.CancelCaseButton = function (formContext) {
-		const caseId = formContext.data.entity.getId().slice(1,-1);
-		var confirmStrings = { text:"Are you sure you want to cancel this Case?", title:"Case Cancelation" };
+		const caseId = formContext.data.entity.getId().slice(1, -1);
+		var confirmStrings = { text: "Are you sure you want to cancel this Case?", title: "Case Cancelation" };
 		var confirmOptions = { height: 200, width: 450 };
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-		async function (success) {    
-			if (success.confirmed){
-				var record = {};
-				record.statecode = 1; // State
-				record.statuscode = 934670003; // Status
-				record.extreme_casecanceled = true;
-				
-				await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
-				formContext.data.refresh(true);
-			}
-			else{
+			async function (success) {
+				if (success.confirmed) {
+					var record = {};
+					record.statecode = 1; // State
+					record.statuscode = 934670003; // Status
+					record.extreme_casecanceled = true;
 
-			}	
-		});
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+				else {
+
+				}
+			});
 	}
 	this.SetCaseOnHoldButton = function (formContext) {
-		const caseId = formContext.data.entity.getId().slice(1,-1);
+		const caseId = formContext.data.entity.getId().slice(1, -1);
 		const onHoldReason = formContext.getAttribute("extreme_onholdreason");
 
-		if(onHoldReason.getValue() === null){
+		if (onHoldReason.getValue() === null) {
 			formContext.getControl("extreme_onholdreason").setVisible(true);
 			formContext.getControl("extreme_onholdreason").setNotification("Please enter a reason for HOLD status.", "FieldNotificationId");
 			formContext.getControl("extreme_onholdreason").setFocus();
@@ -110,125 +110,125 @@ var CaseRibbon = window.CaseRibbon || {};
 			formContext.ui.clearFormNotification("FormNotificationId");
 		}
 
-		var confirmStrings = { text:"Are you sure you want to put this case on HOLD?", title:"Case On Hold Prompt" };
+		var confirmStrings = { text: "Are you sure you want to put this case on HOLD?", title: "Case On Hold Prompt" };
 		var confirmOptions = { height: 200, width: 450 };
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-		async function (success) {    
-			if (success.confirmed){
-				var record = {};
-				record.statecode = 0; // State
-				record.statuscode = 934670002; // Status
-				record.extreme_casewasonhold = true;
-				
-				await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
-				formContext.data.refresh(true);
-			}
-			else{
+			async function (success) {
+				if (success.confirmed) {
+					var record = {};
+					record.statecode = 0; // State
+					record.statuscode = 934670002; // Status
+					record.extreme_casewasonhold = true;
 
-			}	
-		});
+					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+					formContext.data.refresh(true);
+				}
+				else {
+
+				}
+			});
 	}
 	this.ResumeCaseButton = function (formContext) {
-		const caseId = formContext.data.entity.getId().slice(1,-1);
-		var confirmStrings = { text:"Are you sure you want to put resume this case?", title:"Case Resume Prompt" };
+		const caseId = formContext.data.entity.getId().slice(1, -1);
+		var confirmStrings = { text: "Are you sure you want to put resume this case?", title: "Case Resume Prompt" };
 		var confirmOptions = { height: 200, width: 450 };
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-		async function (success) {    
-			if (success.confirmed){
-				if(formContext.getAttribute("extreme_serviceappointment").getValue() !== null){ //set as scheduled
-					var record = {};
-					record.statecode = 0; // State
-					record.statuscode = 934670001; // Status
-					record.extreme_onholdreason = null;
-					
-					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
-					formContext.data.refresh(true);
-				}
-				else{//set as new status
-					var record = {};
-					record.statecode = 0; // State
-					record.statuscode = 1; // Status
-					record.extreme_onholdreason = null;
+			async function (success) {
+				if (success.confirmed) {
+					if (formContext.getAttribute("extreme_serviceappointment").getValue() !== null) { //set as scheduled
+						var record = {};
+						record.statecode = 0; // State
+						record.statuscode = 934670001; // Status
+						record.extreme_onholdreason = null;
 
-					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
-					formContext.data.refresh(true);
+						await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+						formContext.data.refresh(true);
+					}
+					else {//set as new status
+						var record = {};
+						record.statecode = 0; // State
+						record.statuscode = 1; // Status
+						record.extreme_onholdreason = null;
+
+						await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
+						formContext.data.refresh(true);
+					}
 				}
-			}
-		});
+			});
 	}
 	this.ResolveCaseButton = function (formContext) {
-		const caseId = formContext.data.entity.getId().slice(1,-1);
+		const caseId = formContext.data.entity.getId().slice(1, -1);
 		var PAQuoteID = formContext.getAttribute("extreme_pantheonno").getValue();
 		var extreme_casereactivated = formContext.getAttribute("extreme_casereactivated").getValue();
 
-		if(PAQuoteID === null){
-			var confirmStrings = { text:"Are you sure you want to resolve this case?", title:"Case Resolution Prompt" };
+		if (PAQuoteID === null) {
+			var confirmStrings = { text: "Are you sure you want to resolve this case?", title: "Case Resolution Prompt" };
 			var confirmOptions = { height: 200, width: 450 };
 			Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-				async function (success) {    
-					if (success.confirmed){
-						if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+				async function (success) {
+					if (success.confirmed) {
+						if (formContext.getAttribute("extreme_signedprintout").getValue() == null) { //set as resolved
 							Xrm.Utility.showProgressIndicator("Resolving Case...");
-	
+
 							var record = {};
 							record.statecode = 0; // State
 							record.statuscode = 934670004; // Status
-							
+
 							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 							Xrm.Utility.closeProgressIndicator();
 							formContext.data.refresh(true);
 						}
-						else{//set as resolved & signed
+						else {//set as resolved & signed
 							Xrm.Utility.showProgressIndicator("Resolving Case...");
 							var record = {};
 							record.statecode = 1; // State
 							record.statuscode = 2; // Status
-							
+
 							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 							Xrm.Utility.closeProgressIndicator();
 							formContext.data.refresh(true);
 						}
-					}	
-				});	
-		} else if(PAQuoteID !== null && extreme_casereactivated === true){
-			var confirmStrings = { text:"THIS CASE IS ALREADY SYNCHRONIZED!!! \n\n Delete the synchronized document in Pantheon and then resolve. \n\n\n\n Are you sure you want to resolve this case?", title:"CASE ALREADY SYNCHRONIZED PROMPT" };
+					}
+				});
+		} else if (PAQuoteID !== null && extreme_casereactivated === true) {
+			var confirmStrings = { text: "THIS CASE IS ALREADY SYNCHRONIZED!!! \n\n Delete the synchronized document in Pantheon and then resolve. \n\n\n\n Are you sure you want to resolve this case?", title: "CASE ALREADY SYNCHRONIZED PROMPT" };
 			var confirmOptions = { height: 400, width: 600 };
 			Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-				async function (success) {    
-					if (success.confirmed){
-						if(formContext.getAttribute("extreme_signedprintout").getValue() == null){ //set as resolved
+				async function (success) {
+					if (success.confirmed) {
+						if (formContext.getAttribute("extreme_signedprintout").getValue() == null) { //set as resolved
 							Xrm.Utility.showProgressIndicator("Resolving Case...");
-	
+
 							var record = {};
 							record.statecode = 0; // State
 							record.statuscode = 934670004; // Status
-							
+
 							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 							Xrm.Utility.closeProgressIndicator();
 							formContext.data.refresh(true);
 						}
-						else{//set as resolved & signed
+						else {//set as resolved & signed
 							Xrm.Utility.showProgressIndicator("Resolving Case...");
 							var record = {};
 							record.statecode = 1; // State
 							record.statuscode = 2; // Status
-							
+
 							await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 							Xrm.Utility.closeProgressIndicator();
 							formContext.data.refresh(true);
 						}
-					}	
+					}
 				});
-		}	
+		}
 	}
 	this.ReactivateCaseButton = function (formContext) {
-		const caseId = formContext.data.entity.getId().slice(1,-1);
-		var confirmStrings = { text:"Are you sure you want to reactivate this case?", title:"Case Reactivation Prompt" };
+		const caseId = formContext.data.entity.getId().slice(1, -1);
+		var confirmStrings = { text: "Are you sure you want to reactivate this case?", title: "Case Reactivation Prompt" };
 		var confirmOptions = { height: 200, width: 450 };
 		Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-		async function (success) {    
-			if (success.confirmed){
-				//set as scheduled
+			async function (success) {
+				if (success.confirmed) {
+					//set as scheduled
 					Xrm.Utility.showProgressIndicator("Reactivating Case...");
 					var record = {};
 					record.statecode = 0; // State
@@ -238,8 +238,8 @@ var CaseRibbon = window.CaseRibbon || {};
 					await Xrm.WebApi.updateRecord("extreme_case", caseId, record);
 					Xrm.Utility.closeProgressIndicator();
 					formContext.data.refresh(true);
-			}	
-		});	
+				}
+			});
 	}
 	this.ReactivateCaseEnableRule = function (formContext) {
 		var statuscode = formContext.getAttribute("statuscode").getValue();
@@ -249,97 +249,97 @@ var CaseRibbon = window.CaseRibbon || {};
 }).call(CaseRibbon);
 
 const convertResponseToPDF = async function (arrResponseSession) {
-    return new Promise((resolve, reject) => {
-        // Extract the PdfDownloadUrl using a regular expression
-        const pdfDownloadUrlRegex = /"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
-        const match = pdfDownloadUrlRegex.exec(arrResponseSession);
+	return new Promise((resolve, reject) => {
+		// Extract the PdfDownloadUrl using a regular expression
+		const pdfDownloadUrlRegex = /"PdfDownloadUrl"\s*:\s*"([^"]+)"/;
+		const match = pdfDownloadUrlRegex.exec(arrResponseSession);
 
-        if (match && match[1]) {
-            const pdfDownloadUrl = match[1];
-            console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
+		if (match && match[1]) {
+			const pdfDownloadUrl = match[1];
+			console.log("Extracted PdfDownloadUrl:", pdfDownloadUrl);
 
-            // Replace \u0026 with &
-            const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
-            const globalContext = Xrm.Utility.getGlobalContext();
-            const pth = globalContext.getClientUrl() + updatedPdfDownloadUrl;
+			// Replace \u0026 with &
+			const updatedPdfDownloadUrl = pdfDownloadUrl.replace(/\\u0026/g, "&");
+			const globalContext = Xrm.Utility.getGlobalContext();
+			const pth = globalContext.getClientUrl() + updatedPdfDownloadUrl;
 
-            // Create request object that will be called to convert the response into a Base64 string
-            const retrieveEntityReq = new XMLHttpRequest();
+			// Create request object that will be called to convert the response into a Base64 string
+			const retrieveEntityReq = new XMLHttpRequest();
 
-            retrieveEntityReq.open("GET", pth, true);
-            retrieveEntityReq.setRequestHeader("Accept", "*/*");
-            retrieveEntityReq.responseType = "arraybuffer";
+			retrieveEntityReq.open("GET", pth, true);
+			retrieveEntityReq.setRequestHeader("Accept", "*/*");
+			retrieveEntityReq.responseType = "arraybuffer";
 
-            retrieveEntityReq.onreadystatechange = function () {
-                if (retrieveEntityReq.readyState === 4) {
-                    if (retrieveEntityReq.status === 200) {
-                        try {
-                            const bytes = new Uint8Array(retrieveEntityReq.response);
-                            let binary = "";
-                            for (let i = 0; i < bytes.byteLength; i++) {
-                                binary += String.fromCharCode(bytes[i]);
-                            }
-                            const base64PDFString = btoa(binary); // Convert to Base64
-                            console.log("Base64 PDF String Generated");
-                            resolve(base64PDFString); // Resolve the promise with the Base64 string
-                        } catch (error) {
-                            console.error("Error converting response to Base64:", error);
-                            reject(error);
-                        }
-                    } else {
-                        reject(
-                            new Error(
-                                `Failed to retrieve PDF. Status: ${retrieveEntityReq.status}`
-                            )
-                        );
-                    }
-                }
-            };
+			retrieveEntityReq.onreadystatechange = function () {
+				if (retrieveEntityReq.readyState === 4) {
+					if (retrieveEntityReq.status === 200) {
+						try {
+							const bytes = new Uint8Array(retrieveEntityReq.response);
+							let binary = "";
+							for (let i = 0; i < bytes.byteLength; i++) {
+								binary += String.fromCharCode(bytes[i]);
+							}
+							const base64PDFString = btoa(binary); // Convert to Base64
+							console.log("Base64 PDF String Generated");
+							resolve(base64PDFString); // Resolve the promise with the Base64 string
+						} catch (error) {
+							console.error("Error converting response to Base64:", error);
+							reject(error);
+						}
+					} else {
+						reject(
+							new Error(
+								`Failed to retrieve PDF. Status: ${retrieveEntityReq.status}`
+							)
+						);
+					}
+				}
+			};
 
-            retrieveEntityReq.onerror = function () {
-                reject(new Error("Network error while fetching the PDF."));
-            };
+			retrieveEntityReq.onerror = function () {
+				reject(new Error("Network error while fetching the PDF."));
+			};
 
-            retrieveEntityReq.send();
-        } else {
-            reject(new Error("PdfDownloadUrl not found."));
-        }
-    });
+			retrieveEntityReq.send();
+		} else {
+			reject(new Error("PdfDownloadUrl not found."));
+		}
+	});
 };
 const executeReport = function (caseId, reportGuid, reportName, formContext) {
 
-    var globalContext = Xrm.Utility.getGlobalContext();
-    var pth = globalContext.getClientUrl() + "/CRMReports/rsviewer/reportviewer.aspx";
-    //Prepare query to execute report.
+	var globalContext = Xrm.Utility.getGlobalContext();
+	var pth = globalContext.getClientUrl() + "/CRMReports/rsviewer/reportviewer.aspx";
+	//Prepare query to execute report.
 
-    //Prepare request object to execute the report.
+	//Prepare request object to execute the report.
 
-	var queryDecoded = `id={${reportGuid}}&uniquename=${globalContext.organizationSettings.uniqueName}` + 
-	            `&iscustomreport=true&reportnameonsrs=&signatureid=&reporttypecode=1&reportName=${reportName}`+
-				`&isScheduledReport=false&CRM_Filter=`+
-				`<ReportFilter><ReportEntity+paramname="CRM_Filteredextreme_Case"+displayname="Cases"+donotconvert="1">`+
-				`<fetch+version="1.0"+output-format="xml-platform"+mapping="logical"+distinct="false">`+
-				`<entity+name="extreme_case"><all-attributes/><filter+type="and"><condition+attribute="extreme_caseid"+operator="eq"+uitype="extreme_case"+value="${caseId}"/>`+
-				`</filter></entity></fetch></ReportEntity></ReportFilter>`
+	var queryDecoded = `id={${reportGuid}}&uniquename=${globalContext.organizationSettings.uniqueName}` +
+		`&iscustomreport=true&reportnameonsrs=&signatureid=&reporttypecode=1&reportName=${reportName}` +
+		`&isScheduledReport=false&CRM_Filter=` +
+		`<ReportFilter><ReportEntity+paramname="CRM_Filteredextreme_Case"+displayname="Cases"+donotconvert="1">` +
+		`<fetch+version="1.0"+output-format="xml-platform"+mapping="logical"+distinct="false">` +
+		`<entity+name="extreme_case"><all-attributes/><filter+type="and"><condition+attribute="extreme_caseid"+operator="eq"+uitype="extreme_case"+value="${caseId}"/>` +
+		`</filter></entity></fetch></ReportEntity></ReportFilter>`
 
-    var retrieveEntityReq = new XMLHttpRequest();
+	var retrieveEntityReq = new XMLHttpRequest();
 
-    retrieveEntityReq.open("POST", pth, false);
+	retrieveEntityReq.open("POST", pth, false);
 
-    retrieveEntityReq.setRequestHeader("Accept", "*/*");
+	retrieveEntityReq.setRequestHeader("Accept", "*/*");
 
-    retrieveEntityReq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	retrieveEntityReq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 
-    //This statement runs the query and executes the report synchronously.
+	//This statement runs the query and executes the report synchronously.
 
-    retrieveEntityReq.send(queryDecoded);
+	retrieveEntityReq.send(queryDecoded);
 
 	return retrieveEntityReq.responseText;
 
 }
 const attachFileToDraftEmail = async function (base64data, emailId, filename, mimetype) {
-    return new Promise(async function (resolve, reject) {
-        try {
+	return new Promise(async function (resolve, reject) {
+		try {
 			var record = {};
 			record.subject = "att"; // Text
 			record.objecttypecode = "email"; // EntityName
@@ -371,94 +371,99 @@ const attachFileToDraftEmail = async function (base64data, emailId, filename, mi
 				}
 			};
 			req.send(JSON.stringify(record));
-        } catch (error) {
-            console.error("Error in attachment function:", error);
-            reject(error);
-        }
-    });
+		} catch (error) {
+			console.error("Error in attachment function:", error);
+			reject(error);
+		}
+	});
 };
 const createCaseEmail = async function (caseId, caseNo, formContext) {
-    var emailActivityParties = [];
+	var emailActivityParties = [];
 	//
-    // Retrieve current user details for the sender
-    const userId = Xrm.Utility.getGlobalContext().userSettings.userId.slice(1, -1); // Remove curly braces
-    const currentUserName = Xrm.Utility.getGlobalContext().userSettings.userName;
+	// Retrieve current user details for the sender
+	const userId = Xrm.Utility.getGlobalContext().userSettings.userId.slice(1, -1); // Remove curly braces
+	const currentUserName = Xrm.Utility.getGlobalContext().userSettings.userName;
 
-    // Add the sender (current user) to the email_activity_parties array
-    emailActivityParties.push({
-        "partyid_systemuser@odata.bind": `/systemusers(${userId})`,
-        "participationtypemask": 1 // Sender
-    });
+	// Add the sender (current user) to the email_activity_parties array
+	emailActivityParties.push({
+		"partyid_systemuser@odata.bind": `/systemusers(${userId})`,
+		"participationtypemask": 1 // Sender
+	});
 
-    // Retrieve primary contact or account for the To recipient
-    const contact = formContext.getAttribute("extreme_contact");
-    const account = formContext.getAttribute("extreme_account");
+	// Retrieve primary contact or account for the To recipient
+	const contact = formContext.getAttribute("extreme_contact");
+	const account = formContext.getAttribute("extreme_account");
 
-    if (contact && contact.getValue() !== null) {
-        const contactId = contact.getValue()[0].id;
-        const contactName = contact.getValue()[0].name;
+	if (contact && contact.getValue() !== null) {
+		const contactId = contact.getValue()[0].id;
+		const contactName = contact.getValue()[0].name;
 
-        let contactEmail = null;
-        try {
-            contactEmail = await Xrm.WebApi.retrieveRecord("contact", contactId, "?$select=emailaddress1")
-                .then(result => result["emailaddress1"]);
-        } catch (error) {
-            console.error("Error fetching contact email: ", error.message);
-        }
+		let contactEmail = null;
+		try {
+			contactEmail = await Xrm.WebApi.retrieveRecord("contact", contactId, "?$select=emailaddress1")
+				.then(result => result["emailaddress1"]);
+		} catch (error) {
+			console.error("Error fetching contact email: ", error.message);
+		}
 
-        if (contactEmail) {
-            emailActivityParties.push({
-                "partyid_contact@odata.bind": `/contacts(${contactId.slice(1,-1)})`,
-                "participationtypemask": 2 // To recipient
-            });
-        }
-    } else if (account && account.getValue() !== null) {
-        const accountId = account.getValue()[0].id;
-        const accountName = account.getValue()[0].name;
+		if (contactEmail) {
+			emailActivityParties.push({
+				"partyid_contact@odata.bind": `/contacts(${contactId.slice(1, -1)})`,
+				"participationtypemask": 2 // To recipient
+			});
+		}
+	} else if (account && account.getValue() !== null) {
+		const accountId = account.getValue()[0].id;
+		const accountName = account.getValue()[0].name;
 
-        let accountEmail = null;
-        try {
-            accountEmail = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=emailaddress1")
-                .then(result => result["emailaddress1"]);
-        } catch (error) {
-            console.error("Error fetching account email: ", error.message);
-        }
+		let accountEmail = null;
+		try {
+			accountEmail = await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=emailaddress1")
+				.then(result => result["emailaddress1"]);
+		} catch (error) {
+			console.error("Error fetching account email: ", error.message);
+		}
 
-        if (accountEmail) {
-            emailActivityParties.push({
-                "partyid_account@odata.bind": `/accounts(${accountId.slice(1,-1)})`,
-                "participationtypemask": 2 // To recipient
-            });
-        }
-    }
+		if (accountEmail) {
+			emailActivityParties.push({
+				"partyid_account@odata.bind": `/accounts(${accountId.slice(1, -1)})`,
+				"participationtypemask": 2 // To recipient
+			});
+		}
+	}
 
-    // Prepare the email record
-    var record = {
-        "regardingobjectid_extreme_case_email@odata.bind": `/extreme_cases(${caseId})`, // Regarding field
-        "subject": `Servisni izveštaj ${caseNo} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
-        "description": `
-            Poštovani,<br><br>
+	const caseEmailSubject = await readConfigurationValue("caseEmailSubject");
+	const caseEmailDescription = await readConfigurationValue("caseEmailDescription");
 
-            U prilogu je servisni izveštaj. Molim Vas za potpis.<br><br>
+	// Prepare the email record
+	var record = {
+		"regardingobjectid_extreme_case_email@odata.bind": `/extreme_cases(${caseId})`, // Regarding field
+		"subject": caseEmailSubject.replace("{caseNo}", caseNo).replace("{accountName}", account?.getValue()?.[0]?.name || ""), // Subject
+		// "subject": `${caseEmailSubject} ${caseNo} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
+		"description": caseEmailDescription.replace("{currentUserName}", currentUserName).replace("{caseNo}", caseNo).replace("{accountName}", account?.getValue()?.[0]?.name || ""),
+		// "description": `
+		//     ovani,<br><br>
 
-            Srdačan pozdrav,<br>
-            <b>${currentUserName}</b><br>
-            Analysis d.o.o, Japanska 4, 11070 Beograd<br>
-            +381 11 318 64 46 / info@analysis.rs<br>
-            https://www.analysis.rs/
-        `,
-        "email_activity_parties": emailActivityParties
-    };
+		//     U prilogu je servisni izveštaj. Molim Vas za potpis.<br><br>
 
-    // Create the email record
-    try {
-        const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
-        console.log("Email created successfully with ID:", newId);
-        return newId;
-    } catch (error) {
-        console.error("Error creating email record: ", error.message);
-        return null;
-    }
+		//     Srdačan pozdrav,<br>
+		//     <b>${currentUserName}</b><br>
+		//     Analysis d.o.o, Japanska 4, 11070 Beograd<br>
+		//     +381 11 318 64 46 / info@analysis.rs<br>
+		//     https://www.analysis.rs/
+		// `,
+		"email_activity_parties": emailActivityParties
+	};
+
+	// Create the email record
+	try {
+		const newId = await Xrm.WebApi.createRecord("email", record).then(result => result.id);
+		console.log("Email created successfully with ID:", newId);
+		return newId;
+	} catch (error) {
+		console.error("Error creating email record: ", error.message);
+		return null;
+	}
 };
 
 const readConfigurationValue = async function (key) {

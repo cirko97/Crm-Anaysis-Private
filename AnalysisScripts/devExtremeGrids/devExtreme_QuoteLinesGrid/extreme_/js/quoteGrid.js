@@ -23,6 +23,7 @@ let isDraftStatus = true;
 let classifyNeededRows = 0;
 let selectedDescriptionItem = null;
 let primaryDefaultUnit = "KOM";
+let defaultDiscount = 0;
 
 async function setClientApiContext(Xrm, formContext) {
 
@@ -2926,13 +2927,14 @@ async function setClientApiContext(Xrm, formContext) {
               if (typeof (value) === 'number' && currentRowData.extreme_isparentitem !== true) {
                 newData.productid = value;
 
+                const discountValue = parseFloat($('#discountInput').val()) || 0;
                 const recalcResult = recalculateAmounts({
 
                   quantity: 1,
                   supplierPricePerUnit: 0,
                   supplierDiscount: 0,
                   margin: defaultMargin,
-                  discount: 0,
+                  discount: discountValue,
                   TaxPercent: 0
 
                 });
@@ -4891,6 +4893,114 @@ async function setClientApiContext(Xrm, formContext) {
                   'justify-content': 'center'
                 });
 
+                // Dodaj input za osnovni popust
+                const $input = $('<input>').attr({
+                  type: 'number',
+                  id: 'discountInput',
+                  class: 'currencyRates',
+                  value: defaultDiscount !== 0 ? defaultDiscount : '',
+                  disabled: !isDraftStatus,
+                  min: 0,
+                  max: 100
+                }).css({
+                  'max-width': '50px',
+                  'height': '28px',
+                  'margin': '0 5px',
+                  'padding': '0 5px',
+                  'border': 'none',
+                  'border-radius': '3px',
+                  'background-color': '#fff',
+                  '-webkit-appearance': 'none',
+                  '-moz-appearance': 'textfield;'
+                }).on('change', async function () {
+                  const discountValue = parseFloat($(this).val());
+                  if (isNaN(discountValue) || discountValue < 0 || discountValue > 100) {
+                    alert("Please enter a discount percent between 0 and 100.");
+                    $(this).val(defaultDiscount !== 0 ? defaultDiscount : '');
+                    return;
+                  }
+                  console.log(`New value for discount: ${discountValue}`);
+                  defaultDiscount = discountValue;
+                  console.log(`Default discount updated to: ${defaultDiscount}`);
+                  var confirmStrings = {
+                    text: `Do you want to update all existing rows with the entered discount percent (${discountValue}%)?`,
+                    title: "Update Discount"
+                  };
+                  var confirmOptions = { height: 200, width: 450 };
+                  if (quoteLinesData._array.length > 0) {
+                    await Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+                      function (success) {
+                        if (success.confirmed) {
+                          console.log("Dialog closed using OK button.");
+                          Xrm.Utility.showProgressIndicator('Updating discount... Please wait...');
+                          const updatePromises = [];
+                          quoteLinesData._array.forEach(row => {
+                            row.extreme_discount = discountValue;
+                            // Recalculate amounts for each row
+                            const recalcResult = recalculateAmounts({
+                              quantity: row.quantity,
+                              supplierPricePerUnit: row.extreme_supplierpriceperunit,
+                              supplierDiscount: row.extreme_supplierdiscount,
+                              margin: row.extreme_margin,
+                              discount: discountValue,
+                              TaxPercent: row.extreme_tax
+                            });
+                            row.extreme_margin = recalcResult.margin;
+                            row.quantity = recalcResult.quantity;
+                            row.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+                            row.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                            row.priceperunit = recalcResult.pricePerUnit;
+                            row.baseamount = recalcResult.baseAmount;
+                            row.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                            row.manualdiscountamount = recalcResult.manualDiscountAmount;
+                            row.tax = recalcResult.tax;
+                            row.extendedamount = recalcResult.extendedAmount;
+                            row.extreme_pd = recalcResult.pdPerUnit;
+                            row.extreme_fullpd = recalcResult.fullPd;
+                            row.extreme_discount = recalcResult.discountPercentage;
+                            row.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage;
+
+                            // Prepare record for update
+                            const record = {
+                              extreme_discount: discountValue,
+                              priceperunit: row.priceperunit,
+                              baseamount: row.baseamount,
+                              extreme_fullpricewithdiscount: row.extreme_fullpricewithdiscount,
+                              manualdiscountamount: row.manualdiscountamount,
+                              tax: row.tax,
+                              extendedamount: row.extendedamount,
+                              extreme_pd: row.extreme_pd,
+                              extreme_fullpd: row.extreme_fullpd,
+                              extreme_margin: row.extreme_margin,
+                              extreme_supplierpriceperunit: row.extreme_supplierpriceperunit,
+                              extreme_supplierbaseamount: row.extreme_supplierbaseamount,
+                              extreme_supplierdiscount: row.extreme_supplierdiscount
+                            };
+                            updatePromises.push(Xrm.WebApi.updateRecord("quotedetail", row.quotedetailid, record));
+                          });
+                          Promise.all(updatePromises).then(() => {
+                            dataGrid.refresh();
+                            Xrm.Utility.closeProgressIndicator();
+                            formContext.data.refresh(true);
+                          });
+                        } else {
+                          console.log("Dialog closed using Cancel button or X.");
+                        }
+                      });
+                  }
+                });
+
+                const $li = $('<li>').append(`Disc(%): `).append($input).css({
+                  'margin': '0 10px',
+                  'padding': '0 0 0 5px',
+                  'border': '1px solid #eee',
+                  'border-radius': '3px',
+                  'background-color': '#fff',
+                  'box-shadow': '0 4px 8px rgba(0, 0, 0, 0.1)'
+                });
+
+                $ul.append($li);
+
                 $.each(jsonForConverting, function (currency, rate) {
                   if (rate !== 1) {
                     const $input = $('<input>').attr({
@@ -5088,7 +5198,7 @@ async function setClientApiContext(Xrm, formContext) {
           if (!isAddingSet) {
             e.data.extreme_isparentitem = false;
             e.data.extreme_margin = defaultMargin;
-            e.data.extreme_discount = 0;
+            e.data.extreme_discount = parseFloat($('#discountInput').val()) || 0;
             e.data.extreme_supplierdiscount = 0;
             dataGrid.columnOption("extreme_vatsetting", "validationRules", [{ type: 'required' }]);
           }

@@ -338,27 +338,32 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
 		}
 	}
 
+	const ponudaSubject = await readConfigurationValue("quoteEmailSubject");
+	const ponudaDesc = await readConfigurationValue("quoteEmailDescription");
+
 	// Prepare the email record
 	var record = {
 		"regardingobjectid_quote_email@odata.bind": `/quotes(${quoteId})`, // Regarding field
-		"subject": `PONUDA ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
-		"description": `
-            Poštovani,<br><br>
+		"subject": ponudaSubject.replace("{quoteNumber}", quoteNumber).replace("{accountName}", account?.getValue()?.[0]?.name || ""), // Subject
+		// "subject": `${ponudaSubject} ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
+		"description": `${ponudaDesc}`, // Description
+		// "description": `
+		//         ovani,<br><br>
 
-            u prilogu Vam dostavljamo našu prodajnu ponudu pripremljenu u skladu sa Vašim zahtevima.<br><br>
+		//         u prilogu Vam dostavljamo našu prodajnu ponudu pripremljenu u skladu sa Vašim zahtevima.<br><br>
 
-            <b>Detalji ponude uključuju:</b><br>
-            - Opis proizvoda/usluga<br>
-            - Količine i cene<br>
-            - Rok isporuke<br>
-            - Načini plaćanja<br><br>
+		//         <b>Detalji ponude uključuju:</b><br>
+		//         - Opis proizvoda/usluga<br>
+		//         - Količine i cene<br>
+		//         - Rok isporuke<br>
+		//         - Načini plaćanja<br><br>
 
-            Ukoliko imate dodatna pitanja ili želite da razjasnimo bilo koji deo ponude, slobodno nas kontaktirajte.<br>
-            Stojimo Vam na raspolaganju za dalje korake i saradnju.<br><br>
+		//         Ukoliko imate dodatna pitanja ili želite da razjasnimo bilo koji deo ponude, slobodno nas kontaktirajte.<br>
+		//         Stojimo Vam na raspolaganju za dalje korake i saradnju.<br><br>
 
-            Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
+		//         Radujemo se Vašem odgovoru i nadamo se uspešnoj saradnji!<br><br>
 
-        `,
+		//     `,
 		"email_activity_parties": emailActivityParties
 	};
 
@@ -556,7 +561,7 @@ const areAllProductsCreatedAndSynced = async function (quoteId, formContext) {
 	}
 	//set quote to draft
 	await Xrm.WebApi.updateRecord("quote", quoteId, { "statecode": 0, "statuscode": 1 });
-	
+
 
 	// creates everything DESC isParent
 	await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=quantity,extreme_customproductname,extreme_producttype,_extreme_parentquoteline_value,_extreme_vatgroup_value,priceperunit,extreme_uomid,quotedetailname,_extreme_area_value,_productid_value,extreme_productdescription,extreme_customproductid,extreme_productid,productname,productnumber,_extreme_technology_value,_uomid_value,_extreme_vendorsupplier_value,productdescription&$filter=_quoteid_value eq ${quoteId}&$orderby=extreme_isparentitem desc`).then(
