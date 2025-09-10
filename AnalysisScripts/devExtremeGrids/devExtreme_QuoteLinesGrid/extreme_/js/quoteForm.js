@@ -11,8 +11,8 @@ async function form_onload(executionContext) {
 
     formContext.getControl("customerid").setEntityTypes(["account"]);
 
-    // Set transaction currency on form load if customer exists
-    if (formContext.getAttribute("customerid").getValue() !== null) {
+    // Set transaction currency on form load if customer exists and form is new
+    if (formType === FORM_NEW && formContext.getAttribute("customerid").getValue() !== null) {
         var customerId = formContext.getAttribute("customerid").getValue()[0].id;
         const accTransaction = await Xrm.WebApi.retrieveRecord("account", customerId, "?$select=_transactioncurrencyid_value");
 

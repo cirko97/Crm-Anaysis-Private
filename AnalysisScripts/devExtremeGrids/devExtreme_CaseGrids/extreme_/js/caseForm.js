@@ -15,8 +15,8 @@ async function form_onload(executionContext) {
   console.log('formType');
   console.log(formType);
 
-  // Set transaction currency on form load if extreme_account exists
-  if (formContext.getAttribute("extreme_account").getValue() !== null) {
+  // Set transaction currency on form load if extreme_account exists, only if form is new
+  if (formType === FORM_NEW && formContext.getAttribute("extreme_account").getValue() !== null) {
     var accountValue = formContext.getAttribute("extreme_account").getValue();
     var accountId = accountValue[0].id;
     await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=_transactioncurrencyid_value").then(async function (accTransaction) {
