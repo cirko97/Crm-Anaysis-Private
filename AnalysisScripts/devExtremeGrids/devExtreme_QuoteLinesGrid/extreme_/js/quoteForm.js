@@ -11,7 +11,59 @@ async function form_onload(executionContext) {
 
     formContext.getControl("customerid").setEntityTypes(["account"]);
 
+    // Set transaction currency on form load if customer exists
+    if (formContext.getAttribute("customerid").getValue() !== null) {
+        var customerId = formContext.getAttribute("customerid").getValue()[0].id;
+        const accTransaction = await Xrm.WebApi.retrieveRecord("account", customerId, "?$select=_transactioncurrencyid_value");
 
+        if (accTransaction && accTransaction._transactioncurrencyid_value) {
+            var currentCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
+            var accountCurrencyId = accTransaction["_transactioncurrencyid_value"];
+            if (
+                !currentCurrency ||
+                currentCurrency[0].id.toLowerCase() !== accountCurrencyId.toLowerCase()
+            ) {
+                var transactionCurrencyLookup = [{
+                    id: accountCurrencyId,
+                    name: accTransaction["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"],
+                    entityType: "transactioncurrency"
+                }];
+                formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
+                await formContext.data.refresh(true);
+            }
+        }
+    }
+
+    // Also set transaction currency on customerid change
+    formContext.getAttribute("customerid").addOnChange(async function () {
+        var customerValue = formContext.getAttribute("customerid").getValue();
+        if (customerValue !== null && customerValue.length > 0) {
+            var customerId = customerValue[0].id;
+            const accTransaction = await Xrm.WebApi.retrieveRecord("account", customerId, "?$select=_transactioncurrencyid_value");
+            if (accTransaction && accTransaction._transactioncurrencyid_value) {
+                var currentCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
+                var accountCurrencyId = accTransaction["_transactioncurrencyid_value"];
+                if (
+                    !currentCurrency ||
+                    currentCurrency[0].id.toLowerCase() !== accountCurrencyId.toLowerCase()
+                ) {
+                    var transactionCurrencyLookup = [{
+                        id: accountCurrencyId,
+                        name: accTransaction["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"],
+                        entityType: "transactioncurrency"
+                    }];
+                    formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
+                    await formContext.data.refresh(true);
+                }
+            } else {
+                formContext.getAttribute("transactioncurrencyid").setValue(null);
+                await formContext.data.refresh(true);
+            }
+        } else {
+            formContext.getAttribute("transactioncurrencyid").setValue(null);
+            await formContext.data.refresh(true);
+        }
+    });
 
     // Check form type for quote grid
     if (formType !== FORM_NEW) {
