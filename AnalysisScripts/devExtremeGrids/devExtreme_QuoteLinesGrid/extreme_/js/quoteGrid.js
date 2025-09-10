@@ -4924,7 +4924,9 @@ async function setClientApiContext(Xrm, formContext) {
                   console.log(`Default discount updated to: ${defaultDiscount}`);
                   var confirmStrings = {
                     text: `Do you want to update all existing rows with the entered discount percent (${discountValue}%)?`,
-                    title: "Update Discount"
+                    title: "Update Discount",
+                    cancelButtonLabel: "No",
+                    confirmButtonLabel: "Yes"
                   };
                   var confirmOptions = { height: 200, width: 450 };
                   if (quoteLinesData._array.length > 0) {
