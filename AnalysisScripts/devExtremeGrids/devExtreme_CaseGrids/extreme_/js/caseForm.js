@@ -62,7 +62,7 @@ async function form_onload(executionContext) {
           }
         } else {
           formContext.getAttribute("transactioncurrencyid").setValue(null);
-          formContext.data.refresh(true);
+          // formContext.data.refresh(true);
         }
       });
     } else {

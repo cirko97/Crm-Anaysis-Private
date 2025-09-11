@@ -119,7 +119,7 @@ async function setClientApiContext(Xrm, formContext) {
 
   await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'PrimaryDefaultUnit'").then(
     function success(results) {
-      console.log(results);
+      // console.log(results);
       for (var i = 0; i < results.entities.length; i++) {
         var result = results.entities[i];
         // Columns
