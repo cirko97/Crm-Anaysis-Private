@@ -442,7 +442,7 @@ const createCaseEmail = async function (caseId, caseNo, formContext) {
 		// "subject": `${caseEmailSubject} ${caseNo} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
 		"description": caseEmailDescription.replace("{currentUserName}", currentUserName).replace("{caseNo}", caseNo).replace("{accountName}", account?.getValue()?.[0]?.name || ""),
 		// "description": `
-		//     ovani,<br><br>
+		//     Poštovani,<br><br>
 
 		//     U prilogu je servisni izveštaj. Molim Vas za potpis.<br><br>
 

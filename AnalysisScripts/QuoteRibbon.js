@@ -348,7 +348,7 @@ const createEmail = async function (quoteId, quoteNumber, formContext) {
 		// "subject": `${ponudaSubject} ${quoteNumber} - ${account?.getValue()?.[0]?.name || ""}`, // Subject
 		"description": `${ponudaDesc}`, // Description
 		// "description": `
-		//         ovani,<br><br>
+		//         Poštovani,<br><br>
 
 		//         u prilogu Vam dostavljamo našu prodajnu ponudu pripremljenu u skladu sa Vašim zahtevima.<br><br>
 
