@@ -737,10 +737,65 @@ async function setClientApiContext(Xrm, formContext) {
             e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
             // console.log('oneAssetId');
             // console.log(oneAssetId);
-            if (oneAssetId !== undefined && oneAssetId !== 'none' && typeof (oneAssetId) === 'string') {
-              e.data.extreme_asset = assetsArray.find(item => item.id === oneAssetId).id
-              e.data.extreme_assetType = assetsArray.find(item => item.id === oneAssetId).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === oneAssetId).extreme_parentasset ? 'Component' : 'Regular';
-            }
+            $.ajax({
+              type: "GET",
+              url: Xrm.Utility.getGlobalContext().getClientUrl() + `/api/data/v9.2/extreme_caselines?$select=_extreme_asset_value&$filter=_extreme_case_value eq ${caseIdForm}&$orderby=createdon desc`,
+              async: false,
+              headers: {
+                "OData-MaxVersion": "4.0",
+                "OData-Version": "4.0",
+                "Content-Type": "application/json; charset=utf-8",
+                "Accept": "application/json",
+                "Prefer": "odata.include-annotations=*,odata.maxpagesize=1"
+              },
+              success: function (data, textStatus, xhr) {
+                var results = data;
+                console.log(results);
+                var odata_nextlink = results["@odata.nextLink"];
+                for (var i = 0; i < results.value.length; i++) {
+                  var result = results.value[i];
+                  // Columns
+                  var extreme_caselineid = result["extreme_caselineid"]; // Guid
+                  var extreme_asset = result["_extreme_asset_value"]; // Lookup
+                  var extreme_asset_formatted = result["_extreme_asset_value@OData.Community.Display.V1.FormattedValue"];
+                  var extreme_asset_lookuplogicalname = result["_extreme_asset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+
+                  console.log('Last used asset on case line: ', extreme_asset);
+                  console.log('Asset details from assetsArray: ');
+                  console.log(assetsArray.find(item => item.id === extreme_asset));
+
+                  e.data.extreme_asset = assetsArray.find(item => item.id === extreme_asset).id
+                  e.data.extreme_assetType = assetsArray.find(item => item.id === extreme_asset).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === extreme_asset).extreme_parentasset ? 'Component' : 'Regular';
+                }
+              },
+              error: function (xhr, textStatus, errorThrown) {
+                console.log(xhr);
+              }
+            });
+
+            // await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=_extreme_asset_value&$filter=_extreme_case_value eq ${caseIdForm}&$orderby=createdon desc&$top=1`).then(
+            //   function success(results) {
+            //     console.log(results);
+            //     for (var i = 0; i < results.entities.length; i++) {
+            //       var result = results.entities[i];
+            //       // Columns
+            //       var extreme_caselineid = result["extreme_caselineid"]; // Guid
+            //       var extreme_asset = result["_extreme_asset_value"]; // Lookup
+            //       var extreme_asset_formatted = result["_extreme_asset_value@OData.Community.Display.V1.FormattedValue"];
+            //       var extreme_asset_lookuplogicalname = result["_extreme_asset_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+
+            //       console.log('Last used asset on case line: ', extreme_asset);
+            //       console.log('Asset details from assetsArray: ');
+            //       console.log(assetsArray.find(item => item.id === extreme_asset));
+
+            //       e.data.extreme_asset = assetsArray.find(item => item.id === extreme_asset).id
+            //       e.data.extreme_assetType = assetsArray.find(item => item.id === extreme_asset).extreme_isparent === true ? 'Set' : assetsArray.find(item => item.id === extreme_asset).extreme_parentasset ? 'Component' : 'Regular';
+            //     }
+            //   },
+            //   function (error) {
+            //     console.log(error.message);
+            //   }
+            // );
           }
         },
         onRowInserting: async (e) => {
