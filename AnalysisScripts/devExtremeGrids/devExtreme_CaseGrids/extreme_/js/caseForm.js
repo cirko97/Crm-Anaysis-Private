@@ -44,7 +44,7 @@ async function form_onload(executionContext) {
     var accountValue = formContext.getAttribute("extreme_account").getValue();
     if (accountValue !== null && accountValue.length > 0) {
       var accountId = accountValue[0].id;
-      await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=_transactioncurrencyid_value").then(function (accTransaction) {
+      await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=_transactioncurrencyid_value").then(async function (accTransaction) {
         if (accTransaction && accTransaction._transactioncurrencyid_value) {
           var currentCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
           var accountCurrencyId = accTransaction["_transactioncurrencyid_value"];
@@ -58,7 +58,9 @@ async function form_onload(executionContext) {
               entityType: "transactioncurrency"
             }];
             formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
-            formContext.data.refresh(true);
+            if (formType !== FORM_NEW) {
+              await formContext.data.refresh(true);
+            }
           }
         } else {
           formContext.getAttribute("transactioncurrencyid").setValue(null);

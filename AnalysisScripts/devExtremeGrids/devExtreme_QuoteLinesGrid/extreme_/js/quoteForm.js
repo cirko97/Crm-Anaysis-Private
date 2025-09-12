@@ -217,21 +217,22 @@ async function form_onload(executionContext) {
                         !currentCurrency ||
                         currentCurrency[0].id.toLowerCase() !== accountCurrencyId.toLowerCase()
                     ) {
-                        // Check if there are any quotedetails (quote products) for this quote
-                        const quoteId = formContext.data.entity.getId().replace(/[{}]/g, "");
-                        const quotedetailsResult = await Xrm.WebApi.retrieveMultipleRecords(
-                            "quotedetail",
-                            `?$select=quotedetailid&$filter=_quoteid_value eq ${quoteId}&$top=1`
-                        );
+                        if (formType !== FORM_NEW) {
+                            // Check if there are any quotedetails (quote products) for this quote
+                            const quoteId = formContext.data.entity.getId().replace(/[{}]/g, "");
+                            const quotedetailsResult = await Xrm.WebApi.retrieveMultipleRecords(
+                                "quotedetail",
+                                `?$select=quotedetailid&$filter=_quoteid_value eq ${quoteId}&$top=1`
+                            );
 
-                        if (quotedetailsResult.entities && quotedetailsResult.entities.length > 0) {
-                            Xrm.Utility.alertDialog("Before changing the customer or currency, you must delete all Quote products.");
-                            // Revert customer back to initial value
-                            formContext.getAttribute("customerid").setValue(initCustomer);
-                            await formContext.data.refresh(false);
-                            return;
+                            if (quotedetailsResult.entities && quotedetailsResult.entities.length > 0) {
+                                Xrm.Utility.alertDialog("Before changing the customer or currency, you must delete all Quote products.");
+                                // Revert customer back to initial value
+                                formContext.getAttribute("customerid").setValue(initCustomer);
+                                await formContext.data.refresh(false);
+                                return;
+                            }
                         }
-
                         var transactionCurrencyLookup = [{
                             id: accountCurrencyId,
                             name: accTransaction["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"],
@@ -253,7 +254,9 @@ async function form_onload(executionContext) {
 
                         await Xrm.WebApi.updateRecord("quote", quoteIdForm, recordToUpdate);
                         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
-                        await formContext.data.refresh(true);
+                        if (formType !== FORM_NEW) {
+                            await formContext.data.refresh(true);
+                        }
                     }
                 } else {
                     formContext.getAttribute("transactioncurrencyid").setValue(null);
