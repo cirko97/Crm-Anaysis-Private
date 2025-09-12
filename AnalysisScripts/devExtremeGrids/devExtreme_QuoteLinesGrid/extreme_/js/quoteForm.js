@@ -239,20 +239,22 @@ async function form_onload(executionContext) {
                             entityType: "transactioncurrency"
                         }];
                         formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
-                        const quoteIdForm = formContext.data.entity.getId().replace(/[{}]/g, "");
-                        const fieldsToNull = [
-                            "extreme_chfexchangerate",
-                            "extreme_dollarexchangerate",
-                            "extreme_euroexchangerate",
-                            "exchangerate",
-                            "extreme_gbpexchangerate",
-                            "extreme_macedoniandenarexchangerate",
-                            "extreme_rsdexchangerate"
-                        ];
-                        const recordToUpdate = {};
-                        fieldsToNull.forEach(field => recordToUpdate[field] = null);
+                        if (formType !== FORM_NEW) {
+                            const quoteIdForm = formContext.data.entity.getId().replace(/[{}]/g, "");
+                            const fieldsToNull = [
+                                "extreme_chfexchangerate",
+                                "extreme_dollarexchangerate",
+                                "extreme_euroexchangerate",
+                                "exchangerate",
+                                "extreme_gbpexchangerate",
+                                "extreme_macedoniandenarexchangerate",
+                                "extreme_rsdexchangerate"
+                            ];
+                            const recordToUpdate = {};
+                            fieldsToNull.forEach(field => recordToUpdate[field] = null);
 
-                        await Xrm.WebApi.updateRecord("quote", quoteIdForm, recordToUpdate);
+                            await Xrm.WebApi.updateRecord("quote", quoteIdForm, recordToUpdate);
+                        }
                         retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
                         if (formType !== FORM_NEW) {
                             await formContext.data.refresh(true);
