@@ -1673,6 +1673,8 @@ async function setClientApiContext(Xrm, formContext) {
                           quantity: currentRowData.quantity,
                           supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                           supplierDiscount: value,
+                          pricePerUnit: currentRowData.priceperunit ? currentRowData.priceperunit : null,
+                          baseAmount: currentRowData.baseamount ? currentRowData.baseamount : null,
                           margin: currentRowData.extreme_margin,
                           discount: currentRowData.extreme_discount,
                           TaxPercent: currentRowData.extreme_tax
@@ -1854,6 +1856,8 @@ async function setClientApiContext(Xrm, formContext) {
                             quantity: currentRowData.quantity,
                             supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                             supplierDiscount: currentRowData.extreme_supplierdiscount,
+                            pricePerUnit: currentRowData.priceperunit ? currentRowData.priceperunit : null,
+                            baseAmount: currentRowData.baseamount ? currentRowData.baseamount : null,
                             margin: currentRowData.extreme_margin,
                             discount: value,
                             TaxPercent: currentRowData.extreme_tax
@@ -3347,6 +3351,8 @@ async function setClientApiContext(Xrm, formContext) {
                   quantity: currentRowData.quantity,
                   supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                   supplierDiscount: value,
+                  pricePerUnit: currentRowData.priceperunit ? currentRowData.priceperunit : null,
+                  baseAmount: currentRowData.baseamount ? currentRowData.baseamount : null,
                   margin: currentRowData.extreme_margin,
                   discount: currentRowData.extreme_discount,
                   TaxPercent: currentRowData.extreme_tax
@@ -3525,6 +3531,8 @@ async function setClientApiContext(Xrm, formContext) {
                     quantity: currentRowData.quantity,
                     supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                     supplierDiscount: currentRowData.extreme_supplierdiscount,
+                    pricePerUnit: currentRowData.priceperunit ? currentRowData.priceperunit : null,
+                    baseAmount: currentRowData.baseamount ? currentRowData.baseamount : null,
                     margin: currentRowData.extreme_margin,
                     discount: value,
                     TaxPercent: currentRowData.extreme_tax
@@ -6227,6 +6235,7 @@ async function setClientApiContext(Xrm, formContext) {
         supplierDiscount,
         margin,
         pricePerUnit = null,
+        baseAmount = null,
         discount,
         fullPriceWithDiscount = null,
         TaxPercent
@@ -6234,20 +6243,26 @@ async function setClientApiContext(Xrm, formContext) {
         const taxRate = TaxPercent / 100;
         const supplierBaseAmount = supplierPricePerUnit * quantity;
 
-        // Calculate pricePerUnit if not provided
-        if (pricePerUnit === null) {
-          if (ROUNDING_PRICE_PER_UNIT_CONFIG === "true") {
-            pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
-          }
-          else {
-            pricePerUnit = parseFloat((margin * supplierPricePerUnit).toFixed(4));
-          }
-        } else {
-          // Calculate new margin based on supplierBaseAmount
+        // If baseAmount is passed, recalculate margin using baseAmount and pricePerUnit, but do not change baseAmount or pricePerUnit
+        if (baseAmount !== null && pricePerUnit !== null) {
+          // margin = pricePerUnit / supplierPricePerUnit; // original logic
           margin = pricePerUnit / supplierPricePerUnit;
+          // baseAmount and pricePerUnit remain as passed
+        } else {
+          // Calculate pricePerUnit if not provided
+          if (pricePerUnit === null) {
+            if (ROUNDING_PRICE_PER_UNIT_CONFIG === "true") {
+              pricePerUnit = Math.ceil(margin * supplierPricePerUnit);
+            }
+            else {
+              pricePerUnit = parseFloat((margin * supplierPricePerUnit).toFixed(4));
+            }
+          } else {
+            // Calculate new margin based on supplierPricePerUnit
+            margin = pricePerUnit / supplierPricePerUnit;
+          }
+          baseAmount = pricePerUnit * quantity;
         }
-
-        const baseAmount = pricePerUnit * quantity;
 
         // Calculate fullPriceWithDiscount if not provided
         if (fullPriceWithDiscount === null) {
