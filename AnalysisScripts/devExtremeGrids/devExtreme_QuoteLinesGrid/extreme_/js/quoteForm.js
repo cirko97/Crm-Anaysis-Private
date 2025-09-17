@@ -11,7 +11,7 @@ async function form_onload(executionContext) {
 
     formContext.getControl("customerid").setEntityTypes(["account"]);
 
-    const initCustomer = formContext.getAttribute("customerid").getValue();
+    let initCustomer = formContext.getAttribute("customerid").getValue();
 
     // Set transaction currency on form load if customer exists and form is new
     if (formType === FORM_NEW && formContext.getAttribute("customerid").getValue() !== null) {
@@ -210,58 +210,66 @@ async function form_onload(executionContext) {
             if (customerValue !== null && customerValue.length > 0) {
                 var customerId = customerValue[0].id;
                 const accTransaction = await Xrm.WebApi.retrieveRecord("account", customerId, "?$select=_transactioncurrencyid_value");
-                if (accTransaction && accTransaction._transactioncurrencyid_value) {
-                    var currentCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
-                    var accountCurrencyId = accTransaction["_transactioncurrencyid_value"];
-                    if (
-                        !currentCurrency ||
-                        currentCurrency[0].id.toLowerCase() !== accountCurrencyId.toLowerCase()
-                    ) {
-                        if (formType !== FORM_NEW) {
-                            // Check if there are any quotedetails (quote products) for this quote
-                            const quoteId = formContext.data.entity.getId().replace(/[{}]/g, "");
-                            const quotedetailsResult = await Xrm.WebApi.retrieveMultipleRecords(
-                                "quotedetail",
-                                `?$select=quotedetailid&$filter=_quoteid_value eq ${quoteId}&$top=1`
-                            );
+                const initCustomerId = initCustomer && initCustomer.length > 0 ? initCustomer[0].id : null;
+                const initCustomerTransactionId = initCustomerId ? (await Xrm.WebApi.retrieveRecord("account", initCustomerId, "?$select=_transactioncurrencyid_value"))["_transactioncurrencyid_value"] : null;
+                // If changing customer, and initial customer had different currency, and there are quote products, prevent change
+                if (initCustomerId && customerId !== initCustomerId && initCustomerTransactionId && accTransaction && accTransaction._transactioncurrencyid_value && initCustomerTransactionId.toLowerCase() !== accTransaction._transactioncurrencyid_value.toLowerCase()) {
+                    if (accTransaction && accTransaction._transactioncurrencyid_value) {
+                        var currentCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
+                        var accountCurrencyId = accTransaction["_transactioncurrencyid_value"];
+                        if (
+                            !currentCurrency ||
+                            currentCurrency[0].id.toLowerCase() !== accountCurrencyId.toLowerCase()
+                        ) {
+                            if (formType !== FORM_NEW) {
+                                // Check if there are any quotedetails (quote products) for this quote
+                                const quoteId = formContext.data.entity.getId().replace(/[{}]/g, "");
+                                const quotedetailsResult = await Xrm.WebApi.retrieveMultipleRecords(
+                                    "quotedetail",
+                                    `?$select=quotedetailid&$filter=_quoteid_value eq ${quoteId}&$top=1`
+                                );
 
-                            if (quotedetailsResult.entities && quotedetailsResult.entities.length > 0) {
-                                Xrm.Utility.alertDialog("Before changing the customer or currency, you must delete all Quote products.");
-                                // Revert customer back to initial value
-                                formContext.getAttribute("customerid").setValue(initCustomer);
-                                await formContext.data.refresh(false);
-                                return;
+                                if (quotedetailsResult.entities && quotedetailsResult.entities.length > 0) {
+                                    Xrm.Utility.alertDialog("Before changing the customer or currency, you must delete all Quote products.");
+                                    // Revert customer back to initial value
+                                    formContext.getAttribute("customerid").setValue(initCustomer);
+                                    await formContext.data.refresh(false);
+                                    return;
+                                }
+                            }
+                            var transactionCurrencyLookup = [{
+                                id: accountCurrencyId,
+                                name: accTransaction["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"],
+                                entityType: "transactioncurrency"
+                            }];
+                            formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
+                            if (formType !== FORM_NEW) {
+                                const quoteIdForm = formContext.data.entity.getId().replace(/[{}]/g, "");
+                                const fieldsToNull = [
+                                    "extreme_chfexchangerate",
+                                    "extreme_dollarexchangerate",
+                                    "extreme_euroexchangerate",
+                                    "exchangerate",
+                                    "extreme_gbpexchangerate",
+                                    "extreme_macedoniandenarexchangerate",
+                                    "extreme_rsdexchangerate"
+                                ];
+                                const recordToUpdate = {};
+                                fieldsToNull.forEach(field => recordToUpdate[field] = null);
+
+                                await Xrm.WebApi.updateRecord("quote", quoteIdForm, recordToUpdate);
+                            }
+                            retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
+                            if (formType !== FORM_NEW) {
+                                await formContext.data.refresh(true);
                             }
                         }
-                        var transactionCurrencyLookup = [{
-                            id: accountCurrencyId,
-                            name: accTransaction["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"],
-                            entityType: "transactioncurrency"
-                        }];
-                        formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
-                        if (formType !== FORM_NEW) {
-                            const quoteIdForm = formContext.data.entity.getId().replace(/[{}]/g, "");
-                            const fieldsToNull = [
-                                "extreme_chfexchangerate",
-                                "extreme_dollarexchangerate",
-                                "extreme_euroexchangerate",
-                                "exchangerate",
-                                "extreme_gbpexchangerate",
-                                "extreme_macedoniandenarexchangerate",
-                                "extreme_rsdexchangerate"
-                            ];
-                            const recordToUpdate = {};
-                            fieldsToNull.forEach(field => recordToUpdate[field] = null);
-
-                            await Xrm.WebApi.updateRecord("quote", quoteIdForm, recordToUpdate);
-                        }
-                        retryAttempt(() => setClientApiContextForWebResource(formContext, "WebResource_quoteLines"));
-                        if (formType !== FORM_NEW) {
-                            await formContext.data.refresh(true);
-                        }
+                    } else {
+                        formContext.getAttribute("transactioncurrencyid").setValue(null);
                     }
-                } else {
-                    formContext.getAttribute("transactioncurrencyid").setValue(null);
+                }
+                else {
+                    await formContext.data.refresh(true);
                 }
             } else {
                 formContext.getAttribute("transactioncurrencyid").setValue(null);
