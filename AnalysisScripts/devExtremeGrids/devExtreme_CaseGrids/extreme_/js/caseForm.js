@@ -1,4 +1,4 @@
-function form_onload(executionContext) {
+async function form_onload(executionContext) {
   const FORM_NEW = 1;
   const FORM_EDIT = 2;
   const RESOLVED = 934670004;
@@ -14,6 +14,64 @@ function form_onload(executionContext) {
 
   console.log('formType');
   console.log(formType);
+
+  // Set transaction currency on form load if extreme_account exists, only if form is new
+  if (formType === FORM_NEW && formContext.getAttribute("extreme_account").getValue() !== null) {
+    var accountValue = formContext.getAttribute("extreme_account").getValue();
+    var accountId = accountValue[0].id;
+    await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=_transactioncurrencyid_value").then(async function (accTransaction) {
+      if (accTransaction && accTransaction._transactioncurrencyid_value) {
+        var currentCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
+        var accountCurrencyId = accTransaction["_transactioncurrencyid_value"];
+        if (
+          !currentCurrency ||
+          currentCurrency[0].id.toLowerCase() !== accountCurrencyId.toLowerCase()
+        ) {
+          var transactionCurrencyLookup = [{
+            id: accountCurrencyId,
+            name: accTransaction["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"],
+            entityType: "transactioncurrency"
+          }];
+          formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
+          await formContext.data.refresh(true);
+        }
+      }
+    });
+  }
+
+  // Also set transaction currency on extreme_account change
+  formContext.getAttribute("extreme_account").addOnChange(async function () {
+    var accountValue = formContext.getAttribute("extreme_account").getValue();
+    if (accountValue !== null && accountValue.length > 0) {
+      var accountId = accountValue[0].id;
+      await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=_transactioncurrencyid_value").then(async function (accTransaction) {
+        if (accTransaction && accTransaction._transactioncurrencyid_value) {
+          var currentCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
+          var accountCurrencyId = accTransaction["_transactioncurrencyid_value"];
+          if (
+            !currentCurrency ||
+            currentCurrency[0].id.toLowerCase() !== accountCurrencyId.toLowerCase()
+          ) {
+            var transactionCurrencyLookup = [{
+              id: accountCurrencyId,
+              name: accTransaction["_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue"],
+              entityType: "transactioncurrency"
+            }];
+            formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
+            if (formType !== FORM_NEW) {
+              await formContext.data.refresh(true);
+            }
+          }
+        } else {
+          formContext.getAttribute("transactioncurrencyid").setValue(null);
+          // formContext.data.refresh(true);
+        }
+      });
+    } else {
+      formContext.getAttribute("transactioncurrencyid").setValue(null);
+      await formContext.data.refresh(true);
+    }
+  });
 
   formContext.getAttribute("statuscode").addOnChange(async () => {
     const caseLinesControl = formContext.getControl('WebResource_caseLines');
@@ -182,7 +240,7 @@ function form_onload(executionContext) {
     if (navItem) {
       navItem.setFocus();
     } else {
-        console.error("Navigation item 'navSPDocuments' not found.");
+      console.error("Navigation item 'navSPDocuments' not found.");
     }
     // get Main tab (replace it with your tab name)
     var mainTab = formContext.ui.tabs.get("generalTab");
