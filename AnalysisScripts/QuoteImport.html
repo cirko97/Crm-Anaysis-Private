@@ -1,125 +1,124 @@
 <html>
 
 <head>
-    <!-- Meta podaci za karakter set i responzivni dizajn -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quote Import Lines Buttons</title>
+  <!-- Meta podaci za karakter set i responzivni dizajn -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Import Lines Buttons</title>
 
-    <!-- Uključivanje Bootstrap CSS biblioteke za stilizaciju -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
-    <meta>
+  <!-- Uključivanje Bootstrap CSS biblioteke za stilizaciju -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
+  <meta>
 </head>
 
 <body style="overflow-wrap: break-word;">
-    <!-- Glavni kontejner sa marginom na vrhu -->
-    <div class="container mt-4">
-        <!-- Naslov stranice -->
-        <h1>Quote Import Lines</h1>
-        <div class="mb-3">
-            <!-- Dugme za import linija iz ponude (Quote) -->
-            <button id="importFromQuote" class="btn btn-primary">Import Lines from Quote</button>
-            <!-- Dugme za import linija iz slučaja (Case) -->
-            <button id="importFromCase" class="btn btn-secondary">Import Lines from Case</button>
-        </div>
-        <!-- Prikaz status poruka korisniku -->
-        <div id="statusMessage" class="mt-3"></div>
+  <!-- Glavni kontejner sa marginom na vrhu -->
+  <div class="container mt-4">
+    <!-- Naslov stranice -->
+    <h1>Quote Import Lines</h1>
+    <div class="mb-3">
+      <!-- Dugme za import linija iz ponude (Quote) -->
+      <button id="importFromQuote" class="btn btn-primary">Import Lines from Quote</button>
+      <!-- Dugme za import linija iz slučaja (Case) -->
+      <button id="importFromCase" class="btn btn-secondary">Import Lines from Case</button>
     </div>
+    <!-- Prikaz status poruka korisniku -->
+    <div id="statusMessage" class="mt-3"></div>
+  </div>
 
-    <!-- Uključivanje jQuery biblioteke -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
-        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <!-- Uključivanje Bootstrap JS biblioteke -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Uključivanje jQuery biblioteke -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- Uključivanje Bootstrap JS biblioteke -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script>
-        // Glavna funkcija koja se izvršava kada je DOM spreman
-        $(async () => {
-            // Pristup Xrm objektu iz parent prozora (Dynamics 365 context)
-            const Xrm = parent.window.Xrm;
-            console.log("Xrm");
-            console.log(Xrm);
-            // Parsiranje URL parametara u JSON objekat
-            const urlParams = getUrlParamsAsJson();
-            console.log("urlParams");
-            console.log(urlParams);
+  <script>
+    // Glavna funkcija koja se izvršava kada je DOM spreman
+    $(async () => {
+      // Pristup Xrm objektu iz parent prozora (Dynamics 365 context)
+      const Xrm = parent.window.Xrm;
+      console.log("Xrm");
+      console.log(Xrm);
+      // Parsiranje URL parametara u JSON objekat
+      const urlParams = getUrlParamsAsJson();
+      console.log("urlParams");
+      console.log(urlParams);
 
-            let lookupOptions = null;
-            let fetchXml = null;
+      let lookupOptions = null;
+      let fetchXml = null;
 
-            const successCallback = async (result, entityName) => {
-                console.log("Lookup result:", result);
-                $("#statusMessage").text(`Selected: ${result.length} item(s)`);
+      const successCallback = async (result, entityName) => {
+        console.log("Lookup result:", result);
+        $("#statusMessage").text(`Selected: ${result.length} item(s)`);
 
-                // Dalja logika za obradu izabranih stavki može ići ovde
-                if (result.length === 0) {
-                    console.warn("No items selected.");
-                    return;
+        if (result.length === 0) {
+          console.warn("No items selected.");
+          return;
+        }
+
+        if (entityName === "quote") {
+          await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_createasset,extreme_discount,extreme_fullpricewithdiscount,extreme_margin,quotedetailname,_extreme_pricelist_value,extreme_customproductid,quantity,baseamount,priceperunit,extreme_supplierbaseamount,extreme_supplierdiscount,extreme_supplierpriceperunit,extendedamount,_uomid_value,_extreme_vatsetting_value&$filter=_quoteid_value eq ${result[0].id}`).then(
+            async function success(results) {
+              console.log(results);
+              for (var i = 0; i < results.entities.length; i++) {
+                var resultEntity = results.entities[i];
+                // Columns
+                var extreme_createasset = resultEntity["extreme_createasset"];
+                var extreme_discount = resultEntity["extreme_discount"];
+                var extreme_fullpricewithdiscount = resultEntity["extreme_fullpricewithdiscount"];
+                var extreme_margin = resultEntity["extreme_margin"];
+                var quotedetailname = resultEntity["quotedetailname"];
+                var extreme_pricelist = resultEntity["_extreme_pricelist_value"];
+                var extreme_customproductid = resultEntity["extreme_customproductid"];
+                var quantity = resultEntity["quantity"];
+                var baseamount = resultEntity["baseamount"];
+                var priceperunit = resultEntity["priceperunit"];
+                var extreme_supplierbaseamount = resultEntity["extreme_supplierbaseamount"];
+                var extreme_supplierdiscount = resultEntity["extreme_supplierdiscount"];
+                var extreme_supplierpriceperunit = resultEntity["extreme_supplierpriceperunit"];
+                var extendedamount = resultEntity["extendedamount"];
+                var uomid = resultEntity["_uomid_value"];
+                var extreme_vatsetting = resultEntity["_extreme_vatsetting_value"];
+
+                // Create new quotedetail record referencing the quote from urlParams.id
+                var newDetail = {
+                  "quotedetailname": quotedetailname,
+                  "extreme_customproductid": extreme_customproductid,
+                };
+                if (urlParams.id) {
+                  newDetail["quoteid@odata.bind"] = `/quotes(${urlParams.id})`;
                 }
 
-                if (entityName === "quote") {
-                    await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_createasset,extreme_discount,extreme_fullpricewithdiscount,extreme_margin,quotedetailname,_extreme_pricelist_value,extreme_customproductid,quantity,baseamount,priceperunit,extreme_supplierbaseamount,extreme_supplierdiscount,extreme_supplierpriceperunit,extendedamount,_uomid_value,_extreme_vatsetting_value&$filter=_quoteid_value eq ${result[0].id}`).then(
-                        async function success(results) {
-                            console.log(results);
-                            for (var i = 0; i < results.entities.length; i++) {
-                                var resultEntity = results.entities[i];
-                                // Columns
-                                var extreme_createasset = resultEntity["extreme_createasset"];
-                                var extreme_discount = resultEntity["extreme_discount"];
-                                var extreme_fullpricewithdiscount = resultEntity["extreme_fullpricewithdiscount"];
-                                var extreme_margin = resultEntity["extreme_margin"];
-                                var quotedetailname = resultEntity["quotedetailname"];
-                                var extreme_pricelist = resultEntity["_extreme_pricelist_value"];
-                                var extreme_customproductid = resultEntity["extreme_customproductid"];
-                                var quantity = resultEntity["quantity"];
-                                var baseamount = resultEntity["baseamount"];
-                                var priceperunit = resultEntity["priceperunit"];
-                                var extreme_supplierbaseamount = resultEntity["extreme_supplierbaseamount"];
-                                var extreme_supplierdiscount = resultEntity["extreme_supplierdiscount"];
-                                var extreme_supplierpriceperunit = resultEntity["extreme_supplierpriceperunit"];
-                                var extendedamount = resultEntity["extendedamount"];
-                                var uomid = resultEntity["_uomid_value"];
-                                var extreme_vatsetting = resultEntity["_extreme_vatsetting_value"];
+                await Xrm.WebApi.createRecord("quotedetail", newDetail).then(
+                  function success(result) {
+                    var newId = result.id;
+                    console.log(newId);
+                  },
+                  function (error) {
+                    console.log(error.message);
+                  }
+                );
+              }
+              $("#statusMessage").append(`<p>Imported ${results.entities.length} lines from Quote: ${result[0].name} (ID: ${result[0].id})</p>`);
+            },
+            function (error) {
+              console.log(error.message);
+            }
+          );
+        } else if (entityName === "extreme_case") {
+          $("#statusMessage").append(`<p>Selected Case: ${result[0].name} (ID: ${result[0].id})</p>`);
+        }
+      };
 
-                                // Create new quotedetail record referencing the quote from urlParams.id
-                                var newDetail = {
-                                    "quotedetailname": quotedetailname,
-                                    "extreme_customproductid": extreme_customproductid,
-                                };
-                                if (urlParams.id) {
-                                    newDetail["quoteid@odata.bind"] = `/quotes(${urlParams.id})`;
-                                }
+      const errorCallback = (error) => {
+        console.error("Lookup error:", error);
+        $("#statusMessage").text(`Error: ${error.message}`);
+      };
 
-                                await Xrm.WebApi.createRecord("quotedetail", newDetail).then(
-                                    function success(result) {
-                                        var newId = result.id;
-                                        console.log(newId);
-                                    },
-                                    function (error) {
-                                        console.log(error.message);
-                                    }
-                                );
-                            }
-                            $("#statusMessage").append(`<p>Imported ${results.entities.length} lines from Quote: ${result[0].name} (ID: ${result[0].id})</p>`);
-                        },
-                        function (error) {
-                            console.log(error.message);
-                        }
-                    );
-                } else if (entityName === "extreme_case") {
-                    $("#statusMessage").append(`<p>Selected Case: ${result[0].name} (ID: ${result[0].id})</p>`);
-                }
-            };
-
-            const errorCallback = (error) => {
-                console.error("Lookup error:", error);
-                $("#statusMessage").text(`Error: ${error.message}`);
-            };
-
-            function getLookupOptions(entity) {
-                let fetchXml, defaultViewId;
-                if (entity === "quote") {
-                    fetchXml = `
+      function getLookupOptions(entity) {
+        let fetchXml, defaultViewId;
+        if (entity === "quote") {
+          fetchXml = `
                         <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">
                             <entity name="quote">
                                 <attribute name="quoteid" />
@@ -128,9 +127,9 @@
                             </entity>
                         </fetch>
                     `;
-                    defaultViewId = "a3f5c2b1-4e6d-7f89-0abc-1234567890de";
-                } else if (entity === "extreme_case") {
-                    fetchXml = `
+          defaultViewId = "a3f5c2b1-4e6d-7f89-0abc-1234567890de";
+        } else if (entity === "extreme_case") {
+          fetchXml = `
                         <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">
                             <entity name="extreme_case">
                                 <attribute name="extreme_caseid" />
@@ -139,50 +138,50 @@
                             </entity>
                         </fetch>
                     `;
-                    defaultViewId = "b2e6d3c4-5f7a-8b90-1bcd-234567890abc"; // Replace with your Case viewId
-                }
-                return {
-                    defaultEntityType: entity,
-                    entityTypes: [entity],
-                    allowMultiSelect: false,
-                    defaultViewId: defaultViewId,
-                    viewIds: [defaultViewId],
-                    filters: [{
-                        filterXml: fetchXml,
-                        entityLogicalName: entity
-                    }]
-                };
-            }
+          defaultViewId = "b2e6d3c4-5f7a-8b90-1bcd-234567890abc"; // Replace with your Case viewId
+        }
+        return {
+          defaultEntityType: entity,
+          entityTypes: [entity],
+          allowMultiSelect: false,
+          defaultViewId: defaultViewId,
+          viewIds: [defaultViewId],
+          filters: [{
+            filterXml: fetchXml,
+            entityLogicalName: entity
+          }]
+        };
+      }
 
-            $("#importFromQuote").on("click", async () => {
-                const lookupOptions = getLookupOptions("quote");
-                await Xrm.Utility.lookupObjects(lookupOptions).then((result) => successCallback(result, "quote"), errorCallback);
-            });
+      $("#importFromQuote").on("click", async () => {
+        const lookupOptions = getLookupOptions("quote");
+        await Xrm.Utility.lookupObjects(lookupOptions).then((result) => successCallback(result, "quote"), errorCallback);
+      });
 
-            $("#importFromCase").on("click", async () => {
-                const lookupOptions = getLookupOptions("extreme_case");
-                await Xrm.Utility.lookupObjects(lookupOptions).then((result) => successCallback(result, "extreme_case"), errorCallback);
-            });
+      $("#importFromCase").on("click", async () => {
+        const lookupOptions = getLookupOptions("extreme_case");
+        await Xrm.Utility.lookupObjects(lookupOptions).then((result) => successCallback(result, "extreme_case"), errorCallback);
+      });
+    });
+
+    // Helper funkcija: Parsira URL parametre i vraća ih kao JSON objekat
+    function getUrlParamsAsJson() {
+      const query = window.location.search.substring(1);
+      const result = {};
+
+      $.each(query.split("&"),
+        function (i, part) {
+          if (part) {
+            const item = part.split("=");
+            const key = decodeURIComponent(item[0]);
+            const value = decodeURIComponent(item[1] || "");
+            result[key] = value;
+          }
         });
 
-        // Helper funkcija: Parsira URL parametre i vraća ih kao JSON objekat
-        function getUrlParamsAsJson() {
-            const query = window.location.search.substring(1);
-            const result = {};
-
-            $.each(query.split("&"),
-                function (i, part) {
-                    if (part) {
-                        const item = part.split("=");
-                        const key = decodeURIComponent(item[0]);
-                        const value = decodeURIComponent(item[1] || "");
-                        result[key] = value;
-                    }
-                });
-
-            return result;
-        }
-    </script>
+      return result;
+    }
+  </script>
 </body>
 
 </html>
