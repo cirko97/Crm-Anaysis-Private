@@ -57,33 +57,45 @@
         }
 
         if (entityName === "quote") {
-          await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_createasset,extreme_discount,extreme_fullpricewithdiscount,extreme_margin,quotedetailname,_extreme_pricelist_value,extreme_customproductid,quantity,baseamount,priceperunit,extreme_supplierbaseamount,extreme_supplierdiscount,extreme_supplierpriceperunit,extendedamount,_uomid_value,_extreme_vatsetting_value&$filter=_quoteid_value eq ${result[0].id}`).then(
+          await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=sequencenumber,productid,extreme_customproductname,extreme_productdescription,quantity,uomid,extreme_pricelistpriceperunit,extreme_pricelistcurrency,extreme_supplierpriceperunit,extreme_supplierbaseamount,extreme_supplierdiscount,extreme_margin,priceperunit,baseamount,extreme_discount,manualdiscountamount,extreme_fullpricewithdiscount,extreme_vatsetting,extreme_tax,tax,extreme_pd,extreme_fullpd,extendedamount,extreme_pricelist,extreme_parentquoteline,extreme_isparentitem,extreme_producttype,extreme_area,extreme_technology,extreme_vendorsupplier,extreme_createasset&$filter=_quoteid_value eq ${result[0].id}`).then(
             async function success(results) {
               console.log(results);
               for (var i = 0; i < results.entities.length; i++) {
                 var resultEntity = results.entities[i];
-                // Columns
-                var extreme_createasset = resultEntity["extreme_createasset"];
-                var extreme_discount = resultEntity["extreme_discount"];
-                var extreme_fullpricewithdiscount = resultEntity["extreme_fullpricewithdiscount"];
-                var extreme_margin = resultEntity["extreme_margin"];
-                var quotedetailname = resultEntity["quotedetailname"];
-                var extreme_pricelist = resultEntity["_extreme_pricelist_value"];
-                var extreme_customproductid = resultEntity["extreme_customproductid"];
-                var quantity = resultEntity["quantity"];
-                var baseamount = resultEntity["baseamount"];
-                var priceperunit = resultEntity["priceperunit"];
-                var extreme_supplierbaseamount = resultEntity["extreme_supplierbaseamount"];
-                var extreme_supplierdiscount = resultEntity["extreme_supplierdiscount"];
-                var extreme_supplierpriceperunit = resultEntity["extreme_supplierpriceperunit"];
-                var extendedamount = resultEntity["extendedamount"];
-                var uomid = resultEntity["_uomid_value"];
-                var extreme_vatsetting = resultEntity["_extreme_vatsetting_value"];
 
                 // Create new quotedetail record referencing the quote from urlParams.id
                 var newDetail = {
-                  "quotedetailname": quotedetailname,
-                  "extreme_customproductid": extreme_customproductid,
+                  "sequencenumber": resultEntity["sequencenumber"],
+                  "productid": resultEntity["productid"],
+                  "extreme_customproductname": resultEntity["extreme_customproductname"],
+                  "extreme_productdescription": resultEntity["extreme_productdescription"],
+                  "quantity": resultEntity["quantity"],
+                  "uomid": resultEntity["uomid"],
+                  "extreme_pricelistpriceperunit": resultEntity["extreme_pricelistpriceperunit"],
+                  "extreme_pricelistcurrency": resultEntity["extreme_pricelistcurrency"],
+                  "extreme_supplierpriceperunit": resultEntity["extreme_supplierpriceperunit"],
+                  "extreme_supplierbaseamount": resultEntity["extreme_supplierbaseamount"],
+                  "extreme_supplierdiscount": resultEntity["extreme_supplierdiscount"],
+                  "extreme_margin": resultEntity["extreme_margin"],
+                  "priceperunit": resultEntity["priceperunit"],
+                  "baseamount": resultEntity["baseamount"],
+                  "extreme_discount": resultEntity["extreme_discount"],
+                  "manualdiscountamount": resultEntity["manualdiscountamount"],
+                  "extreme_fullpricewithdiscount": resultEntity["extreme_fullpricewithdiscount"],
+                  "extreme_vatsetting": resultEntity["extreme_vatsetting"],
+                  "extreme_tax": resultEntity["extreme_tax"],
+                  "tax": resultEntity["tax"],
+                  "extreme_pd": resultEntity["extreme_pd"],
+                  "extreme_fullpd": resultEntity["extreme_fullpd"],
+                  "extendedamount": resultEntity["extendedamount"],
+                  "extreme_pricelist": resultEntity["extreme_pricelist"],
+                  "extreme_parentquoteline": resultEntity["extreme_parentquoteline"],
+                  "extreme_isparentitem": resultEntity["extreme_isparentitem"],
+                  "extreme_producttype": resultEntity["extreme_producttype"],
+                  "extreme_area": resultEntity["extreme_area"],
+                  "extreme_technology": resultEntity["extreme_technology"],
+                  "extreme_vendorsupplier": resultEntity["extreme_vendorsupplier"],
+                  "extreme_createasset": resultEntity["extreme_createasset"]
                 };
                 if (urlParams.id) {
                   newDetail["quoteid@odata.bind"] = `/quotes(${urlParams.id})`;
