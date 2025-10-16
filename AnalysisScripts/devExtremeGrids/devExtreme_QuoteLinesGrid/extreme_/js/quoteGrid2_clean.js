@@ -4,11 +4,16 @@
 // Main initialization - called when the page loads
 $(async function () {
   try {
+    // Wait for Xrm to be available
+    if (typeof Xrm === 'undefined' && typeof parent !== 'undefined' && parent.Xrm) {
+      window.Xrm = parent.Xrm;
+    }
+
     // Initialize when everything is ready
-    if (parent.window.Xrm && parent.window.Xrm.Page && parent.window.Xrm.Page._ui && parent.window.Xrm.Page._ui._formContext) {
-      await setClientApiContext(parent.window.Xrm, parent.window.Xrm.Page._ui._formContext);
+    if (window.Xrm && parent._formContext) {
+      await setClientApiContext(window.Xrm, parent._formContext);
     } else {
-      console.log('Waiting for Xrm and form context...');
+      console.log('Waiting for form context...');
       setTimeout(arguments.callee, 500);
     }
   } catch (error) {
@@ -16,7 +21,7 @@ $(async function () {
   }
 });
 
-// Global variables (only those not defined in other files)
+// Global variables
 let heightAuto = true;
 let jsonForConverting = {};
 let treeList = null;
@@ -31,6 +36,13 @@ let classifyNeededRows = 0;
 let selectedDescriptionItem = null;
 let newCreateId = '';
 let newCreatedProductId = '';
+
+// Configuration variables
+let primaryDefaultUnit = "KOM";
+let defaultMargin = 0;
+let taxPercentOfAccount = { extreme_tax: 20 };
+let ROUNDING_PRICE_PER_UNIT_CONFIG = 2;
+let productTypesArray = [];
 let vatSettingsArray = [];
 
 // Exchange rates
@@ -55,6 +67,9 @@ async function setClientApiContext(Xrm, formContext) {
   
   // Check draft status
   await checkQuoteStatus(quoteIdForm);
+  
+  // Load configuration
+  await loadConfiguration();
   
   // Load lookup data
   await loadLookupData();
@@ -84,7 +99,141 @@ async function checkQuoteStatus(quoteIdForm) {
   );
 }
 
+// Load configuration settings
+async function loadConfiguration() {
+  const formContext = window._formContext;
+  
+  // Load default margin
+  await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_key,extreme_value&$filter=extreme_key eq 'QUOTE_MARGIN'").then(
+    function success(results) {
+      if (results.entities.length > 0) {
+        defaultMargin = parseFloat(results.entities[0]["extreme_value"]);
+      }
+    },
+    function (error) {
+      console.log(error.message);
+    }
+  );
 
+  // Load primary default unit
+  await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'PrimaryDefaultUnit'").then(
+    function success(results) {
+      if (results.entities.length > 0) {
+        primaryDefaultUnit = results.entities[0]["extreme_value"];
+      }
+    },
+    function (error) {
+      console.log(error.message);
+    }
+  );
+
+  // Load rounding configuration
+  const roundInfo = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'salesAmountRounding'");
+  if (roundInfo.entities.length > 0) {
+    ROUNDING_PRICE_PER_UNIT_CONFIG = parseInt(roundInfo.entities[0]["extreme_value"]);
+  }
+
+  // Load tax percentage of account
+  if (formContext && formContext.getAttribute('customerid') && formContext.getAttribute('customerid').getValue()) {
+    const accountId = replaceCurlyBrackets(formContext.getAttribute('customerid').getValue()[0].id, '');
+    await Xrm.WebApi.retrieveRecord("account", accountId, "?$select=extreme_tax").then(
+      function success(result) {
+        taxPercentOfAccount = result;
+      },
+      function (error) {
+        console.log(error.message);
+      }
+    );
+  }
+
+  // Load currency information
+  if (formContext && formContext.getAttribute('transactioncurrencyid') && formContext.getAttribute('transactioncurrencyid').getValue()) {
+    const currencyId = replaceCurlyBrackets(formContext.getAttribute('transactioncurrencyid').getValue()[0].id, '');
+    await Xrm.WebApi.retrieveRecord("transactioncurrency", currencyId, "?$select=isocurrencycode,currencysymbol").then(
+      function success(result) {
+        quoteCurrency = result.isocurrencycode;
+        quoteCurrencySymbol = result.currencysymbol;
+      },
+      function (error) {
+        console.log(error.message);
+      }
+    );
+
+    // Load exchange rates
+    await loadExchangeRates();
+  }
+
+  // Set up currency change handler
+  if (formContext && formContext.getAttribute('transactioncurrencyid')) {
+    formContext.getAttribute('transactioncurrencyid').addOnChange(async () => {
+      // Reset exchange rates when currency changes
+      const quoteIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
+      var record = {};
+      record.extreme_chfexchangerate = null;
+      record.extreme_dollarexchangerate = null;
+      record.extreme_euroexchangerate = null;
+      record.extreme_gbpexchangerate = null;
+      record.extreme_macedoniandenarexchangerate = null;
+      record.extreme_rsdexchangerate = null;
+
+      await Xrm.WebApi.updateRecord("quote", quoteIdForm, record).then(
+        function success(result) {
+          console.log('Exchange rates reset');
+        },
+        function (error) {
+          console.log('Error resetting exchange rates:', error);
+        }
+      );
+    });
+  }
+}
+
+// Load exchange rates
+async function loadExchangeRates() {
+  const formContext = window._formContext;
+  const quoteIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
+  
+  const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
+    "quote",
+    quoteIdForm,
+    "?$select=extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate"
+  );
+
+  if (quoteCurrency && exchangeRatesForm.extreme_chfexchangerate) {
+    jsonForConverting = {
+      "EUR": exchangeRatesForm.extreme_euroexchangerate,
+      "USD": exchangeRatesForm.extreme_dollarexchangerate,
+      "CHF": exchangeRatesForm.extreme_chfexchangerate,
+      "RSD": exchangeRatesForm.extreme_rsdexchangerate,
+      "MKD": exchangeRatesForm.extreme_macedoniandenarexchangerate,
+      "GBP": exchangeRatesForm.extreme_gbpexchangerate
+    }
+  } else if (quoteCurrency) {
+    // Load from configuration if not set on quote
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", `?$select=extreme_value,extreme_key&$filter=extreme_key eq '${quoteCurrency}'`).then(
+      async function success(results) {
+        if (results.entities.length > 0) {
+          const result = results.entities[0];
+          jsonForConverting = JSON.parse(result.extreme_value);
+
+          // Update quote with exchange rates
+          var record = {};
+          record.extreme_euroexchangerate = jsonForConverting["EUR"];
+          record.extreme_dollarexchangerate = jsonForConverting["USD"];
+          record.extreme_chfexchangerate = jsonForConverting["CHF"];
+          record.extreme_rsdexchangerate = jsonForConverting["RSD"];
+          record.extreme_macedoniandenarexchangerate = jsonForConverting["MKD"];
+          record.extreme_gbpexchangerate = jsonForConverting["GBP"];
+
+          await Xrm.WebApi.updateRecord("quote", quoteIdForm, record);
+        }
+      },
+      function (error) {
+        console.log('Error loading exchange rates:', error);
+      }
+    );
+  }
+}
 
 // Load lookup data
 async function loadLookupData() {
@@ -416,7 +565,7 @@ async function initTreeList(quoteIdForm, userId) {
               });
               
               quoteTreeList.endUpdate();
-              checkClassifyRowsTreeList();
+              checkClassifyRows();
             }
           }
         }
@@ -769,7 +918,7 @@ async function initTreeList(quoteIdForm, userId) {
             hint: "Description",
             icon: "edit",
             onClick(e) {
-              showDescriptionModal(e.row.data.extreme_productdescription || '', async (desc) => {
+              showModal(e.row.data.extreme_productdescription || '', async (desc) => {
                 e.row.data.extreme_productdescription = desc;
                 // Update in CRM
                 await Xrm.WebApi.updateRecord("quotedetail", e.row.data.quotedetailid, {
@@ -836,7 +985,7 @@ async function initTreeList(quoteIdForm, userId) {
     },
     
     onContentReady: function(e) {
-      checkClassifyRowsTreeList();
+      checkClassifyRows();
       replaceLoader();
     }
     
@@ -969,8 +1118,8 @@ async function updateSequenceNumbers() {
 
 // Additional helper functions
 
-// Function for checking classify needed rows - TreeList specific
-const checkClassifyRowsTreeList = () => {
+// Function for checking classify needed rows
+const checkClassifyRows = () => {
   classifyNeededRows = 0;
 
   if (quoteLinesArray.length > 0) {
@@ -993,8 +1142,8 @@ const checkClassifyRowsTreeList = () => {
   }
 };
 
-// Show modal for description editing - TreeList specific
-function showDescriptionModal(currentDescription = '', onSave = null) {
+// Show modal for description editing
+function showModal(currentDescription = '', onSave = null) {
   const parentDoc = parent.document;
 
   if (parentDoc.getElementById("custom-modal-overlay")) {
@@ -1085,57 +1234,106 @@ function showDescriptionModal(currentDescription = '', onSave = null) {
   };
 }
 
+// Exchange rate change function
+const exchangeRateChange = async (currency, newValue) => {
+  const formContext = window._formContext;
+  const quoteIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
+  
+  await Xrm.WebApi.retrieveMultipleRecords(
+    "quotedetail",
+    `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currency}')`
+  ).then(
+    async function success(results) {
+      for (var i = 0; i < results.entities.length; i++) {
+        var result = results.entities[i];
+        var quotedetailid = result["quotedetailid"];
+        var extreme_pricelistpriceperunit = result["extreme_pricelistpriceperunit"];
+        var quantity = result["quantity"];
+        var extreme_margin = result["extreme_margin"];
+        var extreme_discount = result["extreme_discount"];
+        var extreme_tax = result["extreme_tax"];
+        var extreme_supplierdiscount = result["extreme_supplierdiscount"];
 
+        // Convert price with new exchange rate
+        var convertedPrice = extreme_pricelistpriceperunit * newValue;
+        
+        // Recalculate amounts
+        const recalcResult = recalculateAmounts({
+          quantity: quantity,
+          supplierPricePerUnit: convertedPrice,
+          supplierDiscount: extreme_supplierdiscount,
+          margin: extreme_margin,
+          discount: extreme_discount,
+          TaxPercent: extreme_tax
+        });
+
+        // Update in CRM
+        var record = {};
+        record.extreme_supplierpriceperunit = recalcResult.supplierPricePerUnit;
+        record.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+        record.priceperunit = recalcResult.pricePerUnit;
+        record.baseamount = recalcResult.baseAmount;
+        record.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+        record.manualdiscountamount = recalcResult.manualDiscountAmount;
+        record.tax = recalcResult.tax;
+        record.extendedamount = recalcResult.extendedAmount;
+        record.extreme_pd = recalcResult.pdPerUnit;
+        record.extreme_fullpd = recalcResult.fullPd;
+
+        await Xrm.WebApi.updateRecord("quotedetail", quotedetailid, record);
+      }
+    },
+    function (error) {
+      console.log('Error updating exchange rates:', error);
+    }
+  );
+
+  // Refresh form
+  if (formContext && formContext.data && formContext.data.refresh) {
+    formContext.data.refresh(true);
+  }
+};
 
 // Function to replace curly brackets from IDs
 function replaceCurlyBrackets(inputString, replacement) {
   return inputString.replace(/^{|}$/g, replacement);
 }
 
-
+// Check if string is guid or not
+function isGuid(value) {
+  const guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  return guidPattern.test(value);
+}
 
 // Auto-resize iframe functionality
 $(document).ready(function() {
-  // Function to setup auto-resize when Xrm is available
-  function setupAutoResize() {
-    try {
-      // Check if Xrm and Page are available
-      if (!parent.window.Xrm || !parent.window.Xrm.Page) {
-        console.log('Xrm not ready, retrying in 100ms...');
-        setTimeout(setupAutoResize, 100);
-        return;
-      }
-
-      const wrControl = parent.window.Xrm.Page.getControl("WebResource_quoteLinesGrid2");
-      if (wrControl) {
-        wrControl.getContentWindow().then(function (contentWindow) {
-          const gridContainer = contentWindow.document.getElementById("treeList");
-          if (gridContainer) {
-            const observer = new MutationObserver((mutations) => {
-              mutations.forEach((mutation) => {
-                if (mutation.attributeName === "style" || mutation.type === "childList") {
-                  const gridContainerHeight = gridContainer.offsetHeight;
-                  const iframe = wrControl.getObject();
-                  if (heightAuto === true) {
-                    if (gridContainerHeight > 250) {
-                      iframe.style.minHeight = `${gridContainerHeight + 20}px`;
-                    } else {
-                      iframe.style.minHeight = "255px";
-                    }
+  try {
+    const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
+    if (wrControl) {
+      wrControl.getContentWindow().then(function (contentWindow) {
+        const gridContainer = contentWindow.document.getElementById("treeList");
+        if (gridContainer) {
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.attributeName === "style" || mutation.type === "childList") {
+                const gridContainerHeight = gridContainer.offsetHeight;
+                const iframe = wrControl.getObject();
+                if (heightAuto === true) {
+                  if (gridContainerHeight > 250) {
+                    iframe.style.minHeight = `${gridContainerHeight + 20}px`;
+                  } else {
+                    iframe.style.minHeight = "255px";
                   }
                 }
-              });
+              }
             });
-            const config = { attributes: true, childList: true, subtree: true };
-            observer.observe(gridContainer, config);
-          }
-        });
-      }
-    } catch (error) {
-      console.log('Auto-resize setup error:', error);
+          });
+          const config = { attributes: true, childList: true, subtree: true };
+          observer.observe(gridContainer, config);
+        }
+      });
     }
+  } catch (error) {
+    console.log('Auto-resize setup error:', error);
   }
-
-  // Start the setup process
-  setupAutoResize();
 });

@@ -1,5 +1,15 @@
-const Xrm = parent.window.Xrm;
-const quoteId = Xrm.Page.data.entity.getId().slice(1, -1);
+// Wait for Xrm to be available, then initialize
+let Xrm, quoteId;
+
+// Initialize when Xrm is ready
+(function waitForXrm() {
+  if (parent.window.Xrm && parent.window.Xrm.Page && parent.window.Xrm.Page.data && parent.window.Xrm.Page.data.entity) {
+    Xrm = parent.window.Xrm;
+    quoteId = Xrm.Page.data.entity.getId().slice(1, -1);
+  } else {
+    setTimeout(waitForXrm, 50);
+  }
+})();
 
 const quotedetailODataStore = new DevExpress.data.ODataStore({
   version: 4,

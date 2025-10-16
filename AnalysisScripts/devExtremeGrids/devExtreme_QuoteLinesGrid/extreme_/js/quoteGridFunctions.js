@@ -4,6 +4,10 @@ let taxPercentOfAccount;
 let ROUNDING_PRICE_PER_UNIT_CONFIG;
 let productTypesArray = [];
 let customerId = [];
+let formContext;
+
+// Reference to Xrm - will be set when available
+// let Xrm;
 
 // Recalculate amounts for each row based on changed value
 const recalculateAmounts = ({
@@ -716,53 +720,17 @@ const checkClassifyRows = () => {
   // // console.log(classifyNeededRows);
 };
 
-// Function to get Inventory Info and display it as pop-up dialog
-async function inventoryInfo(productGuid, quoteDetailGuid) {
-  const globalContext = Xrm.Utility.getGlobalContext();
-  const productName = await Xrm.WebApi.retrieveRecord(
-    "product",
-    productGuid,
-    "?$select=name,productnumber"
-  );
-
-  const pageInput = {
-    pageType: "webresource",
-    webresourceName: "extreme_InventoryInfo.html",
-    data: JSON.stringify({
-      baseUrl: Xrm.Utility.getGlobalContext().getClientUrl(),
-      baseUrlWithApp: globalContext.getCurrentAppUrl(),
-      entityId: formContext.data.entity.getId().slice(1, -1),
-      quoteDetailGuid: quoteDetailGuid,
-      productGuid: productGuid,
-      productName: productName.name,
-    }),
-  };
-
-  const navigationOptions = {
-    target: 2,
-    height: { value: 500, unit: "px" },
-    width: { value: 800, unit: "px" },
-    position: 1,
-    title: productName.productnumber + " | " + productName.name,
-  };
-
-  Xrm.Navigation.navigateTo(pageInput, navigationOptions).then(
-    function success() {
-      // Run code on success
-      // // console.log("Success");
-    },
-    function error(error) {
-      // Handle errors
-      Xrm.Navigation.openErrorDialog({
-        details: error,
-        errorCode: 400,
-        message: error.message,
-      });
-    }
-  );
-}
-
 (async () => {
+  // Wait for Xrm to be available
+  while (!parent.window.Xrm || !parent.window.Xrm.Page || !parent.window.Xrm.Page._ui || !parent.window.Xrm.Page._ui._formContext) {
+    console.log('Waiting for Xrm to be fully loaded...');
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  // Initialize references
+  Xrm = parent.window.Xrm;
+  formContext = parent.window.Xrm.Page._ui._formContext;
+  
   const customerResponse = await Xrm.WebApi.retrieveRecord(
     "quote",
     quoteId,
