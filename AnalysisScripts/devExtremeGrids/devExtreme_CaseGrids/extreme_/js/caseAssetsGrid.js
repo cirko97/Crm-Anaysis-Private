@@ -34,11 +34,14 @@ function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, ca
     background: white;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow: hidden;
+    width: auto;
+    min-width: 400px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: auto;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
   `;
   
   // Create header
@@ -75,20 +78,29 @@ function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, ca
   const content = parentDoc.createElement('div');
   content.style.cssText = `
     padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   `;
   
   // Create textarea
   const textarea = parentDoc.createElement('textarea');
+  const maxWidth = Math.floor(parentDoc.documentElement.clientWidth * 0.9);
+  const maxHeight = Math.floor(parentDoc.documentElement.clientHeight * 0.9);
+  
   textarea.style.cssText = `
     width: 100%;
+    min-width: 300px;
+    max-width: ${maxWidth - 80}px;
     min-height: 120px;
-    max-height: 300px;
+    max-height: ${maxHeight - 200}px;
     padding: 12px;
     border: 2px solid #e1e5e9;
     border-radius: 4px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 14px;
-    resize: vertical;
+    resize: both;
     outline: none;
     box-sizing: border-box;
     transition: border-color 0.2s ease;
@@ -104,6 +116,25 @@ function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, ca
     textarea.style.borderColor = '#e1e5e9';
   });
   
+  // Add resize listener to adjust popup container
+  const adjustPopupSize = () => {
+    const textareaRect = textarea.getBoundingClientRect();
+    const headerHeight = header.offsetHeight;
+    const buttonsHeight = 80; // Estimate for buttons and padding
+    const totalWidth = Math.max(400, textareaRect.width + 40); // 40px for padding
+    const totalHeight = headerHeight + textareaRect.height + buttonsHeight + 40; // 40px for padding
+    
+    popupContainer.style.width = `${Math.min(totalWidth, parentDoc.documentElement.clientWidth * 0.9)}px`;
+    popupContainer.style.height = `${Math.min(totalHeight, parentDoc.documentElement.clientHeight * 0.9)}px`;
+  };
+  
+  // Listen for textarea resize
+  let resizeObserver;
+  if ('ResizeObserver' in parentDoc.defaultView) {
+    resizeObserver = new parentDoc.defaultView.ResizeObserver(adjustPopupSize);
+    resizeObserver.observe(textarea);
+  }
+  
   // Create buttons container
   const buttonsContainer = parentDoc.createElement('div');
   buttonsContainer.style.cssText = `
@@ -111,6 +142,7 @@ function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, ca
     justify-content: flex-end;
     gap: 12px;
     margin-top: 20px;
+    flex-shrink: 0;
   `;
   
   // Create Save button
@@ -172,6 +204,9 @@ function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, ca
   
   // Add event listeners
   const closePopup = () => {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+    }
     parentDoc.body.removeChild(overlay);
   };
   
@@ -202,12 +237,7 @@ function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, ca
     }
   });
   
-  // Close on overlay click
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closePopup();
-    }
-  });
+  // Prevent closing on overlay click - removed this functionality
   
   // Close on Escape key
   const handleKeyDown = (e) => {
@@ -223,6 +253,7 @@ function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, ca
   setTimeout(() => {
     textarea.focus();
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    adjustPopupSize(); // Initial size adjustment
   }, 100);
 }
 
