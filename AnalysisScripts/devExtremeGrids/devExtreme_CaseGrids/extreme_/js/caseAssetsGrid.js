@@ -9,6 +9,222 @@ let caseImportInfo = null;
 let isImportingFromQuote = false;
 let selectedDescriptionItem = null;
 
+// Custom popup functions for description and solution
+function createCustomPopup(title, initialValue, fieldName, rowData, dataGrid, caseAssetsData) {
+  const parentDoc = parent.window.document;
+  
+  // Create overlay
+  const overlay = parentDoc.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  `;
+  
+  // Create popup container
+  const popupContainer = parentDoc.createElement('div');
+  popupContainer.style.cssText = `
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  `;
+  
+  // Create header
+  const header = parentDoc.createElement('div');
+  header.style.cssText = `
+    background: #0078d4;
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 16px;
+  `;
+  header.innerHTML = `
+    <span>${title}</span>
+    <button id="closeBtn" style="
+      background: none;
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+    ">×</button>
+  `;
+  
+  // Create content area
+  const content = parentDoc.createElement('div');
+  content.style.cssText = `
+    padding: 20px;
+  `;
+  
+  // Create textarea
+  const textarea = parentDoc.createElement('textarea');
+  textarea.style.cssText = `
+    width: 100%;
+    min-height: 120px;
+    max-height: 300px;
+    padding: 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 4px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+  `;
+  textarea.value = initialValue || '';
+  textarea.placeholder = `Enter ${title.toLowerCase()}...`;
+  
+  // Add focus styles
+  textarea.addEventListener('focus', () => {
+    textarea.style.borderColor = '#0078d4';
+  });
+  textarea.addEventListener('blur', () => {
+    textarea.style.borderColor = '#e1e5e9';
+  });
+  
+  // Create buttons container
+  const buttonsContainer = parentDoc.createElement('div');
+  buttonsContainer.style.cssText = `
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+  `;
+  
+  // Create Save button
+  const saveBtn = parentDoc.createElement('button');
+  saveBtn.textContent = 'Save';
+  saveBtn.disabled = !isEditable;
+  saveBtn.style.cssText = `
+    background: ${isEditable ? '#0078d4' : '#ccc'};
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: ${isEditable ? 'pointer' : 'not-allowed'};
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+  `;
+  
+  if (isEditable) {
+    saveBtn.addEventListener('mouseenter', () => {
+      saveBtn.style.background = '#106ebe';
+    });
+    saveBtn.addEventListener('mouseleave', () => {
+      saveBtn.style.background = '#0078d4';
+    });
+  }
+  
+  // Create Cancel button
+  const cancelBtn = parentDoc.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.cssText = `
+    background: transparent;
+    color: #323130;
+    border: 1px solid #8a8886;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  `;
+  
+  cancelBtn.addEventListener('mouseenter', () => {
+    cancelBtn.style.background = '#f3f2f1';
+  });
+  cancelBtn.addEventListener('mouseleave', () => {
+    cancelBtn.style.background = 'transparent';
+  });
+  
+  // Assemble popup
+  content.appendChild(textarea);
+  buttonsContainer.appendChild(cancelBtn);
+  buttonsContainer.appendChild(saveBtn);
+  content.appendChild(buttonsContainer);
+  
+  popupContainer.appendChild(header);
+  popupContainer.appendChild(content);
+  overlay.appendChild(popupContainer);
+  
+  // Add event listeners
+  const closePopup = () => {
+    parentDoc.body.removeChild(overlay);
+  };
+  
+  header.querySelector('#closeBtn').addEventListener('click', closePopup);
+  cancelBtn.addEventListener('click', closePopup);
+  
+  // Save functionality
+  saveBtn.addEventListener('click', async () => {
+    if (!isEditable) return;
+    
+    const trimmedValue = textarea.value.trim();
+    
+    try {
+      const updateRecord = {};
+      updateRecord[`extreme_${fieldName}`] = trimmedValue;
+      
+      await Xrm.WebApi.updateRecord("extreme_caseasset", rowData.extreme_caseassetid, updateRecord);
+      
+      const updateData = {};
+      updateData[`extreme_${fieldName}`] = trimmedValue;
+      caseAssetsData.update(rowData.extreme_caseassetid, updateData);
+      dataGrid.refresh();
+      
+      closePopup();
+    } catch (error) {
+      console.error('Error updating record:', error);
+      alert('Error saving data. Please try again.');
+    }
+  });
+  
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closePopup();
+    }
+  });
+  
+  // Close on Escape key
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      closePopup();
+      parentDoc.removeEventListener('keydown', handleKeyDown);
+    }
+  };
+  parentDoc.addEventListener('keydown', handleKeyDown);
+  
+  // Add to parent document and focus textarea
+  parentDoc.body.appendChild(overlay);
+  setTimeout(() => {
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, 100);
+}
 
 // Add hours to Date method
 Date.prototype.addMinutes = function (h) {
@@ -928,88 +1144,14 @@ async function setClientApiContext(Xrm, formContext) {
                   return false;
                 },
                 onClick(e) {
-                  // console.log(e);
-
-                  const popupContentTemplate = function (item) {
-
-                    if (isEditable) {
-                      return $('<div data-mdb-input-init class="form-outline">')
-                        .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_description ? item.extreme_description.trim() : ''}</textarea>`))
-                    }
-                    else {
-                      return $('<div class="overflow-auto" style="max-height: 100px;">')
-                        .append($(`<p>${item.extreme_description ? item.extreme_description.trim() : ''}</p>`))
-                    }
-
-                    return $('<div>').append(
-                      $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
-                    );
-                  };
-                  const popup = $('#popup').dxPopup({
-                    contentTemplate: popupContentTemplate,
-                    width: 500,
-                    height: 200,
-                    container: '.dx-viewport',
-                    showTitle: true,
-                    title: `Description`,
-                    visible: false,
-                    dragEnabled: false,
-                    hideOnOutsideClick: true,
-                    showCloseButton: false,
-                    position: {
-                      at: 'center',
-                      my: 'center',
-                      collision: 'fit',
-                    },
-                    toolbarItems: [{
-                      widget: 'dxButton',
-                      toolbar: 'bottom',
-                      location: 'before',
-                      options: {
-                        icon: 'save',
-                        stylingMode: 'contained',
-                        text: 'Save',
-                        disabled: !isEditable,
-                        async onClick() {
-                          // console.log($('#productDescription').val().trim());
-
-                          // var record = {};
-                          // record.extreme_description = "test"; // Multiline Text
-
-                          await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.row.data.extreme_caseassetid}`, { extreme_description: $('#productDescription').val().trim() });
-                          caseAssetsData.update(e.row.data.extreme_caseassetid, { extreme_description: $('#productDescription').val().trim() });
-                          dataGrid.refresh();
-
-                          popup.hide();
-
-                        },
-                      },
-                    }, {
-                      widget: 'dxButton',
-                      toolbar: 'bottom',
-                      location: 'after',
-                      options: {
-                        text: 'Close',
-                        stylingMode: 'outlined',
-                        type: 'normal',
-                        onClick() {
-                          popup.hide();
-                        },
-                      },
-                    }],
-                    onHiding: (e) => {
-                      // console.log('Hidding popup event');
-                      // console.log(e);
-                      selectedDescriptionItem = null;
-                    }
-                  }).dxPopup('instance');
-
-                  selectedDescriptionItem = e.row.data;
-                  popup.option({
-                    contentTemplate: () => popupContentTemplate(e.row.data)
-                  });
-                  popup.show();
-
+                  createCustomPopup(
+                    'Description', 
+                    e.row.data.extreme_description, 
+                    'description', 
+                    e.row.data, 
+                    dataGrid, 
+                    caseAssetsData
+                  );
                 },
               }
             ],
@@ -1037,88 +1179,14 @@ async function setClientApiContext(Xrm, formContext) {
                   return false;
                 },
                 onClick(e) {
-                  // console.log(e);
-
-                  const popupContentTemplate = function (item) {
-
-                    if (isEditable) {
-                      return $('<div data-mdb-input-init class="form-outline">')
-                        .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_solution ? item.extreme_solution.trim() : ''}</textarea>`))
-                    }
-                    else {
-                      return $('<div class="overflow-auto" style="max-height: 100px;">')
-                        .append($(`<p>${item.extreme_solution ? item.extreme_solution.trim() : ''}</p>`))
-                    }
-
-                    return $('<div>').append(
-                      $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
-                    );
-                  };
-                  const popup = $('#popup').dxPopup({
-                    contentTemplate: popupContentTemplate,
-                    width: 500,
-                    height: 200,
-                    container: '.dx-viewport',
-                    showTitle: true,
-                    title: `Solution`,
-                    visible: false,
-                    dragEnabled: false,
-                    hideOnOutsideClick: true,
-                    showCloseButton: false,
-                    position: {
-                      at: 'center',
-                      my: 'center',
-                      collision: 'fit',
-                    },
-                    toolbarItems: [{
-                      widget: 'dxButton',
-                      toolbar: 'bottom',
-                      location: 'before',
-                      options: {
-                        icon: 'save',
-                        stylingMode: 'contained',
-                        text: 'Save',
-                        disabled: !isEditable,
-                        async onClick() {
-                          // console.log($('#productDescription').val().trim());
-
-                          var record = {};
-                          record.description = "test"; // Multiline Text
-
-                          await Xrm.WebApi.updateRecord("extreme_caseasset", `${e.row.data.extreme_caseassetid}`, { extreme_solution: $('#productDescription').val().trim() });
-                          caseAssetsData.update(e.row.data.extreme_caseassetid, { extreme_solution: $('#productDescription').val().trim() });
-                          dataGrid.refresh();
-
-                          popup.hide();
-
-                        },
-                      },
-                    }, {
-                      widget: 'dxButton',
-                      toolbar: 'bottom',
-                      location: 'after',
-                      options: {
-                        text: 'Close',
-                        stylingMode: 'outlined',
-                        type: 'normal',
-                        onClick() {
-                          popup.hide();
-                        },
-                      },
-                    }],
-                    onHiding: (e) => {
-                      // console.log('Hidding popup event');
-                      // console.log(e);
-                      selectedDescriptionItem = null;
-                    }
-                  }).dxPopup('instance');
-
-                  selectedDescriptionItem = e.row.data;
-                  popup.option({
-                    contentTemplate: () => popupContentTemplate(e.row.data)
-                  });
-                  popup.show();
-
+                  createCustomPopup(
+                    'Solution', 
+                    e.row.data.extreme_solution, 
+                    'solution', 
+                    e.row.data, 
+                    dataGrid, 
+                    caseAssetsData
+                  );
                 },
               }
             ],
