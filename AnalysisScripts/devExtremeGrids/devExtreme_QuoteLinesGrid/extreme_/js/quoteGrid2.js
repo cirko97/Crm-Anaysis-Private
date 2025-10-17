@@ -309,11 +309,11 @@ $(async function () {
 
             const priceListMargin = priceListItemInfo.entities
               ? priceListItemInfo.entities[0]["pricelevelid"][
-                  "extreme_defaultsalesmargin"
-                ] !== null
+                "extreme_defaultsalesmargin"
+              ] !== null
                 ? priceListItemInfo.entities[0]["pricelevelid"][
-                    "extreme_defaultsalesmargin"
-                  ]
+                "extreme_defaultsalesmargin"
+                ]
                 : currentRowData.extreme_margin
               : currentRowData.extreme_margin;
             const priceListItemAmount = priceListItemInfo.entities
@@ -465,9 +465,9 @@ $(async function () {
             return info.data.extreme_pricelistpriceperunit !== null &&
               info.data.extreme_pricelistpriceperunit
               ? $("<div>").text(
-                  info.data.extreme_pricelistpriceperunit +
-                    ` ${info.data.extreme_pricelistcurrency}`
-                )
+                info.data.extreme_pricelistpriceperunit +
+                ` ${info.data.extreme_pricelistcurrency}`
+              )
               : null;
           },
           visible: false,
@@ -572,10 +572,9 @@ $(async function () {
               $("<div>")
                 .addClass("col-2")
                 .text(
-                  `${
-                    data["extreme_vat"] || data["extreme_vat"] == 0
-                      ? data["extreme_vat"] + " %"
-                      : ""
+                  `${data["extreme_vat"] || data["extreme_vat"] == 0
+                    ? data["extreme_vat"] + " %"
+                    : ""
                   }`
                 )
                 .appendTo(row);
@@ -1201,7 +1200,7 @@ $(async function () {
                   //     case "EUR":
                   //       await Xrm.WebApi.updateRecord(
                   //         "quote",
-                  //         `${quoteIdForm}`,
+                  //         `${quoteId}`,
                   //         { extreme_euroexchangerate: parseFloat(newValue) }
                   //       );
                   //       await exchangeRateChange(currency, newValue);
@@ -1210,7 +1209,7 @@ $(async function () {
                   //     case "USD":
                   //       await Xrm.WebApi.updateRecord(
                   //         "quote",
-                  //         `${quoteIdForm}`,
+                  //         `${quoteId}`,
                   //         { extreme_dollarexchangerate: parseFloat(newValue) }
                   //       );
                   //       await exchangeRateChange(currency, newValue);
@@ -1219,7 +1218,7 @@ $(async function () {
                   //     case "CHF":
                   //       await Xrm.WebApi.updateRecord(
                   //         "quote",
-                  //         `${quoteIdForm}`,
+                  //         `${quoteId}`,
                   //         { extreme_chfexchangerate: parseFloat(newValue) }
                   //       );
                   //       await exchangeRateChange(currency, newValue);
@@ -1228,7 +1227,7 @@ $(async function () {
                   //     case "RSD":
                   //       await Xrm.WebApi.updateRecord(
                   //         "quote",
-                  //         `${quoteIdForm}`,
+                  //         `${quoteId}`,
                   //         { extreme_rsdexchangerate: parseFloat(newValue) }
                   //       );
                   //       await exchangeRateChange(currency, newValue);
@@ -1237,7 +1236,7 @@ $(async function () {
                   //     case "MKD":
                   //       await Xrm.WebApi.updateRecord(
                   //         "quote",
-                  //         `${quoteIdForm}`,
+                  //         `${quoteId}`,
                   //         {
                   //           extreme_macedoniandenarexchangerate:
                   //             parseFloat(newValue),
@@ -1249,7 +1248,7 @@ $(async function () {
                   //     case "GBP":
                   //       await Xrm.WebApi.updateRecord(
                   //         "quote",
-                  //         `${quoteIdForm}`,
+                  //         `${quoteId}`,
                   //         { extreme_gbpexchangerate: parseFloat(newValue) }
                   //       );
                   //       await exchangeRateChange(currency, newValue);
@@ -1317,7 +1316,7 @@ $(async function () {
             console.log(dataField);
             const cellElement =
               treeList.getCellElement(rowIndex, dataField) == undefined ||
-              treeList.getCellElement(rowIndex, dataField) == null
+                treeList.getCellElement(rowIndex, dataField) == null
                 ? null
                 : treeList.getCellElement(rowIndex, dataField)[0];
             console.log(cellElement);
@@ -1435,7 +1434,7 @@ async function transactionCurrencyNotNull(exchangeRatesForm) {
         record.extreme_macedoniandenarexchangerate = jsonForConverting["MKD"]; // Decimal
         record.extreme_gbpexchangerate = jsonForConverting["GBP"]; // Decimal
 
-        await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record);
+        await Xrm.WebApi.updateRecord("quote", `${quoteId}`, record);
       }
     },
     function (error) {

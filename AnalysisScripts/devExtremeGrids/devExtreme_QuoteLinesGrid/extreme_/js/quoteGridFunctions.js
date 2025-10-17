@@ -80,7 +80,7 @@ const recalculateAmounts = ({
 const exchangeRateChange = async (currency, newValue) => {
   await Xrm.WebApi.retrieveMultipleRecords(
     "quotedetail",
-    `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${
+    `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteId} and extreme_pricelistcurrency eq '${
       currenciesArray.find((item) => item.isocurrencycode === currency)
         .currencysymbol
     }')`
@@ -224,7 +224,7 @@ const exchangeRateChange = async (currency, newValue) => {
         // });
       }
 
-      await getQuoteProducts(quoteIdForm);
+      await getQuoteProducts(quoteId);
       dataGrid.refresh();
     },
     function (error) {
@@ -356,7 +356,7 @@ async function transactionCurrencyNotNull(exchangeRatesForm) {
         record.extreme_macedoniandenarexchangerate = jsonForConverting["MKD"]; // Decimal
         record.extreme_gbpexchangerate = jsonForConverting["GBP"]; // Decimal
 
-        await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, record);
+        await Xrm.WebApi.updateRecord("quote", `${quoteId}`, record);
       }
     },
     function (error) {

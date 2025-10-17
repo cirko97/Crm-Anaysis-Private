@@ -1,4 +1,5 @@
 const Xrm = parent.window.Xrm;
+const formContext = Xrm.Page._ui._formContext;
 const quoteId = Xrm.Page.data.entity.getId().slice(1, -1);
 
 const quotedetailODataStore = new DevExpress.data.ODataStore({
