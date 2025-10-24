@@ -1,6 +1,7 @@
 let heightAuto = true;
 let jsonForConverting = {};
 let treeList = null;
+let isAddingSet = false;
 
 $(async function () {
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
@@ -1300,6 +1301,23 @@ $(async function () {
             );
           }
         }
+      },
+      onInitNewRow: async (e) => {
+        // console.log('InitNewRow');
+        // console.log(e);
+
+        if (!isAddingSet) {
+          e.data.extreme_isparentitem = false;
+          e.data.extreme_margin = defaultMargin;
+          e.data.extreme_discount = 0;
+          e.data.extreme_supplierdiscount = 0;
+          treeList.columnOption("extreme_vatsetting", "validationRules", [{ type: 'required' }]);
+        }
+        else {
+          e.data.extreme_isparentitem = true;
+          treeList.columnOption("extreme_vatsetting", "validationRules", null);
+        }
+
       },
       onRowInserted: function (e) {
         console.log(e);
