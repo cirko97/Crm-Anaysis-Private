@@ -96,6 +96,20 @@ namespace AnalysisWF
             var acCurrency = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("transactioncurrencyid"), "isocurrencycode", service);
             var acPost = Helper.GetLookupFieldValue(account.GetAttributeValue<EntityReference>("extreme_postalcode"), "extreme_postalcode", service);
 
+            // Read configuration that indicates which field to sync VAT into (expected values: "acPin" or "acCode")
+            string vatSyncSchema;
+            try
+            {
+                vatSyncSchema = Helper.GetConfigurationValue("vatSyncSchema", service);
+            }
+            catch
+            {
+                // If config missing or unreadable, default to acPin to preserve previous behavior
+                vatSyncSchema = "acCode";
+            }
+
+            var vatNumber = account.GetAttributeValue<string>("extreme_vatnumber") ?? string.Empty;
+
             var sb = new StringBuilder();
             sb.Append("{");
             sb.Append("\"procedures\": [");
@@ -110,7 +124,16 @@ namespace AnalysisWF
             sb.AppendFormat("\"acPost\": \"{0}\",", acPost);
             sb.AppendFormat("\"acCity\": \"{0}\",", account.GetAttributeValue<string>("extreme_city"));
             sb.AppendFormat("\"acCountry\": \"{0}\",", account.GetAttributeValue<string>("extreme_country"));
-            sb.AppendFormat("\"acCode\": \"{0}\",", account.GetAttributeValue<string>("extreme_vatnumber"));
+            // Conditionally populate either acCode or acPin based on configuration value
+            if (string.Equals(vatSyncSchema, "acCode", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendFormat("\"acCode\": \"{0}\",", vatNumber);
+            }
+            else
+            {
+                sb.AppendFormat("\"acPin\": \"{0}\",", vatNumber);
+            }
+
             sb.AppendFormat("\"acRegNo\": \"{0}\",", account.GetAttributeValue<string>("extreme_registrationnumber"));
             sb.AppendFormat("\"acBuyer\": \"{0}\",", acBuyer);
             sb.AppendFormat("\"acSupplier\": \"{0}\",", acSupplier);
@@ -142,73 +165,5 @@ namespace AnalysisWF
                 return await response.Content.ReadAsStringAsync();
             }
         }
-
-        //private string GetLookupFieldValue(EntityReference lookup, string fieldName, IOrganizationService service)
-        //{
-        //    if (lookup == null)
-        //        return string.Empty;
-
-        //    var entity = service.Retrieve(lookup.LogicalName, lookup.Id, new Microsoft.Xrm.Sdk.Query.ColumnSet(fieldName));
-        //    return entity.GetAttributeValue<string>(fieldName);
-        //}
-
-        //private async Task<string> GetAuthToken(ITracingService tracingService, IOrganizationService service)
-        //{
-        //    using (var client = new HttpClient())
-        //    {
-        //        // Preuzimanje konfiguracionih vrednosti
-        //        var url = GetConfigurationValue("PAWS_AUTHENDPOINT", service);
-        //        var username = GetConfigurationValue("PAWS_username", service);
-        //        var password = GetConfigurationValue("PAWS_password", service);
-        //        var companyDB = GetConfigurationValue("PAWS_companyDB", service);
-
-        //        var body = new
-        //        {
-        //            Username = username,
-        //            Password = password,
-        //            companyDB = companyDB
-        //        };
-
-        //        var json = Newtonsoft.Json.JsonConvert.SerializeObject(body);
-        //        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        //        tracingService.Trace("Šaljem zahtev za autentifikaciju...");
-
-        //        var response = await client.PostAsync(url, content);
-
-        //        if (!response.IsSuccessStatusCode)
-        //        {
-        //            var error = await response.Content.ReadAsStringAsync();
-        //            throw new Exception($"Greška prilikom autentifikacije: {error}");
-        //        }
-
-        //        var responseData = await response.Content.ReadAsStringAsync();
-        //        dynamic result = Newtonsoft.Json.JsonConvert.DeserializeObject(responseData);
-
-        //        tracingService.Trace("Token uspešno preuzet.");
-        //        return result.token.ToString();  // Iz odgovora uzimamo polje 'token'
-        //    }
-        //}
-
-        //private string GetConfigurationValue(string key, IOrganizationService service)
-        //{
-        //    var query = new Microsoft.Xrm.Sdk.Query.QueryExpression("extreme_configuration")
-        //    {
-        //        ColumnSet = new Microsoft.Xrm.Sdk.Query.ColumnSet("extreme_value")
-        //    };
-        //    query.Criteria.AddCondition("extreme_key", Microsoft.Xrm.Sdk.Query.ConditionOperator.Equal, key);
-
-        //    var configRecord = service.RetrieveMultiple(query).Entities.FirstOrDefault();
-
-        //    if (configRecord != null)
-        //    {
-        //        return configRecord.GetAttributeValue<string>("extreme_value");
-        //    }
-        //    else
-        //    {
-        //        throw new InvalidPluginExecutionException($"Konfiguracioni ključ '{key}' nije pronađen.");
-        //    }
-        //}
-
     }
 }

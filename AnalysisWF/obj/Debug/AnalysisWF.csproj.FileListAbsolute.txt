@@ -28,3 +28,18 @@ C:\Users\vladimir.djordjevic\Source\Repos\CRM - Analysis\AnalysisWF\obj\Debug\An
 C:\Users\vladimir.djordjevic\Source\Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.csproj.Up2Date
 C:\Users\vladimir.djordjevic\Source\Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.dll
 C:\Users\vladimir.djordjevic\Source\Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.pdb
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\AnalysisWF.dll
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\AnalysisWF.pdb
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Microsoft.Crm.Sdk.Proxy.dll
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Microsoft.Xrm.Sdk.dll
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Microsoft.Xrm.Sdk.Workflow.dll
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Newtonsoft.Json.dll
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Microsoft.Crm.Sdk.Proxy.xml
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Microsoft.Xrm.Sdk.xml
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Microsoft.Xrm.Sdk.Workflow.xml
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\bin\Debug\Newtonsoft.Json.xml
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.csproj.AssemblyReference.cache
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.csproj.CoreCompileInputs.cache
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.csproj.Up2Date
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.dll
+C:\Users\vladimir.djordjevic\source\VSCODE Repos\CRM - Analysis\AnalysisWF\obj\Debug\AnalysisWF.pdb
