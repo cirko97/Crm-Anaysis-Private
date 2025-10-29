@@ -112,6 +112,20 @@ const quotedetailODataStore = new DevExpress.data.ODataStore({
         }
       }
 
+      // Handle _extreme_vatgroup_value
+      if (
+        e.payload?._extreme_vatgroup_value?._value ||
+        isGuid(e.payload?._extreme_vatgroup_value)
+      ) {
+        const vatGroupId =
+          e.payload._extreme_vatgroup_value._value ||
+          e.payload._extreme_vatgroup_value;
+        delete e.payload._extreme_vatgroup_value;
+        e.payload[
+          "extreme_VATGroup@odata.bind"
+        ] = `/extreme_vatgroups(${vatGroupId})`;
+      }
+
       e.payload["quoteid@odata.bind"] = `/quotes(${quoteId})`;
     }
   },
