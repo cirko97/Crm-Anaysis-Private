@@ -2056,29 +2056,38 @@ $(async function () {
         }
       },
       onRowInserted: async function (e) {
-        console.log(e);
-        console.log(e.data);
-        console.log(e.key);
+        console.log("onRowInserted called");
+        console.log("e.data:", e.data);
+        console.log("e.key:", e.key);
+        console.log("extreme_isparentitem:", e.data.extreme_isparentitem);
+        console.log("_productid_value:", e.data._productid_value);
+        console.log("productid:", e.data.productid);
 
         // If inserting parent item (set) with existing product, create child items
+        // Check both _productid_value and productid fields
+        const productId = e.data._productid_value || e.data.productid;
+        
         if (
           e.data.extreme_isparentitem === true &&
-          e.data._productid_value &&
-          isGuid(e.data._productid_value)
+          productId &&
+          isGuid(productId)
         ) {
+          console.log("Creating child items for product:", productId);
           Xrm.Utility.showProgressIndicator("Creating child items...");
 
           try {
             // Retrieve child products from the product entity
             const childProducts = await Xrm.WebApi.retrieveMultipleRecords(
               "product",
-              `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,name,productnumber&$filter=_extreme_parentproduct_value eq ${e.data._productid_value}`
+              `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,name,productnumber&$filter=_extreme_parentproduct_value eq ${productId}`
             );
+
+            console.log("Found child products:", childProducts.entities.length);
 
             // Create quote detail for each child product
             for (let i = 0; i < childProducts.entities.length; i++) {
               const childProduct = childProducts.entities[i];
-              const productId = childProduct.productid;
+              const childProductId = childProduct.productid;
 
               // Get product type and VAT setting
               let productType = null;
@@ -2087,12 +2096,12 @@ $(async function () {
 
               const productTypeResult = await Xrm.WebApi.retrieveRecord(
                 "product",
-                productId,
+                childProductId,
                 "?$select=producttypecode"
               );
               productType = productTypeResult.producttypecode;
 
-              if (productType !== null && productType !== undefined) {
+              if (productType !== null && productType !== undefined && taxPercentOfAccount) {
                 const vatSettingResults = await Xrm.WebApi.retrieveMultipleRecords(
                   "extreme_vatsetting",
                   `?$select=extreme_vatsettingid,_extreme_vatgroup_value&$expand=extreme_VATGroup($select=extreme_vat)&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`
@@ -2106,7 +2115,7 @@ $(async function () {
               // Get price list and product info
               const productInfo = await Xrm.WebApi.retrieveRecord(
                 "product",
-                productId,
+                childProductId,
                 "?$select=_pricelevelid_value,_defaultuomid_value,name"
               );
 
@@ -2117,12 +2126,12 @@ $(async function () {
               if (productInfo._pricelevelid_value) {
                 priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords(
                   "productpricelevel",
-                  `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin),transactioncurrencyid($select=isocurrencycode,currencysymbol)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${productId})`
+                  `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin),transactioncurrencyid($select=isocurrencycode,currencysymbol)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${childProductId})`
                 );
 
                 classifyLookupsInfo = await Xrm.WebApi.retrieveRecord(
                   "product",
-                  productId,
+                  childProductId,
                   "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value"
                 );
               }
@@ -2169,7 +2178,7 @@ $(async function () {
               // Build record for child quote detail
               const record = {
                 "quoteid@odata.bind": `/quotes(${quoteId})`,
-                "productid@odata.bind": `/products(${productId})`,
+                "productid@odata.bind": `/products(${childProductId})`,
                 "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${e.key})`,
                 extreme_customproductname: childProduct.name,
                 extreme_isparentitem: false,
@@ -2226,7 +2235,9 @@ $(async function () {
               }
 
               // Create the child quote detail
+              console.log("Creating child record:", record);
               const childResult = await Xrm.WebApi.createRecord("quotedetail", record);
+              console.log("Child created with ID:", childResult.id);
 
               // Update with calculated amounts (some fields can't be set on create)
               if (recalcResult.baseAmount || recalcResult.extendedAmount) {
@@ -2244,6 +2255,7 @@ $(async function () {
             Xrm.Utility.closeProgressIndicator();
             
             // Refresh tree list to show new children
+            console.log("Refreshing tree list...");
             await treeList.refresh();
           } catch (error) {
             Xrm.Utility.closeProgressIndicator();
@@ -2252,6 +2264,8 @@ $(async function () {
               message: "Error creating child items: " + error.message,
             });
           }
+        } else {
+          console.log("Not creating children - conditions not met");
         }
       },
       onRowUpdated: async function (e) {
