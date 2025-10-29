@@ -2055,10 +2055,204 @@ $(async function () {
           );
         }
       },
-      onRowInserted: function (e) {
+      onRowInserted: async function (e) {
         console.log(e);
         console.log(e.data);
         console.log(e.key);
+
+        // If inserting parent item (set) with existing product, create child items
+        if (
+          e.data.extreme_isparentitem === true &&
+          e.data._productid_value &&
+          isGuid(e.data._productid_value)
+        ) {
+          Xrm.Utility.showProgressIndicator("Creating child items...");
+
+          try {
+            // Retrieve child products from the product entity
+            const childProducts = await Xrm.WebApi.retrieveMultipleRecords(
+              "product",
+              `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,name,productnumber&$filter=_extreme_parentproduct_value eq ${e.data._productid_value}`
+            );
+
+            // Create quote detail for each child product
+            for (let i = 0; i < childProducts.entities.length; i++) {
+              const childProduct = childProducts.entities[i];
+              const productId = childProduct.productid;
+
+              // Get product type and VAT setting
+              let productType = null;
+              let defaultVatSetting = null;
+              let defaultTax = 0;
+
+              const productTypeResult = await Xrm.WebApi.retrieveRecord(
+                "product",
+                productId,
+                "?$select=producttypecode"
+              );
+              productType = productTypeResult.producttypecode;
+
+              if (productType !== null && productType !== undefined) {
+                const vatSettingResults = await Xrm.WebApi.retrieveMultipleRecords(
+                  "extreme_vatsetting",
+                  `?$select=extreme_vatsettingid,_extreme_vatgroup_value&$expand=extreme_VATGroup($select=extreme_vat)&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`
+                );
+                if (vatSettingResults.entities.length > 0) {
+                  defaultVatSetting = vatSettingResults.entities[0].extreme_vatsettingid;
+                  defaultTax = vatSettingResults.entities[0].extreme_VATGroup?.extreme_vat || 0;
+                }
+              }
+
+              // Get price list and product info
+              const productInfo = await Xrm.WebApi.retrieveRecord(
+                "product",
+                productId,
+                "?$select=_pricelevelid_value,_defaultuomid_value,name"
+              );
+
+              let priceListItemInfo = { entities: [] };
+              let classifyLookupsInfo = null;
+              let supplierPricePerUnit = 0;
+
+              if (productInfo._pricelevelid_value) {
+                priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords(
+                  "productpricelevel",
+                  `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin),transactioncurrencyid($select=isocurrencycode,currencysymbol)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${productId})`
+                );
+
+                classifyLookupsInfo = await Xrm.WebApi.retrieveRecord(
+                  "product",
+                  productId,
+                  "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value"
+                );
+              }
+
+              const priceListMargin =
+                priceListItemInfo.entities.length > 0 &&
+                priceListItemInfo.entities[0].pricelevelid?.extreme_defaultsalesmargin
+                  ? priceListItemInfo.entities[0].pricelevelid.extreme_defaultsalesmargin
+                  : defaultMargin;
+
+              const priceListItemAmount =
+                priceListItemInfo.entities.length > 0
+                  ? priceListItemInfo.entities[0].amount
+                  : 0;
+
+              const priceListItemCurrency =
+                priceListItemInfo.entities.length > 0
+                  ? priceListItemInfo.entities[0].transactioncurrencyid?.currencysymbol
+                  : null;
+
+              const priceListItemCurrencyCode =
+                priceListItemInfo.entities.length > 0
+                  ? priceListItemInfo.entities[0].transactioncurrencyid?.isocurrencycode
+                  : null;
+
+              // Apply currency conversion
+              if (priceListItemCurrencyCode) {
+                const currencyValue = jsonForConverting[priceListItemCurrencyCode] || 1;
+                supplierPricePerUnit = priceListItemAmount * currencyValue;
+              } else {
+                supplierPricePerUnit = priceListItemAmount;
+              }
+
+              // Calculate amounts
+              const recalcResult = recalculateAmounts({
+                quantity: 1,
+                supplierPricePerUnit: supplierPricePerUnit,
+                supplierDiscount: 0,
+                margin: priceListMargin,
+                discount: 0,
+                TaxPercent: defaultTax || 0,
+              });
+
+              // Build record for child quote detail
+              const record = {
+                "quoteid@odata.bind": `/quotes(${quoteId})`,
+                "productid@odata.bind": `/products(${productId})`,
+                "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${e.key})`,
+                extreme_customproductname: childProduct.name,
+                extreme_isparentitem: false,
+                ispriceoverridden: true,
+                quantity: recalcResult.quantity,
+                extreme_margin: recalcResult.margin,
+                extreme_discount: 0,
+                extreme_supplierdiscount: 0,
+              };
+
+              if (productInfo._defaultuomid_value) {
+                record["uomid@odata.bind"] = `/uoms(${productInfo._defaultuomid_value})`;
+              }
+
+              if (productType) record.extreme_producttype = productType;
+              if (defaultVatSetting) {
+                record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${defaultVatSetting})`;
+              }
+              if (defaultTax) record.extreme_tax = defaultTax;
+              if (classifyLookupsInfo?._extreme_area_value) {
+                record["extreme_Area@odata.bind"] = `/extreme_areas(${classifyLookupsInfo._extreme_area_value})`;
+              }
+              if (classifyLookupsInfo?._extreme_technology_value) {
+                record["extreme_Technology@odata.bind"] = `/extreme_technologies(${classifyLookupsInfo._extreme_technology_value})`;
+              }
+              if (classifyLookupsInfo?._extreme_supplier_value) {
+                record["extreme_VendorSupplier@odata.bind"] = `/accounts(${classifyLookupsInfo._extreme_supplier_value})`;
+              }
+              if (productInfo._pricelevelid_value) {
+                record["extreme_pricelist@odata.bind"] = `/pricelevels(${productInfo._pricelevelid_value})`;
+              }
+              if (priceListItemAmount) {
+                record.extreme_pricelistpriceperunit = priceListItemAmount;
+              }
+              if (priceListItemCurrency) {
+                record.extreme_pricelistcurrency = priceListItemCurrency;
+              }
+              if (supplierPricePerUnit) {
+                record.extreme_supplierpriceperunit = supplierPricePerUnit;
+              }
+              if (recalcResult.pricePerUnit) {
+                record.priceperunit = recalcResult.pricePerUnit;
+              }
+              if (recalcResult.supplierBaseAmount) {
+                record.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+              }
+              if (recalcResult.pdPerUnit) record.extreme_pd = recalcResult.pdPerUnit;
+              if (recalcResult.fullPd) record.extreme_fullpd = recalcResult.fullPd;
+              if (recalcResult.fullPriceWithDiscount) {
+                record.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+              }
+              if (childProduct.description) {
+                record.extreme_productdescription = childProduct.description;
+              }
+
+              // Create the child quote detail
+              const childResult = await Xrm.WebApi.createRecord("quotedetail", record);
+
+              // Update with calculated amounts (some fields can't be set on create)
+              if (recalcResult.baseAmount || recalcResult.extendedAmount) {
+                const updateRecord = {};
+                if (recalcResult.baseAmount) {
+                  updateRecord.baseamount = parseFloat(recalcResult.baseAmount.toFixed(4));
+                }
+                if (recalcResult.extendedAmount) {
+                  updateRecord.extendedamount = parseFloat(recalcResult.extendedAmount.toFixed(4));
+                }
+                await Xrm.WebApi.updateRecord("quotedetail", childResult.id, updateRecord);
+              }
+            }
+
+            Xrm.Utility.closeProgressIndicator();
+            
+            // Refresh tree list to show new children
+            await treeList.refresh();
+          } catch (error) {
+            Xrm.Utility.closeProgressIndicator();
+            console.error("Error creating child items:", error);
+            Xrm.Navigation.openErrorDialog({
+              message: "Error creating child items: " + error.message,
+            });
+          }
+        }
       },
       onRowUpdated: async function (e) {
         console.log(e);
