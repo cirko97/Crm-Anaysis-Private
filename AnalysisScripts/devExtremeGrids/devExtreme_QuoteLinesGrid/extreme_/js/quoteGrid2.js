@@ -780,7 +780,7 @@ $(async function () {
           dataField: "baseamount",
           caption: "Sales Amount",
           dataType: "number",
-          allowEditing: false,
+          allowEditing: true,
         },
         {
           dataField: "extreme_discount",
@@ -1993,6 +1993,30 @@ $(async function () {
             );
           }
         }
+        
+        // Disable most fields for parent items (sets), except specific ones
+        if (
+          (e.row.data.extreme_isparentitem === true || (isAddingSet && e.row.isNewRow)) &&
+          e.dataField !== "productid" &&
+          e.dataField !== "extreme_customproductname" &&
+          e.dataField !== "extreme_productdescription" &&
+          e.dataField !== "_uomid_value" &&
+          e.dataField !== "quantity" &&
+          e.dataField !== "extreme_createasset" &&
+          e.dataField !== "_extreme_area_value" &&
+          e.dataField !== "_extreme_technology_value" &&
+          e.dataField !== "_extreme_vendorsupplier_value" &&
+          e.dataField !== "baseamount" &&
+          e.dataField !== "extreme_discount"
+        ) {
+          e.editorOptions.disabled = true;
+        }
+        
+        // Disable baseamount for non-parent items (it's calculated)
+        // But enable it for parent items (so they can distribute to children)
+        if (e.row.data.extreme_isparentitem !== true && e.dataField == "baseamount") {
+          e.editorOptions.disabled = true;
+        }
       },
       onInitNewRow: async (e) => {
         // console.log('InitNewRow');
@@ -2020,8 +2044,60 @@ $(async function () {
         console.log(e.data);
         console.log(e.key);
       },
-      onRowUpdated: function (e) {
+      onRowUpdated: async function (e) {
         console.log(e);
+        
+        // Check if this row has a parent - if so, aggregate child values to parent
+        const currentRow = treeList.getNodeByKey(e.key);
+        if (currentRow && currentRow.parent && currentRow.parent.key) {
+          const parentKey = currentRow.parent.key;
+          
+          // Get all children of the parent
+          const parentNode = treeList.getNodeByKey(parentKey);
+          const children = parentNode.children;
+          
+          if (children && children.length > 0) {
+            let baseamount_sum = 0;
+            let extendedamount_sum = 0;
+            let extreme_fullpd_sum = 0;
+            let extreme_fullpricewithdiscount_sum = 0;
+            let manualdiscountamount_sum = 0;
+            let extreme_supplierbaseamount_sum = 0;
+            let tax_sum = 0;
+            
+            children.forEach((child) => {
+              const childData = child.data;
+              baseamount_sum += childData.baseamount || 0;
+              extendedamount_sum += childData.extendedamount || 0;
+              extreme_fullpd_sum += childData.extreme_fullpd || 0;
+              extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
+              manualdiscountamount_sum += childData.manualdiscountamount || 0;
+              extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
+              tax_sum += childData.tax || 0;
+            });
+            
+            const avarageDiscountPercent = 
+              baseamount_sum > 0 
+                ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+                : 0;
+            
+            // Update the parent row
+            await quotedetailODataStore.update(parentKey, {
+              baseamount: parseFloat(baseamount_sum.toFixed(2)),
+              extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+              extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+              extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+              manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+              extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+              tax: parseFloat(tax_sum.toFixed(2)),
+              extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+            });
+            
+            // Refresh to show updated values
+            await treeList.refresh();
+          }
+        }
+        
         setTimeout(() => {
           let dataFields = Object.keys(e.data);
           const rowIndex = treeList.getRowIndexByKey(e.key);
