@@ -116,7 +116,35 @@ $(async function () {
           width: 150,
           calculateDisplayValue: "productid.productnumber",
           lookup: {
-            dataSource: productsDataSource,
+            dataSource(options) {
+              let filterQuery = null;
+
+              if (options.data) {
+                if (options.data.extreme_isparentitem === true) {
+                  filterQuery = [
+                    ["extreme_isparent", "=", true],
+                    "and",
+                    ["statecode", "=", 0],
+                  ];
+                } else {
+                  filterQuery = [
+                    ["extreme_isparent", "<>", true],
+                    "and",
+                    ["statecode", "=", 0],
+                  ];
+                }
+              }
+
+              return {
+                store: productsODataStore,
+                searchExpr: ["productnumber", "name"],
+                paginate: true,
+                pageSize: 100,
+                loadMode: "raw",
+                filter:
+                  filterQuery === null ? ["statecode", "=", 0] : filterQuery,
+              };
+            },
             displayExpr: "productnumber",
             valueExpr: "productid",
           },
@@ -1013,6 +1041,79 @@ $(async function () {
             dataSource: productPriceLevelDataSource(),
             displayExpr: "name",
             valueExpr: "_pricelevelid_value",
+          },
+          setCellValue: async function (newData, value, currentRowData) {
+            newData._extreme_pricelist_value = value;
+
+            // Fetch the price list item details
+            if (
+              isGuid(value?._value || value) &&
+              isGuid(currentRowData.productid?._value || currentRowData._productid_value)
+            ) {
+              const priceListId = value?._value || value;
+              const productId =
+                currentRowData.productid?._value || currentRowData._productid_value;
+
+              try {
+                const priceListItems = await Xrm.WebApi.retrieveMultipleRecords(
+                  "productpricelevel",
+                  `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin),transactioncurrencyid($select=isocurrencycode,currencysymbol)&$filter=(_pricelevelid_value eq ${priceListId} and _productid_value eq ${productId})`
+                );
+
+                if (
+                  priceListItems.entities &&
+                  priceListItems.entities.length > 0
+                ) {
+                  const priceListItem = priceListItems.entities[0];
+                  const newOrgPrice = priceListItem.amount;
+                  const newOrgCurrency =
+                    priceListItem.transactioncurrencyid?.isocurrencycode;
+                  const newOrgCurrencySymbol =
+                    priceListItem.transactioncurrencyid?.currencysymbol;
+                  const newOrgCurrencyValue =
+                    jsonForConverting[newOrgCurrency] || 1;
+                  const priceListMargin =
+                    priceListItem.pricelevelid?.extreme_defaultsalesmargin ||
+                    currentRowData.extreme_margin;
+
+                  newData.extreme_pricelistpriceperunit = newOrgPrice;
+                  newData.extreme_pricelistcurrency = newOrgCurrencySymbol;
+
+                  const pricePerUnit =
+                    newOrgPrice * newOrgCurrencyValue * priceListMargin;
+                  const recalcResult = recalculateAmounts({
+                    quantity: currentRowData.quantity,
+                    supplierPricePerUnit: newOrgPrice * newOrgCurrencyValue,
+                    supplierDiscount: currentRowData.extreme_supplierdiscount,
+                    margin: priceListMargin,
+                    discount: currentRowData.extreme_discount,
+                    TaxPercent: currentRowData.extreme_tax,
+                    pricePerUnit: pricePerUnit,
+                  });
+
+                  newData.extreme_margin = recalcResult.margin;
+                  newData.quantity = recalcResult.quantity;
+                  newData.extreme_supplierpriceperunit =
+                    recalcResult.supplierPricePerUnit;
+                  newData.extreme_supplierbaseamount =
+                    recalcResult.supplierBaseAmount;
+                  newData.priceperunit = recalcResult.pricePerUnit;
+                  newData.baseamount = recalcResult.baseAmount;
+                  newData.extreme_fullpricewithdiscount =
+                    recalcResult.fullPriceWithDiscount;
+                  newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                  newData.tax = recalcResult.tax;
+                  newData.extendedamount = recalcResult.extendedAmount;
+                  newData.extreme_pd = recalcResult.pdPerUnit;
+                  newData.extreme_fullpd = recalcResult.fullPd;
+                  newData.extreme_discount = recalcResult.discountPercentage;
+                  newData.extreme_supplierdiscount =
+                    recalcResult.supplierDiscountPercentage;
+                }
+              } catch (error) {
+                console.error("Error fetching price list item:", error);
+              }
+            }
           },
           editorOptions: {
             acceptCustomValue: false,
