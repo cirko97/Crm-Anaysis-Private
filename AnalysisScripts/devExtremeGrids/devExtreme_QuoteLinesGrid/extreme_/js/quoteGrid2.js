@@ -1994,6 +1994,11 @@ $(async function () {
           }
         }
         
+        // Safety check - ensure row and data exist before checking parent item status
+        if (!e.row || !e.row.data) {
+          return;
+        }
+        
         // Disable most fields for parent items (sets), except specific ones
         if (
           (e.row.data.extreme_isparentitem === true || (isAddingSet && e.row.isNewRow)) &&
