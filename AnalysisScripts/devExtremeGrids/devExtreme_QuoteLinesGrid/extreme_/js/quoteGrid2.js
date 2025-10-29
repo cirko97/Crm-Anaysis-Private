@@ -47,6 +47,7 @@ $(async function () {
       parentIdExpr: "_extreme_parentquoteline_value",
       sort: { selector: "sequencenumber", desc: false },
       autoExpandAll: false,
+      focusedRowEnabled: true,
       selection: {
         mode: "multiple",
       },
@@ -2025,6 +2026,17 @@ $(async function () {
       onInitNewRow: async (e) => {
         // console.log('InitNewRow');
         // console.log(e);
+
+        // Check if there's a focused row that is a parent item
+        // If so, make this new row a child of that parent
+        const focusedRowKey = treeList.option("focusedRowKey");
+        if (focusedRowKey && !isAddingSet) {
+          const focusedNode = treeList.getNodeByKey(focusedRowKey);
+          if (focusedNode && focusedNode.data && focusedNode.data.extreme_isparentitem === true) {
+            // Make this new row a child of the focused parent
+            e.data._extreme_parentquoteline_value = focusedRowKey;
+          }
+        }
 
         if (!isAddingSet) {
           e.data.extreme_isparentitem = false;
