@@ -2059,213 +2059,237 @@ $(async function () {
         console.log("onRowInserted called");
         console.log("e.data:", e.data);
         console.log("e.key:", e.key);
-        console.log("extreme_isparentitem:", e.data.extreme_isparentitem);
-        console.log("_productid_value:", e.data._productid_value);
-        console.log("productid:", e.data.productid);
+        console.log("All e.data fields:", Object.keys(e.data));
 
-        // If inserting parent item (set) with existing product, create child items
-        // Check both _productid_value and productid fields
-        const productId = e.data._productid_value || e.data.productid;
-        
-        if (
-          e.data.extreme_isparentitem === true &&
-          productId &&
-          isGuid(productId)
-        ) {
+        // Check if this is a parent item
+        if (e.data.extreme_isparentitem !== true) {
+          console.log("Not a parent item, skipping child creation");
+          return;
+        }
+
+        // Re-query the created record to get the latest data including productid
+        try {
+          const createdRecord = await Xrm.WebApi.retrieveRecord(
+            "quotedetail",
+            e.key,
+            "?$select=_productid_value,extreme_customproductid"
+          );
+          
+          console.log("Retrieved created record:", createdRecord);
+          
+          const productId = createdRecord._productid_value;
+          const customProductId = createdRecord.extreme_customproductid;
+          
+          console.log("productId from server:", productId);
+          console.log("customProductId from server:", customProductId);
+
+          // Only create children if this is a real product (GUID), not a custom product
+          if (!productId || !isGuid(productId)) {
+            console.log("No valid product GUID found - this is a custom product or no product selected");
+            console.log("Children can only be auto-created for existing catalog products");
+            return;
+          }
+
           console.log("Creating child items for product:", productId);
           Xrm.Utility.showProgressIndicator("Creating child items...");
 
-          try {
-            // Retrieve child products from the product entity
-            const childProducts = await Xrm.WebApi.retrieveMultipleRecords(
+          // Retrieve child products from the product entity
+          const childProducts = await Xrm.WebApi.retrieveMultipleRecords(
+            "product",
+            `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,name,productnumber&$filter=_extreme_parentproduct_value eq ${productId}`
+          );
+
+          console.log("Found child products:", childProducts.entities.length);
+
+          if (childProducts.entities.length === 0) {
+            console.log("No child products found for this parent product");
+            Xrm.Utility.closeProgressIndicator();
+            return;
+          }
+
+          // Create quote detail for each child product
+          for (let i = 0; i < childProducts.entities.length; i++) {
+            const childProduct = childProducts.entities[i];
+            const childProductId = childProduct.productid;
+
+            // Get product type and VAT setting
+            let productType = null;
+            let defaultVatSetting = null;
+            let defaultTax = 0;
+
+            const productTypeResult = await Xrm.WebApi.retrieveRecord(
               "product",
-              `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,name,productnumber&$filter=_extreme_parentproduct_value eq ${productId}`
+              childProductId,
+              "?$select=producttypecode"
             );
+            productType = productTypeResult.producttypecode;
 
-            console.log("Found child products:", childProducts.entities.length);
-
-            // Create quote detail for each child product
-            for (let i = 0; i < childProducts.entities.length; i++) {
-              const childProduct = childProducts.entities[i];
-              const childProductId = childProduct.productid;
-
-              // Get product type and VAT setting
-              let productType = null;
-              let defaultVatSetting = null;
-              let defaultTax = 0;
-
-              const productTypeResult = await Xrm.WebApi.retrieveRecord(
-                "product",
-                childProductId,
-                "?$select=producttypecode"
+            if (productType !== null && productType !== undefined && taxPercentOfAccount) {
+              const vatSettingResults = await Xrm.WebApi.retrieveMultipleRecords(
+                "extreme_vatsetting",
+                `?$select=extreme_vatsettingid,_extreme_vatgroup_value&$expand=extreme_VATGroup($select=extreme_vat)&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`
               );
-              productType = productTypeResult.producttypecode;
-
-              if (productType !== null && productType !== undefined && taxPercentOfAccount) {
-                const vatSettingResults = await Xrm.WebApi.retrieveMultipleRecords(
-                  "extreme_vatsetting",
-                  `?$select=extreme_vatsettingid,_extreme_vatgroup_value&$expand=extreme_VATGroup($select=extreme_vat)&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`
-                );
-                if (vatSettingResults.entities.length > 0) {
-                  defaultVatSetting = vatSettingResults.entities[0].extreme_vatsettingid;
-                  defaultTax = vatSettingResults.entities[0].extreme_VATGroup?.extreme_vat || 0;
-                }
-              }
-
-              // Get price list and product info
-              const productInfo = await Xrm.WebApi.retrieveRecord(
-                "product",
-                childProductId,
-                "?$select=_pricelevelid_value,_defaultuomid_value,name"
-              );
-
-              let priceListItemInfo = { entities: [] };
-              let classifyLookupsInfo = null;
-              let supplierPricePerUnit = 0;
-
-              if (productInfo._pricelevelid_value) {
-                priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords(
-                  "productpricelevel",
-                  `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin),transactioncurrencyid($select=isocurrencycode,currencysymbol)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${childProductId})`
-                );
-
-                classifyLookupsInfo = await Xrm.WebApi.retrieveRecord(
-                  "product",
-                  childProductId,
-                  "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value"
-                );
-              }
-
-              const priceListMargin =
-                priceListItemInfo.entities.length > 0 &&
-                priceListItemInfo.entities[0].pricelevelid?.extreme_defaultsalesmargin
-                  ? priceListItemInfo.entities[0].pricelevelid.extreme_defaultsalesmargin
-                  : defaultMargin;
-
-              const priceListItemAmount =
-                priceListItemInfo.entities.length > 0
-                  ? priceListItemInfo.entities[0].amount
-                  : 0;
-
-              const priceListItemCurrency =
-                priceListItemInfo.entities.length > 0
-                  ? priceListItemInfo.entities[0].transactioncurrencyid?.currencysymbol
-                  : null;
-
-              const priceListItemCurrencyCode =
-                priceListItemInfo.entities.length > 0
-                  ? priceListItemInfo.entities[0].transactioncurrencyid?.isocurrencycode
-                  : null;
-
-              // Apply currency conversion
-              if (priceListItemCurrencyCode) {
-                const currencyValue = jsonForConverting[priceListItemCurrencyCode] || 1;
-                supplierPricePerUnit = priceListItemAmount * currencyValue;
-              } else {
-                supplierPricePerUnit = priceListItemAmount;
-              }
-
-              // Calculate amounts
-              const recalcResult = recalculateAmounts({
-                quantity: 1,
-                supplierPricePerUnit: supplierPricePerUnit,
-                supplierDiscount: 0,
-                margin: priceListMargin,
-                discount: 0,
-                TaxPercent: defaultTax || 0,
-              });
-
-              // Build record for child quote detail
-              const record = {
-                "quoteid@odata.bind": `/quotes(${quoteId})`,
-                "productid@odata.bind": `/products(${childProductId})`,
-                "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${e.key})`,
-                extreme_customproductname: childProduct.name,
-                extreme_isparentitem: false,
-                ispriceoverridden: true,
-                quantity: recalcResult.quantity,
-                extreme_margin: recalcResult.margin,
-                extreme_discount: 0,
-                extreme_supplierdiscount: 0,
-              };
-
-              if (productInfo._defaultuomid_value) {
-                record["uomid@odata.bind"] = `/uoms(${productInfo._defaultuomid_value})`;
-              }
-
-              if (productType) record.extreme_producttype = productType;
-              if (defaultVatSetting) {
-                record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${defaultVatSetting})`;
-              }
-              if (defaultTax) record.extreme_tax = defaultTax;
-              if (classifyLookupsInfo?._extreme_area_value) {
-                record["extreme_Area@odata.bind"] = `/extreme_areas(${classifyLookupsInfo._extreme_area_value})`;
-              }
-              if (classifyLookupsInfo?._extreme_technology_value) {
-                record["extreme_Technology@odata.bind"] = `/extreme_technologies(${classifyLookupsInfo._extreme_technology_value})`;
-              }
-              if (classifyLookupsInfo?._extreme_supplier_value) {
-                record["extreme_VendorSupplier@odata.bind"] = `/accounts(${classifyLookupsInfo._extreme_supplier_value})`;
-              }
-              if (productInfo._pricelevelid_value) {
-                record["extreme_pricelist@odata.bind"] = `/pricelevels(${productInfo._pricelevelid_value})`;
-              }
-              if (priceListItemAmount) {
-                record.extreme_pricelistpriceperunit = priceListItemAmount;
-              }
-              if (priceListItemCurrency) {
-                record.extreme_pricelistcurrency = priceListItemCurrency;
-              }
-              if (supplierPricePerUnit) {
-                record.extreme_supplierpriceperunit = supplierPricePerUnit;
-              }
-              if (recalcResult.pricePerUnit) {
-                record.priceperunit = recalcResult.pricePerUnit;
-              }
-              if (recalcResult.supplierBaseAmount) {
-                record.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
-              }
-              if (recalcResult.pdPerUnit) record.extreme_pd = recalcResult.pdPerUnit;
-              if (recalcResult.fullPd) record.extreme_fullpd = recalcResult.fullPd;
-              if (recalcResult.fullPriceWithDiscount) {
-                record.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
-              }
-              if (childProduct.description) {
-                record.extreme_productdescription = childProduct.description;
-              }
-
-              // Create the child quote detail
-              console.log("Creating child record:", record);
-              const childResult = await Xrm.WebApi.createRecord("quotedetail", record);
-              console.log("Child created with ID:", childResult.id);
-
-              // Update with calculated amounts (some fields can't be set on create)
-              if (recalcResult.baseAmount || recalcResult.extendedAmount) {
-                const updateRecord = {};
-                if (recalcResult.baseAmount) {
-                  updateRecord.baseamount = parseFloat(recalcResult.baseAmount.toFixed(4));
-                }
-                if (recalcResult.extendedAmount) {
-                  updateRecord.extendedamount = parseFloat(recalcResult.extendedAmount.toFixed(4));
-                }
-                await Xrm.WebApi.updateRecord("quotedetail", childResult.id, updateRecord);
+              if (vatSettingResults.entities.length > 0) {
+                defaultVatSetting = vatSettingResults.entities[0].extreme_vatsettingid;
+                defaultTax = vatSettingResults.entities[0].extreme_VATGroup?.extreme_vat || 0;
               }
             }
 
-            Xrm.Utility.closeProgressIndicator();
-            
-            // Refresh tree list to show new children
-            console.log("Refreshing tree list...");
-            await treeList.refresh();
-          } catch (error) {
-            Xrm.Utility.closeProgressIndicator();
-            console.error("Error creating child items:", error);
-            Xrm.Navigation.openErrorDialog({
-              message: "Error creating child items: " + error.message,
+            // Get price list and product info
+            const productInfo = await Xrm.WebApi.retrieveRecord(
+              "product",
+              childProductId,
+              "?$select=_pricelevelid_value,_defaultuomid_value,name"
+            );
+
+            let priceListItemInfo = { entities: [] };
+            let classifyLookupsInfo = null;
+            let supplierPricePerUnit = 0;
+
+            if (productInfo._pricelevelid_value) {
+              priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords(
+                "productpricelevel",
+                `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin),transactioncurrencyid($select=isocurrencycode,currencysymbol)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${childProductId})`
+              );
+
+              classifyLookupsInfo = await Xrm.WebApi.retrieveRecord(
+                "product",
+                childProductId,
+                "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value"
+              );
+            }
+
+            const priceListMargin =
+              priceListItemInfo.entities.length > 0 &&
+              priceListItemInfo.entities[0].pricelevelid?.extreme_defaultsalesmargin
+                ? priceListItemInfo.entities[0].pricelevelid.extreme_defaultsalesmargin
+                : defaultMargin;
+
+            const priceListItemAmount =
+              priceListItemInfo.entities.length > 0
+                ? priceListItemInfo.entities[0].amount
+                : 0;
+
+            const priceListItemCurrency =
+              priceListItemInfo.entities.length > 0
+                ? priceListItemInfo.entities[0].transactioncurrencyid?.currencysymbol
+                : null;
+
+            const priceListItemCurrencyCode =
+              priceListItemInfo.entities.length > 0
+                ? priceListItemInfo.entities[0].transactioncurrencyid?.isocurrencycode
+                : null;
+
+            // Apply currency conversion
+            if (priceListItemCurrencyCode) {
+              const currencyValue = jsonForConverting[priceListItemCurrencyCode] || 1;
+              supplierPricePerUnit = priceListItemAmount * currencyValue;
+            } else {
+              supplierPricePerUnit = priceListItemAmount;
+            }
+
+            // Calculate amounts
+            const recalcResult = recalculateAmounts({
+              quantity: 1,
+              supplierPricePerUnit: supplierPricePerUnit,
+              supplierDiscount: 0,
+              margin: priceListMargin,
+              discount: 0,
+              TaxPercent: defaultTax || 0,
             });
+
+            // Build record for child quote detail
+            const record = {
+              "quoteid@odata.bind": `/quotes(${quoteId})`,
+              "productid@odata.bind": `/products(${childProductId})`,
+              "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${e.key})`,
+              extreme_customproductname: childProduct.name,
+              extreme_isparentitem: false,
+              ispriceoverridden: true,
+              quantity: recalcResult.quantity,
+              extreme_margin: recalcResult.margin,
+              extreme_discount: 0,
+              extreme_supplierdiscount: 0,
+            };
+
+            if (productInfo._defaultuomid_value) {
+              record["uomid@odata.bind"] = `/uoms(${productInfo._defaultuomid_value})`;
+            }
+
+            if (productType) record.extreme_producttype = productType;
+            if (defaultVatSetting) {
+              record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${defaultVatSetting})`;
+            }
+            if (defaultTax) record.extreme_tax = defaultTax;
+            if (classifyLookupsInfo?._extreme_area_value) {
+              record["extreme_Area@odata.bind"] = `/extreme_areas(${classifyLookupsInfo._extreme_area_value})`;
+            }
+            if (classifyLookupsInfo?._extreme_technology_value) {
+              record["extreme_Technology@odata.bind"] = `/extreme_technologies(${classifyLookupsInfo._extreme_technology_value})`;
+            }
+            if (classifyLookupsInfo?._extreme_supplier_value) {
+              record["extreme_VendorSupplier@odata.bind"] = `/accounts(${classifyLookupsInfo._extreme_supplier_value})`;
+            }
+            if (productInfo._pricelevelid_value) {
+              record["extreme_pricelist@odata.bind"] = `/pricelevels(${productInfo._pricelevelid_value})`;
+            }
+            if (priceListItemAmount) {
+              record.extreme_pricelistpriceperunit = priceListItemAmount;
+            }
+            if (priceListItemCurrency) {
+              record.extreme_pricelistcurrency = priceListItemCurrency;
+            }
+            if (supplierPricePerUnit) {
+              record.extreme_supplierpriceperunit = supplierPricePerUnit;
+            }
+            if (recalcResult.pricePerUnit) {
+              record.priceperunit = recalcResult.pricePerUnit;
+            }
+            if (recalcResult.supplierBaseAmount) {
+              record.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+            }
+            if (recalcResult.pdPerUnit) record.extreme_pd = recalcResult.pdPerUnit;
+            if (recalcResult.fullPd) record.extreme_fullpd = recalcResult.fullPd;
+            if (recalcResult.fullPriceWithDiscount) {
+              record.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+            }
+            if (childProduct.description) {
+              record.extreme_productdescription = childProduct.description;
+            }
+
+            // Create the child quote detail
+            console.log("Creating child record:", record);
+            const childResult = await Xrm.WebApi.createRecord("quotedetail", record);
+            console.log("Child created with ID:", childResult.id);
+
+            // Update with calculated amounts (some fields can't be set on create)
+            if (recalcResult.baseAmount || recalcResult.extendedAmount) {
+              const updateRecord = {};
+              if (recalcResult.baseAmount) {
+                updateRecord.baseamount = parseFloat(recalcResult.baseAmount.toFixed(4));
+              }
+              if (recalcResult.extendedAmount) {
+                updateRecord.extendedamount = parseFloat(recalcResult.extendedAmount.toFixed(4));
+              }
+              await Xrm.WebApi.updateRecord("quotedetail", childResult.id, updateRecord);
+            }
           }
-        } else {
-          console.log("Not creating children - conditions not met");
+
+          Xrm.Utility.closeProgressIndicator();
+          
+          // Refresh tree list to show new children
+          console.log("Refreshing tree list...");
+          await treeList.refresh();
+          
+          Xrm.Navigation.openAlertDialog({
+            text: `Created ${childProducts.entities.length} child items for the set.`,
+          });
+        } catch (error) {
+          Xrm.Utility.closeProgressIndicator();
+          console.error("Error in onRowInserted:", error);
+          Xrm.Navigation.openErrorDialog({
+            message: "Error creating child items: " + error.message,
+          });
         }
       },
       onRowUpdated: async function (e) {
