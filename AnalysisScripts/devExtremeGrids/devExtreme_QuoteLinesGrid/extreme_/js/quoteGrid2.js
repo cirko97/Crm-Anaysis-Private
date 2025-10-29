@@ -418,19 +418,18 @@ $(async function () {
 
             // isAddingSet negative
             if (
-              currentRowData.extreme_margin !== null &&
-              currentRowData.extreme_supplierpriceperunit !== null &&
+              priceListMargin !== null &&
+              supplierPricePerUnit !== null &&
               currentRowData.extreme_supplierdiscount !== null &&
               currentRowData.extreme_discount !== null
             ) {
               const recalcResult = recalculateAmounts({
                 quantity: 1,
-                supplierPricePerUnit:
-                  currentRowData.extreme_supplierpriceperunit,
+                supplierPricePerUnit: supplierPricePerUnit,
                 supplierDiscount: currentRowData.extreme_supplierdiscount,
                 margin: priceListMargin,
                 discount: currentRowData.extreme_discount,
-                TaxPercent: 20,
+                TaxPercent: currentRowData.extreme_tax || 0,
               });
 
               newData.extreme_margin = recalcResult.margin;
