@@ -4,9 +4,31 @@ let treeList = null;
 let isAddingSet = false;
 let selectedDescriptionItem = null;
 let gridContainer;
+let currenciesArray = [];
 const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 
 $(async function () {
+  // Load currencies
+  await Xrm.WebApi.retrieveMultipleRecords(
+    "transactioncurrency",
+    "?$select=transactioncurrencyid,isocurrencycode,currencyname,currencysymbol"
+  ).then(
+    function success(results) {
+      for (var i = 0; i < results.entities.length; i++) {
+        var result = results.entities[i];
+        currenciesArray.push({
+          transactioncurrencyid: result.transactioncurrencyid,
+          isocurrencycode: result.isocurrencycode,
+          currencyname: result.currencyname,
+          currencysymbol: result.currencysymbol,
+        });
+      }
+    },
+    function (error) {
+      console.error("Error loading currencies:", error);
+    }
+  );
+
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
     "quote",
     `${quoteId}`,
@@ -285,7 +307,7 @@ $(async function () {
                 ) {
                   priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords(
                     "productpricelevel",
-                    `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value?._value})`
+                    `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin),transactioncurrencyid($select=isocurrencycode,currencysymbol)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value?._value})`
                   );
                 } else {
                   var alertStrings = {
@@ -345,7 +367,12 @@ $(async function () {
             const priceListItemAmount = priceListItemInfo.entities
               ? priceListItemInfo.entities[0].amount
               : 0;
-            const priceListItemCurrency = null;
+            const priceListItemCurrency = priceListItemInfo.entities
+              ? priceListItemInfo.entities[0].transactioncurrencyid?.currencysymbol
+              : null;
+            const priceListItemCurrencyCode = priceListItemInfo.entities
+              ? priceListItemInfo.entities[0].transactioncurrencyid?.isocurrencycode
+              : null;
 
             newData.productid = value;
             // if (!isAddingSet) {
@@ -377,26 +404,16 @@ $(async function () {
                 newData.extreme_pricelistpriceperunit = priceListItemAmount;
               if (priceListItemInfo.entities)
                 newData.extreme_pricelistcurrency = priceListItemCurrency;
-              // if (
-              //   quoteCurrencySymbol !== priceListItemCurrency &&
-              //   priceListItemInfo.entities
-              // ) {
-              //   newData.extreme_supplierpriceperunit =
-              //     priceListItemAmount *
-              //     $(
-              //       `#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`
-              //     ).val();
-              //   supplierPricePerUnit =
-              //     priceListItemAmount *
-              //     $(
-              //       `#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`
-              //     ).val();
-              // } else {
-              //   newData.extreme_supplierpriceperunit = priceListItemAmount;
-              //   supplierPricePerUnit = priceListItemAmount;
-              // }
-              newData.extreme_supplierpriceperunit = priceListItemAmount;
-              supplierPricePerUnit = priceListItemAmount;
+              
+              // Apply currency conversion
+              if (priceListItemInfo.entities && priceListItemCurrencyCode) {
+                const currencyValue = jsonForConverting[priceListItemCurrencyCode] || 1;
+                newData.extreme_supplierpriceperunit = priceListItemAmount * currencyValue;
+                supplierPricePerUnit = priceListItemAmount * currencyValue;
+              } else {
+                newData.extreme_supplierpriceperunit = priceListItemAmount;
+                supplierPricePerUnit = priceListItemAmount;
+              }
             }
 
             // isAddingSet negative
