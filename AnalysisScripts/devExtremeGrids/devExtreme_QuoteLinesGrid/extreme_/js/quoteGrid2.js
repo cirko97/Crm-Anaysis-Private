@@ -1418,9 +1418,14 @@ $(async function () {
                 console.log(e);
                 showDeleteModal(async () => {
                   Xrm.Utility.showProgressIndicator(`Deleting...`);
-                  if (e.row.isNewRow == true) treeList.cancelEditData();
-                  else if (e.row?.key?._value)
-                    await quotedetailODataStore.remove(e.row.key._value);
+                  if (e.row.isNewRow == true) {
+                    treeList.cancelEditData();
+                  } else {
+                    const keyToDelete = e.row.key?._value || e.row.key || e.row.data.quotedetailid;
+                    if (keyToDelete) {
+                      await quotedetailODataStore.remove(keyToDelete);
+                    }
+                  }
                   Xrm.Utility.closeProgressIndicator();
                   await treeList.refresh();
                 });
@@ -1962,15 +1967,22 @@ $(async function () {
       allowColumnResizing: true,
       onEditorPreparing: function (e) {
         console.log(e);
-        if (e?.row?.data?.productid?.productid?._value) {
-          if (e.dataField == "_extreme_pricelist_value") {
-            e.editorOptions.dataSource = productPriceLevelDataSource(
-              e.row.data.productid.productid._value
-            );
+        
+        // Handle pricelist datasource based on selected product
+        if (e.dataField == "_extreme_pricelist_value") {
+          const productId = 
+            e?.row?.data?._productid_value || 
+            e?.row?.data?.productid?.productid?._value ||
+            e?.row?.data?.productid?._value;
+            
+          if (productId && isGuid(productId)) {
+            e.editorOptions.dataSource = productPriceLevelDataSource(productId);
           }
         }
-        if (e?.row?.data?.extreme_producttype) {
-          if (e.dataField == "_extreme_vatsetting_value") {
+        
+        // Handle VAT setting datasource based on product type
+        if (e.dataField == "_extreme_vatsetting_value") {
+          if (e?.row?.data?.extreme_producttype) {
             e.editorOptions.dataSource = customVatSettingStore(
               e.row.data.extreme_producttype
             );
@@ -1986,13 +1998,17 @@ $(async function () {
           e.data.extreme_margin = defaultMargin;
           e.data.extreme_discount = 0;
           e.data.extreme_supplierdiscount = 0;
-          treeList.columnOption("extreme_vatsetting", "validationRules", [{ type: 'required' }]);
-        }
-        else {
+          treeList.columnOption("_extreme_vatsetting_value", "validationRules", [
+            { type: "required" },
+          ]);
+        } else {
           e.data.extreme_isparentitem = true;
-          treeList.columnOption("extreme_vatsetting", "validationRules", null);
+          treeList.columnOption(
+            "_extreme_vatsetting_value",
+            "validationRules",
+            null
+          );
         }
-
       },
       onRowInserted: function (e) {
         console.log(e);
