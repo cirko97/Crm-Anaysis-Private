@@ -83,7 +83,7 @@ $(async function () {
           }
         },
         onReorder: async function (e) {
-          Xrm.Utility.showProgressIndicator("");
+          Xrm.Utility.showProgressIndicator("Reordering items...");
           const store = quotedetailODataStore;
           const treeList = e.component;
           const visibleRows = treeList.getVisibleRows();
@@ -114,14 +114,60 @@ $(async function () {
           }
 
           try {
+            // Update parent if changed
             await store.update(sourceId, {
               _extreme_parentquoteline_value: parentId,
             });
+
+            // Fetch all items for sequence number update
+            const allItems = await Xrm.WebApi.retrieveMultipleRecords(
+              "quotedetail",
+              `?$select=quotedetailid,sequencenumber,_extreme_parentquoteline_value&$filter=_quoteid_value eq ${quoteId}&$orderby=sequencenumber asc`
+            );
+
+            // Update sequence numbers for parent-level items
+            const parentItems = allItems.entities.filter(
+              (item) => !item._extreme_parentquoteline_value
+            );
+
+            for (let i = 0; i < parentItems.length; i++) {
+              const newSequence = parseInt((i + 1) + "00");
+              if (parentItems[i].sequencenumber !== newSequence) {
+                await Xrm.WebApi.updateRecord(
+                  "quotedetail",
+                  parentItems[i].quotedetailid,
+                  { sequencenumber: newSequence }
+                );
+              }
+            }
+
+            // Update sequence numbers for child items within each parent
+            for (const parent of parentItems) {
+              const childItems = allItems.entities.filter(
+                (item) =>
+                  item._extreme_parentquoteline_value === parent.quotedetailid
+              );
+
+              for (let i = 0; i < childItems.length; i++) {
+                const newSequence = parseInt((i + 1) + "0");
+                if (childItems[i].sequencenumber !== newSequence) {
+                  await Xrm.WebApi.updateRecord(
+                    "quotedetail",
+                    childItems[i].quotedetailid,
+                    { sequencenumber: newSequence }
+                  );
+                }
+              }
+            }
+
             await treeList.refresh();
             Xrm.Utility.closeProgressIndicator();
           } catch (err) {
             Xrm.Utility.closeProgressIndicator();
             console.error("Reorder update failed", err);
+            Xrm.Navigation.openErrorDialog({
+              message: "Error reordering items: " + err.message,
+            });
           }
         },
       },
@@ -1399,15 +1445,30 @@ $(async function () {
 
                 saveBtn.onclick = async () => {
                   const value = textarea.value.trim();
-                  console.log("Saved description:", value);
+                  console.log("Saving description:", value);
+                  console.log("Row data:", e.row.data);
+                  console.log("quotedetailid:", e.row.data.quotedetailid);
 
-                  if (e.row.data.quotedetailid) {
-                    await Xrm.WebApi.updateRecord(
-                      "quotedetail",
-                      e.row.data.quotedetailid,
-                      { extreme_productdescription: value }
-                    );
-                    await treeList.refresh();
+                  try {
+                    if (e.row.data.quotedetailid) {
+                      await Xrm.WebApi.updateRecord(
+                        "quotedetail",
+                        e.row.data.quotedetailid,
+                        { extreme_productdescription: value }
+                      );
+                      console.log("Description saved successfully");
+                      await treeList.refresh();
+                    } else {
+                      console.error("No quotedetailid found in row data");
+                      Xrm.Navigation.openErrorDialog({
+                        message: "Cannot save description: row ID not found",
+                      });
+                    }
+                  } catch (error) {
+                    console.error("Error saving description:", error);
+                    Xrm.Navigation.openErrorDialog({
+                      message: "Error saving description: " + error.message,
+                    });
                   }
 
                   cleanup();
@@ -2258,20 +2319,26 @@ $(async function () {
             }
 
             // Create the child quote detail
-            console.log("Creating child record:", record);
-            const childResult = await Xrm.WebApi.createRecord("quotedetail", record);
-            console.log("Child created with ID:", childResult.id);
+            console.log(`Creating child ${i + 1}/${childProducts.entities.length}:`, childProduct.name);
+            console.log("Child record data:", record);
+            try {
+              const childResult = await Xrm.WebApi.createRecord("quotedetail", record);
+              console.log("Child created with ID:", childResult.id);
 
-            // Update with calculated amounts (some fields can't be set on create)
-            if (recalcResult.baseAmount || recalcResult.extendedAmount) {
-              const updateRecord = {};
-              if (recalcResult.baseAmount) {
-                updateRecord.baseamount = parseFloat(recalcResult.baseAmount.toFixed(4));
+              // Update with calculated amounts (some fields can't be set on create)
+              if (recalcResult.baseAmount || recalcResult.extendedAmount) {
+                const updateRecord = {};
+                if (recalcResult.baseAmount) {
+                  updateRecord.baseamount = parseFloat(recalcResult.baseAmount.toFixed(4));
+                }
+                if (recalcResult.extendedAmount) {
+                  updateRecord.extendedamount = parseFloat(recalcResult.extendedAmount.toFixed(4));
+                }
+                await Xrm.WebApi.updateRecord("quotedetail", childResult.id, updateRecord);
               }
-              if (recalcResult.extendedAmount) {
-                updateRecord.extendedamount = parseFloat(recalcResult.extendedAmount.toFixed(4));
-              }
-              await Xrm.WebApi.updateRecord("quotedetail", childResult.id, updateRecord);
+            } catch (childError) {
+              console.error(`Error creating child "${childProduct.name}":`, childError);
+              throw new Error(`Failed to create child "${childProduct.name}": ${childError.message}`);
             }
           }
 
