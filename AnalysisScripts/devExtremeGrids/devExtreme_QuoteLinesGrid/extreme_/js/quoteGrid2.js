@@ -2,6 +2,9 @@ let heightAuto = true;
 let jsonForConverting = {};
 let treeList = null;
 let isAddingSet = false;
+let selectedDescriptionItem = null;
+let gridContainer;
+const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 
 $(async function () {
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
@@ -447,6 +450,43 @@ $(async function () {
           caption: "Qty",
           dataType: "number",
           width: 44,
+          setCellValue: async function (newData, value, currentRowData) {
+            if (
+              currentRowData.extreme_margin !== null &&
+              currentRowData.extreme_supplierpriceperunit !== null &&
+              currentRowData.extreme_supplierdiscount !== null &&
+              currentRowData.extreme_discount !== null &&
+              currentRowData.extreme_tax !== null
+            ) {
+              const recalcResult = recalculateAmounts({
+                quantity: value,
+                supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                supplierDiscount: currentRowData.extreme_supplierdiscount,
+                margin: currentRowData.extreme_margin,
+                discount: currentRowData.extreme_discount,
+                TaxPercent: currentRowData.extreme_tax,
+              });
+
+              newData.extreme_margin = recalcResult.margin;
+              newData.quantity = recalcResult.quantity;
+              newData.extreme_supplierpriceperunit =
+                recalcResult.supplierPricePerUnit;
+              newData.extreme_supplierbaseamount =
+                recalcResult.supplierBaseAmount;
+              newData.priceperunit = recalcResult.pricePerUnit;
+              newData.baseamount = recalcResult.baseAmount;
+              newData.extreme_fullpricewithdiscount =
+                recalcResult.fullPriceWithDiscount;
+              newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+              newData.tax = recalcResult.tax;
+              newData.extendedamount = recalcResult.extendedAmount;
+              newData.extreme_pd = recalcResult.pdPerUnit;
+              newData.extreme_fullpd = recalcResult.fullPd;
+              newData.extreme_discount = recalcResult.discountPercentage;
+              newData.extreme_supplierdiscount =
+                recalcResult.supplierDiscountPercentage;
+            }
+          },
         },
         {
           dataField: "_uomid_value",
@@ -485,6 +525,44 @@ $(async function () {
           dataField: "extreme_supplierpriceperunit",
           caption: "PPU",
           dataType: "number",
+          setCellValue: async function (newData, value, currentRowData) {
+            if (
+              currentRowData.extreme_margin !== null &&
+              currentRowData.extreme_supplierdiscount !== null &&
+              currentRowData.quantity !== null
+            ) {
+              const recalcResult = recalculateAmounts({
+                quantity: currentRowData.quantity,
+                supplierPricePerUnit: value,
+                supplierDiscount: currentRowData.extreme_supplierdiscount,
+                margin: currentRowData.extreme_margin,
+                discount: currentRowData.extreme_discount,
+                TaxPercent: currentRowData.extreme_tax,
+              });
+
+              newData.extreme_margin = recalcResult.margin;
+              newData.quantity = recalcResult.quantity;
+              newData.extreme_supplierpriceperunit =
+                recalcResult.supplierPricePerUnit;
+              newData.extreme_supplierbaseamount =
+                recalcResult.supplierBaseAmount;
+              newData.priceperunit = recalcResult.pricePerUnit;
+              newData.baseamount = recalcResult.baseAmount;
+              newData.extreme_fullpricewithdiscount =
+                recalcResult.fullPriceWithDiscount;
+              newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+              newData.tax = recalcResult.tax;
+              newData.extendedamount = recalcResult.extendedAmount;
+              newData.extreme_pd = recalcResult.pdPerUnit;
+              newData.extreme_fullpd = recalcResult.fullPd;
+              newData.extreme_discount = recalcResult.discountPercentage;
+              newData.extreme_supplierdiscount =
+                recalcResult.supplierDiscountPercentage;
+            }
+            if (typeof currentRowData.productid === "number") {
+              newData.extreme_pricelistpriceperunit = value;
+            }
+          },
         },
         {
           dataField: "extreme_supplierbaseamount",
@@ -498,12 +576,86 @@ $(async function () {
           dataType: "number",
           width: 70,
           visible: false,
+          setCellValue: async function (newData, value, currentRowData) {
+            if (
+              currentRowData.priceperunit !== null &&
+              currentRowData.extreme_supplierpriceperunit !== null &&
+              currentRowData.quantity !== null
+            ) {
+              const recalcResult = recalculateAmounts({
+                quantity: currentRowData.quantity,
+                supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                supplierDiscount: value,
+                margin: currentRowData.extreme_margin,
+                discount: currentRowData.extreme_discount,
+                TaxPercent: currentRowData.extreme_tax,
+              });
+
+              newData.extreme_margin = recalcResult.margin;
+              newData.quantity = recalcResult.quantity;
+              newData.extreme_supplierpriceperunit =
+                recalcResult.supplierPricePerUnit;
+              newData.extreme_supplierbaseamount =
+                recalcResult.supplierBaseAmount;
+              newData.priceperunit = recalcResult.pricePerUnit;
+              newData.baseamount = recalcResult.baseAmount;
+              newData.extreme_fullpricewithdiscount =
+                recalcResult.fullPriceWithDiscount;
+              newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+              newData.tax = recalcResult.tax;
+              newData.extendedamount = recalcResult.extendedAmount;
+              newData.extreme_pd = recalcResult.pdPerUnit;
+              newData.extreme_fullpd = recalcResult.fullPd;
+              newData.extreme_discount = recalcResult.discountPercentage;
+              newData.extreme_supplierdiscount =
+                recalcResult.supplierDiscountPercentage;
+            }
+          },
         },
         {
           dataField: "extreme_margin",
           caption: "Margin",
           dataType: "number",
           width: 64,
+          setCellValue: async function (newData, value, currentRowData) {
+            newData.extreme_margin = value;
+            if (
+              currentRowData.extreme_supplierpriceperunit !== null &&
+              currentRowData.priceperunit !== null &&
+              currentRowData.quantity !== null &&
+              currentRowData.extreme_discount !== null &&
+              currentRowData.extreme_tax !== null &&
+              currentRowData.extreme_discount !== null
+            ) {
+              const recalcResult = recalculateAmounts({
+                quantity: currentRowData.quantity,
+                supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                supplierDiscount: currentRowData.extreme_supplierdiscount,
+                margin: value,
+                discount: currentRowData.extreme_discount,
+                TaxPercent: currentRowData.extreme_tax,
+              });
+
+              newData.extreme_margin = recalcResult.margin;
+              newData.quantity = recalcResult.quantity;
+              newData.extreme_supplierpriceperunit =
+                recalcResult.supplierPricePerUnit;
+              newData.extreme_supplierbaseamount =
+                recalcResult.supplierBaseAmount;
+              newData.priceperunit = recalcResult.pricePerUnit;
+              newData.baseamount = recalcResult.baseAmount;
+              newData.extreme_fullpricewithdiscount =
+                recalcResult.fullPriceWithDiscount;
+              newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+              newData.tax = recalcResult.tax;
+              newData.extendedamount = recalcResult.extendedAmount;
+              newData.extreme_pd = recalcResult.pdPerUnit;
+              newData.extreme_fullpd = recalcResult.fullPd;
+              newData.extreme_discount = recalcResult.discountPercentage;
+              newData.extreme_supplierdiscount =
+                recalcResult.supplierDiscountPercentage;
+            }
+          },
         },
         {
           dataField: "priceperunit",
@@ -511,18 +663,156 @@ $(async function () {
           dataType: "number",
           cssClass: "cell-highlighted",
           allowEditing: true,
+          setCellValue: async function (newData, value, currentRowData) {
+            if (
+              currentRowData.quantity !== null &&
+              currentRowData.extreme_discount !== null &&
+              currentRowData.extreme_tax !== null &&
+              currentRowData.extreme_discount !== null &&
+              currentRowData.extreme_margin
+            ) {
+              if (
+                (currentRowData.extreme_supplierpriceperunit === null ||
+                  currentRowData.extreme_supplierpriceperunit === undefined ||
+                  currentRowData.extreme_supplierpriceperunit === 0) &&
+                currentRowData.extreme_margin !== null
+              ) {
+                newData.extreme_supplierpriceperunit =
+                  value / currentRowData.extreme_margin;
+
+                const recalcResult = recalculateAmounts({
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: value / currentRowData.extreme_margin,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: currentRowData.extreme_tax,
+                  pricePerUnit: value,
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit =
+                  recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount =
+                  recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount =
+                  recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount =
+                  recalcResult.supplierDiscountPercentage;
+              } else {
+                const recalcResult = recalculateAmounts({
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: currentRowData.extreme_tax,
+                  pricePerUnit: value,
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit =
+                  recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount =
+                  recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount =
+                  recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount =
+                  recalcResult.supplierDiscountPercentage;
+              }
+            }
+          },
         },
         {
           dataField: "baseamount",
           caption: "Sales Amount",
           dataType: "number",
-          allowEditing: true,
+          allowEditing: false,
         },
         {
           dataField: "extreme_discount",
           caption: "Disc. %",
           dataType: "number",
           width: 62,
+          setCellValue: async function (newData, value, currentRowData) {
+            // Do so only if it is not parent item (SET)
+            if (currentRowData.extreme_isparentitem !== true) {
+              if (
+                currentRowData.priceperunit !== null &&
+                currentRowData.quantity !== null &&
+                currentRowData.extreme_tax !== null
+              ) {
+                const recalcResult = recalculateAmounts({
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: value,
+                  TaxPercent: currentRowData.extreme_tax,
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit =
+                  recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount =
+                  recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount =
+                  recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount =
+                  recalcResult.supplierDiscountPercentage;
+              }
+              if (currentRowData.extreme_tax !== null) {
+                newData.tax =
+                  currentRowData.priceperunit *
+                    (1 - value / 100) *
+                    currentRowData.quantity *
+                    (1 + currentRowData.extreme_tax / 100) -
+                  currentRowData.priceperunit *
+                    (1 - value / 100) *
+                    currentRowData.quantity;
+                newData.extendedamount =
+                  (currentRowData.priceperunit *
+                    (1 - value / 100) *
+                    currentRowData.quantity *
+                    (1 + currentRowData.extreme_tax / 100) -
+                    currentRowData.priceperunit *
+                      (1 - value / 100) *
+                      currentRowData.quantity) +
+                  currentRowData.priceperunit *
+                    (1 - value / 100) *
+                    currentRowData.quantity;
+              }
+            } else {
+              newData.extreme_discount = value;
+            }
+          },
         },
         {
           dataField: "manualdiscountamount",
@@ -535,6 +825,47 @@ $(async function () {
           dataField: "extreme_fullpricewithdiscount",
           caption: "Amount",
           dataType: "number",
+          setCellValue: async function (newData, value, currentRowData) {
+            // Do so only if it is not parent item (SET)
+            if (currentRowData.extreme_isparentitem !== true) {
+              if (
+                currentRowData.priceperunit !== null &&
+                currentRowData.quantity !== null &&
+                currentRowData.extreme_tax !== null
+              ) {
+                const recalcResult = recalculateAmounts({
+                  quantity: currentRowData.quantity,
+                  supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                  supplierDiscount: currentRowData.extreme_supplierdiscount,
+                  margin: currentRowData.extreme_margin,
+                  discount: currentRowData.extreme_discount,
+                  TaxPercent: currentRowData.extreme_tax,
+                  fullPriceWithDiscount: value,
+                });
+
+                newData.extreme_margin = recalcResult.margin;
+                newData.quantity = recalcResult.quantity;
+                newData.extreme_supplierpriceperunit =
+                  recalcResult.supplierPricePerUnit;
+                newData.extreme_supplierbaseamount =
+                  recalcResult.supplierBaseAmount;
+                newData.priceperunit = recalcResult.pricePerUnit;
+                newData.baseamount = recalcResult.baseAmount;
+                newData.extreme_fullpricewithdiscount =
+                  recalcResult.fullPriceWithDiscount;
+                newData.manualdiscountamount = recalcResult.manualDiscountAmount;
+                newData.tax = recalcResult.tax;
+                newData.extendedamount = recalcResult.extendedAmount;
+                newData.extreme_pd = recalcResult.pdPerUnit;
+                newData.extreme_fullpd = recalcResult.fullPd;
+                newData.extreme_discount = recalcResult.discountPercentage;
+                newData.extreme_supplierdiscount =
+                  recalcResult.supplierDiscountPercentage;
+              }
+            } else {
+              newData.extreme_fullpricewithdiscount = value;
+            }
+          },
         },
         {
           dataField: "_extreme_vatsetting_value",
@@ -545,6 +876,45 @@ $(async function () {
             dataSource: customVatSettingStore(),
             displayExpr: "extreme_vat",
             valueExpr: "extreme_vatsettingid",
+          },
+          setCellValue: async function (newData, value, currentRowData) {
+            newData._extreme_vatsetting_value = value;
+            
+            // Fetch VAT details from the value
+            if (isGuid(value?._value || value)) {
+              const vatId = value?._value || value;
+              const vatSetting = await Xrm.WebApi.retrieveRecord(
+                "extreme_vatsetting",
+                vatId,
+                "?$select=_extreme_vatgroup_value&$expand=extreme_VATGroup($select=extreme_vat)"
+              );
+              
+              if (vatSetting && vatSetting.extreme_VATGroup) {
+                newData.extreme_tax = vatSetting.extreme_VATGroup.extreme_vat;
+                newData._extreme_vatgroup_value = {
+                  _value: vatSetting._extreme_vatgroup_value,
+                };
+
+                // Recalculate with new tax
+                if (
+                  currentRowData.priceperunit !== null &&
+                  currentRowData.quantity !== null &&
+                  currentRowData.extreme_fullpricewithdiscount !== null
+                ) {
+                  const recalcResult = recalculateAmounts({
+                    quantity: currentRowData.quantity,
+                    supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
+                    supplierDiscount: currentRowData.extreme_supplierdiscount,
+                    margin: currentRowData.extreme_margin,
+                    discount: currentRowData.extreme_discount,
+                    TaxPercent: vatSetting.extreme_VATGroup.extreme_vat,
+                  });
+
+                  newData.tax = recalcResult.tax;
+                  newData.extendedamount = recalcResult.extendedAmount;
+                }
+              }
+            }
           },
           editorOptions: {
             acceptCustomValue: false,
@@ -835,7 +1205,107 @@ $(async function () {
               visible: true,
               disabled: false,
               onClick(e) {
-                showModal();
+                selectedDescriptionItem = e.row.data;
+                const parentDoc = parent.document;
+
+                if (parentDoc.getElementById("custom-modal-overlay")) return;
+
+                // Create overlay
+                const overlay = parentDoc.createElement("div");
+                overlay.id = "custom-modal-overlay";
+                overlay.style.cssText = `
+                  position: fixed;
+                  top: 0; left: 0;
+                  width: 100vw; height: 100vh;
+                  background: rgba(0, 0, 0, 0.5);
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  z-index: 9999;
+                `;
+
+                // Create modal box
+                const modal = parentDoc.createElement("div");
+                modal.style.cssText = `
+                  background: #fff;
+                  border-radius: 8px;
+                  width: 90%;
+                  max-width: 500px;
+                  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                  padding: 20px;
+                  box-sizing: border-box;
+                  font-family: Arial, sans-serif;
+                  animation: fadeIn 0.2s ease-in-out;
+                `;
+
+                modal.innerHTML = `
+                  <h2 style="margin-top:0; font-size: 20px;">Enter Description</h2>
+                  <textarea id="descInput" style="width:100%;height:100px;padding:10px;margin-top:10px;margin-bottom:20px;box-sizing:border-box;font-size:14px;border:1px solid #ccc;border-radius:4px;">${
+                    e.row.data.extreme_productdescription || ""
+                  }</textarea>
+                  <div style="text-align: right;">
+                    <button id="cancelBtn" style="
+                      background:#6c757d;
+                      color:white;
+                      border:none;
+                      padding:8px 16px;
+                      margin-right:10px;
+                      border-radius:4px;
+                      cursor:pointer;
+                    ">Cancel</button>
+                    <button id="saveBtn" style="
+                      background:#007bff;
+                      color:white;
+                      border:none;
+                      padding:8px 16px;
+                      border-radius:4px;
+                      cursor:pointer;
+                    ">Save</button>
+                  </div>
+                `;
+
+                // Optional keyframes for fade in
+                const style = parentDoc.createElement("style");
+                style.textContent = `
+                  @keyframes fadeIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                  }
+                `;
+                parentDoc.head.appendChild(style);
+
+                overlay.appendChild(modal);
+                parentDoc.body.appendChild(overlay);
+
+                // Events
+                const cancelBtn = modal.querySelector("#cancelBtn");
+                const saveBtn = modal.querySelector("#saveBtn");
+                const textarea = modal.querySelector("#descInput");
+
+                const cleanup = () => {
+                  parentDoc.body.removeChild(overlay);
+                  if (style && style.parentNode)
+                    style.parentNode.removeChild(style);
+                  selectedDescriptionItem = null;
+                };
+
+                cancelBtn.onclick = cleanup;
+
+                saveBtn.onclick = async () => {
+                  const value = textarea.value.trim();
+                  console.log("Saved description:", value);
+
+                  if (e.row.data.quotedetailid) {
+                    await Xrm.WebApi.updateRecord(
+                      "quotedetail",
+                      e.row.data.quotedetailid,
+                      { extreme_productdescription: value }
+                    );
+                    await treeList.refresh();
+                  }
+
+                  cleanup();
+                };
               },
             },
             {
@@ -862,6 +1332,55 @@ $(async function () {
         items: [
           {
             location: "before",
+            widget: "dxButton",
+            locateInMenu: "auto",
+            options: {
+              icon: "bulletlist",
+              text: "Add existing",
+              width: "auto",
+              disabled: false,
+              onClick(e) {
+                isAddingSet = false;
+                
+                treeList.columnOption("productid", "editorOptions", {
+                  acceptCustomValue: false,
+                  searchEnabled: true,
+                  searchExpr: ["productnumber", "name"],
+                  itemTemplate: function (data, index, container) {
+                    var row = $("<div>").addClass("row text-wrap");
+                    var containerFluid = $("<div>").addClass("container-fluid");
+                    $("<div>")
+                      .addClass("col-3")
+                      .text(data["productnumber"])
+                      .appendTo(row);
+                    $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
+                    row.appendTo(containerFluid);
+                    container.append(containerFluid);
+                  },
+                  onOpened: function (e) {
+                    heightAuto = false;
+                    if (heightAuto === false) {
+                      const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                      if (iframeCorrentHeight < 450) {
+                        wrControl.getObject().style.minHeight = "600px";
+                      }
+                    }
+                    e.component._popup.option("width", 400);
+                  },
+                  onClosed: function (e) {
+                    heightAuto = true;
+                  },
+                  onFocusOut: function (e) {
+                    heightAuto = true;
+                  },
+                });
+
+                treeList.addRow();
+              },
+            },
+          },
+          {
+            location: "before",
             locateInMenu: "auto",
             template() {
               return $("<div>").addClass("spacer").text("");
@@ -873,11 +1392,51 @@ $(async function () {
             locateInMenu: "auto",
             options: {
               icon: "plus",
-              text: "Add new Quote line",
+              text: "Add new",
               width: "auto",
               disabled: false,
               onClick(e) {
-                console.log(e);
+                isAddingSet = false;
+                
+                treeList.columnOption("productid", "editorOptions", {
+                  acceptCustomValue: true,
+                  searchEnabled: true,
+                  searchExpr: ["productnumber", "name"],
+                  itemTemplate: function (data, index, container) {
+                    var row = $("<div>").addClass("row text-wrap");
+                    var containerFluid = $("<div>").addClass("container-fluid");
+                    $("<div>")
+                      .addClass("col-3")
+                      .text(data["productnumber"])
+                      .appendTo(row);
+                    $("<div>").addClass("col-9").text(data["name"]).appendTo(row);
+                    row.appendTo(containerFluid);
+                    container.append(containerFluid);
+                  },
+                  onCustomItemCreating: function (args) {
+                    if (!args.text) {
+                      args.customItem = null;
+                      return;
+                    }
+                  },
+                  onOpened: function (e) {
+                    heightAuto = false;
+                    if (heightAuto === false) {
+                      const iframeCorrentHeight = wrControl.getObject().offsetHeight;
+                      if (iframeCorrentHeight < 450) {
+                        wrControl.getObject().style.minHeight = "600px";
+                      }
+                    }
+                    e.component._popup.option("width", 400);
+                  },
+                  onClosed: function (e) {
+                    heightAuto = true;
+                  },
+                  onFocusOut: function (e) {
+                    heightAuto = true;
+                  },
+                });
+
                 treeList.addRow();
               },
             },
@@ -887,6 +1446,21 @@ $(async function () {
             locateInMenu: "auto",
             template() {
               return $("<div>").addClass("spacer").text("");
+            },
+          },
+          {
+            location: "before",
+            widget: "dxButton",
+            locateInMenu: "auto",
+            options: {
+              icon: "group",
+              text: "Add set",
+              width: "auto",
+              disabled: false,
+              onClick(e) {
+                isAddingSet = true;
+                treeList.addRow();
+              },
             },
           },
           {
@@ -1387,10 +1961,7 @@ $(async function () {
     .dxTreeList("instance");
 });
 
-// Select the gridContainer element
-let gridContainer;
-
-const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
+// Select the gridContainer element and observe changes
 wrControl.getContentWindow().then(function (contentWindow) {
   gridContainer = contentWindow.document.getElementById("treeList");
   // Create a MutationObserver instance
