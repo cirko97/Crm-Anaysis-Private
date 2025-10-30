@@ -92,13 +92,21 @@ $(async function () {
           const treeList = e.component;
           const visibleRows = treeList.getVisibleRows();
           const sourceData = e.itemData;
-          const sourceId = sourceData.quotedetailid;
+          
+          // Clean GUID - extract _value if it's an object, otherwise clean string
+          const sourceId = sourceData.quotedetailid?._value 
+            ? sourceData.quotedetailid._value 
+            : String(sourceData.quotedetailid).replace(/^{|}$/g, '');
 
           let parentId = null;
 
           if (e.dropInsideItem) {
             // Dropped inside an item — make it a child
-            parentId = visibleRows[e.toIndex].key;
+            const rawParentId = visibleRows[e.toIndex].key;
+            // Clean parent GUID
+            parentId = rawParentId?._value 
+              ? rawParentId._value 
+              : String(rawParentId).replace(/^{|}$/g, '');
             console.log("Dropping inside item, new parent:", parentId);
           } else {
             // Dropped between items - keep at root level
@@ -134,7 +142,11 @@ $(async function () {
             // Update sequence numbers for root-level items based on visual order
             for (let i = 0; i < rootNodes.length; i++) {
               const node = rootNodes[i];
-              const itemId = node.key;
+              const rawItemId = node.key;
+              // Clean GUID
+              const itemId = rawItemId?._value 
+                ? rawItemId._value 
+                : String(rawItemId).replace(/^{|}$/g, '');
               const newSequence = (i + 1) * 100; // 100, 200, 300, etc.
               
               console.log(`Updating root item ${i + 1}: ${itemId} to sequence ${newSequence}`);
@@ -148,7 +160,11 @@ $(async function () {
               if (node.children && node.children.length > 0) {
                 for (let j = 0; j < node.children.length; j++) {
                   const childNode = node.children[j];
-                  const childId = childNode.key;
+                  const rawChildId = childNode.key;
+                  // Clean child GUID
+                  const childId = rawChildId?._value 
+                    ? rawChildId._value 
+                    : String(rawChildId).replace(/^{|}$/g, '');
                   const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
                   
                   console.log(`  Updating child ${j + 1}: ${childId} to sequence ${childSequence}`);

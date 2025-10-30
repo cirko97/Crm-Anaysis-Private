@@ -145,30 +145,21 @@ const exchangeRateChange = async (currency, newValue) => {
           extreme_fullpd: newFullPd,
         });
 
-        quoteLinesData.update(quotedetailid, {
-          extreme_supplierpriceperunit:
-            extreme_pricelistpriceperunit * parseFloat(newValue),
-          extreme_supplierbaseamount:
-            extreme_pricelistpriceperunit * parseFloat(newValue) * quantity,
-          priceperunit: pricePerUnit,
-          baseamount: baseAmount,
-          manualdiscountamount: manualDiscountAmount,
-          extreme_fullpricewithdiscount: fullPriceWithDiscount,
-          tax: tax,
-          extendedamount: extendedAmount,
-          extreme_pd: newPd,
-          extreme_fullpd: newFullPd,
-        });
+        // Check if this item has a parent and update parent totals
+        const itemDetails = await Xrm.WebApi.retrieveRecord(
+          "quotedetail",
+          quotedetailid,
+          "?$select=_extreme_parentquoteline_value"
+        );
 
-        if (
-          quoteLinesData._array.find(
-            (item) => item.quotedetailid === quotedetailid
-          ).extreme_parentquoteline
-        ) {
-          // // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
-          const parentQuoteLineGUID = quoteLinesData._array.find(
-            (item) => item.quotedetailid === quotedetailid
-          ).extreme_parentquoteline;
+        if (itemDetails._extreme_parentquoteline_value) {
+          const parentQuoteLineGUID = itemDetails._extreme_parentquoteline_value;
+
+          // Get all children of this parent
+          const children = await Xrm.WebApi.retrieveMultipleRecords(
+            "quotedetail",
+            `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${parentQuoteLineGUID}`
+          );
 
           let baseamount_sum = 0;
           let extendedamount_sum = 0;
@@ -177,55 +168,45 @@ const exchangeRateChange = async (currency, newValue) => {
           let manualdiscountamount_sum = 0;
           let extreme_supplierbaseamount_sum = 0;
           let tax_sum = 0;
-          let avarageDiscountPercent = 0;
 
-          quoteLinesData._array
-            .filter(
-              (item) => item.extreme_parentquoteline === parentQuoteLineGUID
-            )
-            .forEach((e) => {
-              baseamount_sum += e.baseamount;
-              extendedamount_sum += e.extendedamount;
-              extreme_fullpd_sum += e.extreme_fullpd;
-              extreme_fullpricewithdiscount_sum +=
-                e.extreme_fullpricewithdiscount;
-              manualdiscountamount_sum += e.manualdiscountamount;
-              extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
-              tax_sum += e.tax;
-            });
-
-          avarageDiscountPercent =
-            ((baseamount_sum - extreme_fullpricewithdiscount_sum) /
-              baseamount_sum) *
-            100;
-
-          quoteLinesData.update(parentQuoteLineGUID, {
-            baseamount: baseamount_sum.toFixed(2),
-            extendedamount: extendedamount_sum.toFixed(2),
-            extreme_fullpd: extreme_fullpd_sum.toFixed(2),
-            extreme_fullpricewithdiscount:
-              extreme_fullpricewithdiscount_sum.toFixed(2),
-            manualdiscountamount: manualdiscountamount_sum.toFixed(2),
-            extreme_supplierbaseamount:
-              extreme_supplierbaseamount_sum.toFixed(2),
-            tax: tax_sum.toFixed(2),
-            extreme_discount: avarageDiscountPercent.toFixed(2),
+          children.entities.forEach((e) => {
+            baseamount_sum += e.baseamount || 0;
+            extendedamount_sum += e.extendedamount || 0;
+            extreme_fullpd_sum += e.extreme_fullpd || 0;
+            extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount || 0;
+            manualdiscountamount_sum += e.manualdiscountamount || 0;
+            extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount || 0;
+            tax_sum += e.tax || 0;
           });
 
-          dataGrid.getController("data").updateItems({
-            changeType: "update",
-            rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)],
+          const avarageDiscountPercent =
+            baseamount_sum > 0
+              ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) /
+                  baseamount_sum) *
+                100
+              : 0;
+
+          await Xrm.WebApi.updateRecord("quotedetail", parentQuoteLineGUID, {
+            baseamount: parseFloat(baseamount_sum.toFixed(2)),
+            extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+            extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+            extreme_fullpricewithdiscount: parseFloat(
+              extreme_fullpricewithdiscount_sum.toFixed(2)
+            ),
+            manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+            extreme_supplierbaseamount: parseFloat(
+              extreme_supplierbaseamount_sum.toFixed(2)
+            ),
+            tax: parseFloat(tax_sum.toFixed(2)),
+            extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2)),
           });
         }
-
-        // dataGrid.getController('data').updateItems({
-        //   changeType: 'update',
-        //   rowIndices: [dataGrid.getRowIndexByKey(quotedetailid)]
-        // });
       }
 
-      await getQuoteProducts(quoteId);
-      dataGrid.refresh();
+      // Refresh the treeList to show updated values
+      if (typeof treeList !== 'undefined' && treeList) {
+        await treeList.refresh();
+      }
     },
     function (error) {
       Xrm.Navigation.openErrorDialog({
