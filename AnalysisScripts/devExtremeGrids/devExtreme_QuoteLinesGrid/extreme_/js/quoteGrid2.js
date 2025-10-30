@@ -849,6 +849,7 @@ $(async function () {
                   supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                   supplierDiscount: currentRowData.extreme_supplierdiscount,
                   margin: currentRowData.extreme_margin,
+                  pricePerUnit: currentRowData.priceperunit,
                   discount: value,
                   TaxPercent: currentRowData.extreme_tax,
                 });
@@ -988,6 +989,7 @@ $(async function () {
                     supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                     supplierDiscount: currentRowData.extreme_supplierdiscount,
                     margin: currentRowData.extreme_margin,
+                    pricePerUnit: currentRowData.priceperunit,
                     discount: currentRowData.extreme_discount,
                     TaxPercent: vatSetting.extreme_VATGroup.extreme_vat,
                   });
@@ -1454,9 +1456,11 @@ $(async function () {
 
                   try {
                     if (e.row.data.quotedetailid) {
+                      // Clean GUID of curly braces if present
+                      const cleanId = String(e.row.data.quotedetailid).replace(/^{|}$/g, '');
                       await Xrm.WebApi.updateRecord(
                         "quotedetail",
-                        e.row.data.quotedetailid,
+                        cleanId,
                         { extreme_productdescription: value }
                       );
                       console.log("Description saved successfully");
@@ -2131,19 +2135,40 @@ $(async function () {
           return;
         }
 
-        // Wait a moment for the record to be fully created in Dynamics
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Clean GUID of curly braces if present
+        const cleanParentId = String(e.key).replace(/^{|}$/g, '');
+        console.log("Cleaned parent ID:", cleanParentId);
+
+        // Wait longer for the record to be fully created in Dynamics
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Re-query the created record to get the latest data including productid
+        // Use retry logic in case the record is not immediately available
+        let createdRecord = null;
+        let retries = 0;
+        const maxRetries = 5;
+        
         try {
-          console.log("Retrieving created record with ID:", e.key);
-          const createdRecord = await Xrm.WebApi.retrieveRecord(
-            "quotedetail",
-            e.key,
-            "?$select=quotedetailid,_productid_value,extreme_customproductid"
-          );
+          while (retries < maxRetries && !createdRecord) {
+            try {
+              console.log(`Retrieving created record with ID (attempt ${retries + 1}/${maxRetries}):`, cleanParentId);
+              createdRecord = await Xrm.WebApi.retrieveRecord(
+                "quotedetail",
+                cleanParentId,
+                "?$select=quotedetailid,_productid_value,extreme_customproductid"
+              );
+              console.log("Retrieved created record:", createdRecord);
+            } catch (retrieveError) {
+              console.warn(`Attempt ${retries + 1} failed:`, retrieveError.message);
+              retries++;
+              if (retries < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else {
+                throw retrieveError;
+              }
+            }
+          }
           
-          console.log("Retrieved created record:", createdRecord);
           console.log("quotedetailid from retrieved record:", createdRecord.quotedetailid);
           
           const parentQuoteDetailId = createdRecord.quotedetailid;
@@ -2275,10 +2300,12 @@ $(async function () {
             });
 
             // Build record for child quote detail
+            // Ensure parent ID is clean
+            const cleanedParentId = String(parentQuoteDetailId).replace(/^{|}$/g, '');
             const record = {
               "quoteid@odata.bind": `/quotes(${quoteId})`,
               "productid@odata.bind": `/products(${childProductId})`,
-              "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${parentQuoteDetailId})`,
+              "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${cleanedParentId})`,
               extreme_customproductname: childProduct.name,
               extreme_isparentitem: false,
               ispriceoverridden: true,
