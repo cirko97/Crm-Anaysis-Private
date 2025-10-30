@@ -115,29 +115,28 @@ $(async function () {
           }
 
           try {
-            // Update parent relationship
-            const updateData = {
-              _extreme_parentquoteline_value: parentId,
-            };
+            // Update parent relationship using OData binding format
+            const updateData = {};
+            if (parentId === null) {
+              // Clear parent relationship
+              updateData["extreme_ParentQuoteLine@odata.bind"] = null;
+            } else {
+              // Set parent relationship
+              updateData["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${parentId})`;
+            }
             
             console.log("Updating record:", sourceId, "with data:", updateData);
-            await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
-
-            // Now update sequence numbers based on new visual order
-            // Wait a bit for the update to process
-            await new Promise(resolve => setTimeout(resolve, 500));
             
-            // Fetch all items with current order
-            const allItems = await Xrm.WebApi.retrieveMultipleRecords(
-              "quotedetail",
-              `?$select=quotedetailid,sequencenumber,_extreme_parentquoteline_value&$filter=_quoteid_value eq ${quoteId}`
-            );
-
-            console.log("All items count:", allItems.entities.length);
-
-            // Get the new visual order from TreeList
+            // Get the new visual order from TreeList BEFORE updating parent
+            // This captures the order as the user sees it after the drag operation
             const rootNodes = treeList.getRootNode().children || [];
             console.log("Root nodes count:", rootNodes.length);
+            
+            // Now update the parent relationship
+            await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
+
+            // Wait for the update to process
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
             // Update sequence numbers for root-level items based on visual order
             for (let i = 0; i < rootNodes.length; i++) {
@@ -178,15 +177,19 @@ $(async function () {
             }
 
             console.log("Refreshing TreeList...");
-            await treeList.refresh();
+            // Reload the data source to ensure we get the updated sequence numbers
+            await treeList.getDataSource().reload();
             Xrm.Utility.closeProgressIndicator();
             console.log("Reorder complete");
           } catch (err) {
             Xrm.Utility.closeProgressIndicator();
             console.error("Reorder update failed", err);
+            console.error("Error details:", err);
             Xrm.Navigation.openErrorDialog({
-              message: "Error reordering items: " + err.message,
+              message: "Error reordering items: " + (err.message || err.toString()),
             });
+            // Refresh anyway to reset the UI
+            await treeList.refresh();
           }
         },
       },
