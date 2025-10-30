@@ -127,25 +127,41 @@ $(async function () {
             
             console.log("Updating record:", sourceId, "with data:", updateData);
             
-            // Get the new visual order from TreeList BEFORE updating parent
-            // This captures the order as the user sees it after the drag operation
-            const rootNodes = treeList.getRootNode().children || [];
-            console.log("Root nodes count:", rootNodes.length);
-            
             // Now update the parent relationship
             await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
 
             // Wait for the update to process
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Update sequence numbers for root-level items based on visual order
-            for (let i = 0; i < rootNodes.length; i++) {
-              const node = rootNodes[i];
-              const rawItemId = node.key;
-              // Clean GUID
-              const itemId = rawItemId?._value 
-                ? rawItemId._value 
-                : String(rawItemId).replace(/^{|}$/g, '');
+            // Get the current root nodes to determine new sequence numbers
+            // We need to get all root-level items from the server
+            const allRootItems = await Xrm.WebApi.retrieveMultipleRecords(
+              "quotedetail",
+              `?$select=quotedetailid,sequencenumber&$filter=(_quoteid_value eq ${quoteId} and _extreme_parentquoteline_value eq null)&$orderby=sequencenumber asc`
+            );
+            
+            console.log("Root items from server:", allRootItems.entities.length);
+            
+            // Build the new order array by applying the drag operation
+            const currentOrder = allRootItems.entities.map(item => {
+              const id = item.quotedetailid;
+              return id;
+            });
+            
+            console.log("Current order before reorder:", currentOrder);
+            
+            // Apply the reorder operation if we're staying at root level
+            if (parentId === null && e.fromIndex !== undefined && e.toIndex !== undefined) {
+              // Remove the item from its old position
+              const [movedItem] = currentOrder.splice(e.fromIndex, 1);
+              // Insert it at the new position
+              currentOrder.splice(e.toIndex, 0, movedItem);
+              console.log("New order after reorder:", currentOrder);
+            }
+            
+            // Update sequence numbers based on the new order
+            for (let i = 0; i < currentOrder.length; i++) {
+              const itemId = String(currentOrder[i]).replace(/^{|}$/g, '');
               const newSequence = (i + 1) * 100; // 100, 200, 300, etc.
               
               console.log(`Updating root item ${i + 1}: ${itemId} to sequence ${newSequence}`);
@@ -154,19 +170,22 @@ $(async function () {
                 itemId,
                 { sequencenumber: newSequence }
               );
+            }
+            
+            // Also update sequence numbers for all children
+            for (const rootItemId of currentOrder) {
+              const cleanRootId = String(rootItemId).replace(/^{|}$/g, '');
+              const childItems = await Xrm.WebApi.retrieveMultipleRecords(
+                "quotedetail",
+                `?$select=quotedetailid,sequencenumber&$filter=_extreme_parentquoteline_value eq ${cleanRootId}&$orderby=sequencenumber asc`
+              );
               
-              // Update sequence numbers for children of this parent
-              if (node.children && node.children.length > 0) {
-                for (let j = 0; j < node.children.length; j++) {
-                  const childNode = node.children[j];
-                  const rawChildId = childNode.key;
-                  // Clean child GUID
-                  const childId = rawChildId?._value 
-                    ? rawChildId._value 
-                    : String(rawChildId).replace(/^{|}$/g, '');
+              if (childItems.entities.length > 0) {
+                for (let j = 0; j < childItems.entities.length; j++) {
+                  const childId = String(childItems.entities[j].quotedetailid).replace(/^{|}$/g, '');
                   const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
                   
-                  console.log(`  Updating child ${j + 1}: ${childId} to sequence ${childSequence}`);
+                  console.log(`  Updating child ${j + 1} of ${cleanRootId}: ${childId} to sequence ${childSequence}`);
                   await Xrm.WebApi.updateRecord(
                     "quotedetail",
                     childId,
