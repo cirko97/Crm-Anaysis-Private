@@ -83,8 +83,12 @@ $(async function () {
           }
         },
         onReorder: async function (e) {
+          console.log("onReorder triggered");
+          console.log("fromIndex:", e.fromIndex, "toIndex:", e.toIndex);
+          console.log("dropInsideItem:", e.dropInsideItem);
+          console.log("itemData:", e.itemData);
+          
           Xrm.Utility.showProgressIndicator("Reordering items...");
-          const store = quotedetailODataStore;
           const treeList = e.component;
           const visibleRows = treeList.getVisibleRows();
           const sourceData = e.itemData;
@@ -95,73 +99,72 @@ $(async function () {
           if (e.dropInsideItem) {
             // Dropped inside an item — make it a child
             parentId = visibleRows[e.toIndex].key;
+            console.log("Dropping inside item, new parent:", parentId);
           } else {
-            // Dropped between items
-            const toIndex = e.fromIndex > e.toIndex ? e.toIndex - 1 : e.toIndex;
-            let targetData =
-              toIndex >= 0 ? visibleRows[toIndex].node.data : null;
-
-            if (
-              targetData &&
-              treeList.isRowExpanded(targetData.quotedetailid)
-            ) {
-              // Treat as child of expanded item
-              parentId = targetData.quotedetailid;
-            } else {
-              // Stay at same parent level as target
-              parentId = targetData?._extreme_parentquoteline_value || null;
-            }
+            // Dropped between items - keep at root level
+            parentId = null;
+            console.log("Dropping between items, staying at root level");
           }
 
           try {
-            // Update parent if changed
-            await store.update(sourceId, {
+            // Update parent relationship
+            const updateData = {
               _extreme_parentquoteline_value: parentId,
-            });
+            };
+            
+            console.log("Updating record:", sourceId, "with data:", updateData);
+            await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
 
-            // Fetch all items for sequence number update
+            // Now update sequence numbers based on new visual order
+            // Wait a bit for the update to process
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Fetch all items with current order
             const allItems = await Xrm.WebApi.retrieveMultipleRecords(
               "quotedetail",
-              `?$select=quotedetailid,sequencenumber,_extreme_parentquoteline_value&$filter=_quoteid_value eq ${quoteId}&$orderby=sequencenumber asc`
+              `?$select=quotedetailid,sequencenumber,_extreme_parentquoteline_value&$filter=_quoteid_value eq ${quoteId}`
             );
 
-            // Update sequence numbers for parent-level items
-            const parentItems = allItems.entities.filter(
-              (item) => !item._extreme_parentquoteline_value
-            );
+            console.log("All items count:", allItems.entities.length);
 
-            for (let i = 0; i < parentItems.length; i++) {
-              const newSequence = parseInt((i + 1) + "00");
-              if (parentItems[i].sequencenumber !== newSequence) {
-                await Xrm.WebApi.updateRecord(
-                  "quotedetail",
-                  parentItems[i].quotedetailid,
-                  { sequencenumber: newSequence }
-                );
-              }
-            }
-
-            // Update sequence numbers for child items within each parent
-            for (const parent of parentItems) {
-              const childItems = allItems.entities.filter(
-                (item) =>
-                  item._extreme_parentquoteline_value === parent.quotedetailid
+            // Get the new visual order from TreeList
+            const rootNodes = treeList.getRootNode().children || [];
+            console.log("Root nodes count:", rootNodes.length);
+            
+            // Update sequence numbers for root-level items based on visual order
+            for (let i = 0; i < rootNodes.length; i++) {
+              const node = rootNodes[i];
+              const itemId = node.key;
+              const newSequence = (i + 1) * 100; // 100, 200, 300, etc.
+              
+              console.log(`Updating root item ${i + 1}: ${itemId} to sequence ${newSequence}`);
+              await Xrm.WebApi.updateRecord(
+                "quotedetail",
+                itemId,
+                { sequencenumber: newSequence }
               );
-
-              for (let i = 0; i < childItems.length; i++) {
-                const newSequence = parseInt((i + 1) + "0");
-                if (childItems[i].sequencenumber !== newSequence) {
+              
+              // Update sequence numbers for children of this parent
+              if (node.children && node.children.length > 0) {
+                for (let j = 0; j < node.children.length; j++) {
+                  const childNode = node.children[j];
+                  const childId = childNode.key;
+                  const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
+                  
+                  console.log(`  Updating child ${j + 1}: ${childId} to sequence ${childSequence}`);
                   await Xrm.WebApi.updateRecord(
                     "quotedetail",
-                    childItems[i].quotedetailid,
-                    { sequencenumber: newSequence }
+                    childId,
+                    { sequencenumber: childSequence }
                   );
                 }
               }
             }
 
+            console.log("Refreshing TreeList...");
             await treeList.refresh();
             Xrm.Utility.closeProgressIndicator();
+            console.log("Reorder complete");
           } catch (err) {
             Xrm.Utility.closeProgressIndicator();
             console.error("Reorder update failed", err);
@@ -2128,21 +2131,33 @@ $(async function () {
           return;
         }
 
+        // Wait a moment for the record to be fully created in Dynamics
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         // Re-query the created record to get the latest data including productid
         try {
+          console.log("Retrieving created record with ID:", e.key);
           const createdRecord = await Xrm.WebApi.retrieveRecord(
             "quotedetail",
             e.key,
-            "?$select=_productid_value,extreme_customproductid"
+            "?$select=quotedetailid,_productid_value,extreme_customproductid"
           );
           
           console.log("Retrieved created record:", createdRecord);
+          console.log("quotedetailid from retrieved record:", createdRecord.quotedetailid);
           
+          const parentQuoteDetailId = createdRecord.quotedetailid;
           const productId = createdRecord._productid_value;
           const customProductId = createdRecord.extreme_customproductid;
           
           console.log("productId from server:", productId);
           console.log("customProductId from server:", customProductId);
+
+          // Verify the parent record exists before creating children
+          if (!parentQuoteDetailId) {
+            console.error("Parent quote detail ID not found in retrieved record");
+            return;
+          }
 
           // Only create children if this is a real product (GUID), not a custom product
           if (!productId || !isGuid(productId)) {
@@ -2263,7 +2278,7 @@ $(async function () {
             const record = {
               "quoteid@odata.bind": `/quotes(${quoteId})`,
               "productid@odata.bind": `/products(${childProductId})`,
-              "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${e.key})`,
+              "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${parentQuoteDetailId})`,
               extreme_customproductname: childProduct.name,
               extreme_isparentitem: false,
               ispriceoverridden: true,
