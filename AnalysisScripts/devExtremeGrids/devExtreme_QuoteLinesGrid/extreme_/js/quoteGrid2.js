@@ -115,82 +115,171 @@ $(async function () {
           }
 
           try {
-            // Update parent relationship using OData binding format
-            const updateData = {};
-            if (parentId === null) {
-              // Clear parent relationship
-              updateData["extreme_ParentQuoteLine@odata.bind"] = null;
-            } else {
-              // Set parent relationship
-              updateData["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${parentId})`;
+            // Check if this is a reorder within children (both items have the same parent)
+            // Get the source item's current parent
+            const sourceItemData = await Xrm.WebApi.retrieveRecord(
+              "quotedetail",
+              sourceId,
+              "?$select=_extreme_parentquoteline_value"
+            );
+            const sourceCurrentParent = sourceItemData._extreme_parentquoteline_value;
+            
+            console.log("Source current parent:", sourceCurrentParent);
+            console.log("Target parent:", parentId);
+            console.log("dropInsideItem:", e.dropInsideItem);
+            
+            // Determine if this is a reorder within the same parent
+            let isReorderWithinChildren = false;
+            let reorderParentId = null;
+            
+            if (!e.dropInsideItem && sourceCurrentParent) {
+              // Check if target item has the same parent
+              const targetRow = visibleRows[e.toIndex];
+              if (targetRow && targetRow.node && targetRow.node.parent) {
+                const targetParentKey = targetRow.node.parent.key;
+                const cleanTargetParentId = targetParentKey?._value 
+                  ? targetParentKey._value 
+                  : String(targetParentKey).replace(/^{|}$/g, '');
+                
+                if (cleanTargetParentId === sourceCurrentParent) {
+                  isReorderWithinChildren = true;
+                  reorderParentId = sourceCurrentParent;
+                  console.log("Reordering within children of parent:", reorderParentId);
+                }
+              }
             }
             
-            console.log("Updating record:", sourceId, "with data:", updateData);
-            
-            // Now update the parent relationship
-            await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
+            // Update parent relationship using OData binding format (if parent is changing)
+            if (!isReorderWithinChildren) {
+              const updateData = {};
+              if (parentId === null) {
+                // Clear parent relationship
+                updateData["extreme_ParentQuoteLine@odata.bind"] = null;
+              } else {
+                // Set parent relationship
+                updateData["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${parentId})`;
+              }
+              
+              console.log("Updating record:", sourceId, "with data:", updateData);
+              await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
+            } else {
+              console.log("Parent relationship unchanged - reordering within children");
+            }
 
             // Wait for the update to process
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Get the current root nodes to determine new sequence numbers
-            // We need to get all root-level items from the server
-            const allRootItems = await Xrm.WebApi.retrieveMultipleRecords(
-              "quotedetail",
-              `?$select=quotedetailid,sequencenumber&$filter=(_quoteid_value eq ${quoteId} and _extreme_parentquoteline_value eq null)&$orderby=sequencenumber asc`
-            );
-            
-            console.log("Root items from server:", allRootItems.entities.length);
-            
-            // Build the new order array by applying the drag operation
-            const currentOrder = allRootItems.entities.map(item => {
-              const id = item.quotedetailid;
-              return id;
-            });
-            
-            console.log("Current order before reorder:", currentOrder);
-            
-            // Apply the reorder operation if we're staying at root level
-            if (parentId === null && e.fromIndex !== undefined && e.toIndex !== undefined) {
-              // Remove the item from its old position
-              const [movedItem] = currentOrder.splice(e.fromIndex, 1);
-              // Insert it at the new position
-              currentOrder.splice(e.toIndex, 0, movedItem);
-              console.log("New order after reorder:", currentOrder);
-            }
-            
-            // Update sequence numbers based on the new order
-            for (let i = 0; i < currentOrder.length; i++) {
-              const itemId = String(currentOrder[i]).replace(/^{|}$/g, '');
-              const newSequence = (i + 1) * 100; // 100, 200, 300, etc.
+            if (isReorderWithinChildren) {
+              // Handle reordering within child items
+              console.log("Handling child reordering for parent:", reorderParentId);
               
-              console.log(`Updating root item ${i + 1}: ${itemId} to sequence ${newSequence}`);
-              await Xrm.WebApi.updateRecord(
-                "quotedetail",
-                itemId,
-                { sequencenumber: newSequence }
-              );
-            }
-            
-            // Also update sequence numbers for all children
-            for (const rootItemId of currentOrder) {
-              const cleanRootId = String(rootItemId).replace(/^{|}$/g, '');
               const childItems = await Xrm.WebApi.retrieveMultipleRecords(
                 "quotedetail",
-                `?$select=quotedetailid,sequencenumber&$filter=_extreme_parentquoteline_value eq ${cleanRootId}&$orderby=sequencenumber asc`
+                `?$select=quotedetailid,sequencenumber&$filter=_extreme_parentquoteline_value eq ${reorderParentId}&$orderby=sequencenumber asc`
               );
               
-              if (childItems.entities.length > 0) {
-                for (let j = 0; j < childItems.entities.length; j++) {
-                  const childId = String(childItems.entities[j].quotedetailid).replace(/^{|}$/g, '');
-                  const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
-                  
-                  console.log(`  Updating child ${j + 1} of ${cleanRootId}: ${childId} to sequence ${childSequence}`);
-                  await Xrm.WebApi.updateRecord(
-                    "quotedetail",
-                    childId,
-                    { sequencenumber: childSequence }
-                  );
+              console.log("Child items from server:", childItems.entities.length);
+              
+              // Build the current order of children
+              const currentChildOrder = childItems.entities.map(item => item.quotedetailid);
+              console.log("Current child order before reorder:", currentChildOrder);
+              
+              // Find the actual indices in the children array
+              const sourceIndexInChildren = currentChildOrder.findIndex(id => 
+                String(id).replace(/^{|}$/g, '') === sourceId
+              );
+              
+              if (sourceIndexInChildren !== -1 && e.fromIndex !== undefined && e.toIndex !== undefined) {
+                // Calculate the target index within children
+                // Note: fromIndex and toIndex are visual indices which may include parent items
+                // We need to calculate based on the sibling position change
+                const visualFromIndex = e.fromIndex;
+                const visualToIndex = e.toIndex;
+                
+                // For simplicity, we'll use the difference to determine the new position
+                const indexDiff = visualToIndex - visualFromIndex;
+                let targetIndexInChildren = sourceIndexInChildren + indexDiff;
+                
+                // Clamp to valid range
+                targetIndexInChildren = Math.max(0, Math.min(currentChildOrder.length - 1, targetIndexInChildren));
+                
+                console.log(`Moving child from index ${sourceIndexInChildren} to ${targetIndexInChildren}`);
+                
+                // Apply the reorder
+                const [movedItem] = currentChildOrder.splice(sourceIndexInChildren, 1);
+                currentChildOrder.splice(targetIndexInChildren, 0, movedItem);
+                console.log("New child order after reorder:", currentChildOrder);
+              }
+              
+              // Update sequence numbers for children
+              for (let j = 0; j < currentChildOrder.length; j++) {
+                const childId = String(currentChildOrder[j]).replace(/^{|}$/g, '');
+                const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
+                
+                console.log(`  Updating child ${j + 1}: ${childId} to sequence ${childSequence}`);
+                await Xrm.WebApi.updateRecord(
+                  "quotedetail",
+                  childId,
+                  { sequencenumber: childSequence }
+                );
+              }
+            } else {
+              // Handle root-level reordering or parent changes
+              // Get the current root nodes to determine new sequence numbers
+              const allRootItems = await Xrm.WebApi.retrieveMultipleRecords(
+                "quotedetail",
+                `?$select=quotedetailid,sequencenumber&$filter=(_quoteid_value eq ${quoteId} and _extreme_parentquoteline_value eq null)&$orderby=sequencenumber asc`
+              );
+              
+              console.log("Root items from server:", allRootItems.entities.length);
+              
+              // Build the new order array by applying the drag operation
+              const currentOrder = allRootItems.entities.map(item => item.quotedetailid);
+              
+              console.log("Current order before reorder:", currentOrder);
+              
+              // Apply the reorder operation if we're staying at root level
+              if (parentId === null && e.fromIndex !== undefined && e.toIndex !== undefined) {
+                // Remove the item from its old position
+                const [movedItem] = currentOrder.splice(e.fromIndex, 1);
+                // Insert it at the new position
+                currentOrder.splice(e.toIndex, 0, movedItem);
+                console.log("New order after reorder:", currentOrder);
+              }
+              
+              // Update sequence numbers based on the new order
+              for (let i = 0; i < currentOrder.length; i++) {
+                const itemId = String(currentOrder[i]).replace(/^{|}$/g, '');
+                const newSequence = (i + 1) * 100; // 100, 200, 300, etc.
+                
+                console.log(`Updating root item ${i + 1}: ${itemId} to sequence ${newSequence}`);
+                await Xrm.WebApi.updateRecord(
+                  "quotedetail",
+                  itemId,
+                  { sequencenumber: newSequence }
+                );
+              }
+              
+              // Also update sequence numbers for all children
+              for (const rootItemId of currentOrder) {
+                const cleanRootId = String(rootItemId).replace(/^{|}$/g, '');
+                const childItems = await Xrm.WebApi.retrieveMultipleRecords(
+                  "quotedetail",
+                  `?$select=quotedetailid,sequencenumber&$filter=_extreme_parentquoteline_value eq ${cleanRootId}&$orderby=sequencenumber asc`
+                );
+                
+                if (childItems.entities.length > 0) {
+                  for (let j = 0; j < childItems.entities.length; j++) {
+                    const childId = String(childItems.entities[j].quotedetailid).replace(/^{|}$/g, '');
+                    const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
+                    
+                    console.log(`  Updating child ${j + 1} of ${cleanRootId}: ${childId} to sequence ${childSequence}`);
+                    await Xrm.WebApi.updateRecord(
+                      "quotedetail",
+                      childId,
+                      { sequencenumber: childSequence }
+                    );
+                  }
                 }
               }
             }
