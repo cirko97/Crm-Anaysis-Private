@@ -2309,6 +2309,9 @@ $(async function () {
             const childCount = children.entities.length;
             
             if (childCount > 0) {
+              // Cancel the automatic deletion
+              e.cancel = true;
+              
               // Show confirmation dialog
               const confirmResult = await Xrm.Navigation.openConfirmDialog({
                 text: `This SET has ${childCount} child item(s). Deleting this SET will also delete all ${childCount} child item(s). Do you want to continue?`,
@@ -2316,8 +2319,7 @@ $(async function () {
               });
               
               if (!confirmResult.confirmed) {
-                // User cancelled, prevent deletion
-                e.cancel = true;
+                // User cancelled
                 return;
               }
               
@@ -2329,22 +2331,42 @@ $(async function () {
                 console.log(`Deleting child: ${childId}`);
                 try {
                   await Xrm.WebApi.deleteRecord("quotedetail", childId);
+                  // Also remove from TreeList
+                  const childNode = treeList.getNodeByKey(childId);
+                  if (childNode) {
+                    await treeList.getDataSource().store().remove(childId);
+                  }
                 } catch (childDeleteError) {
                   console.error(`Error deleting child ${childId}:`, childDeleteError);
                   Xrm.Utility.closeProgressIndicator();
                   Xrm.Navigation.openErrorDialog({
                     message: `Failed to delete child item: ${childDeleteError.message}`,
                   });
-                  e.cancel = true;
                   return;
                 }
               }
               
               console.log(`All ${childCount} children deleted successfully`);
+              
+              // Now delete the parent from Dynamics and TreeList
+              try {
+                await Xrm.WebApi.deleteRecord("quotedetail", parentId);
+                await treeList.getDataSource().store().remove(parentId);
+                await treeList.refresh();
+                formContext.data.refresh(true);
+                Xrm.Utility.closeProgressIndicator();
+              } catch (parentDeleteError) {
+                console.error(`Error deleting parent ${parentId}:`, parentDeleteError);
+                Xrm.Utility.closeProgressIndicator();
+                Xrm.Navigation.openErrorDialog({
+                  message: `Failed to delete SET: ${parentDeleteError.message}`,
+                });
+              }
+              
+              return;
             }
           } catch (error) {
             console.error("Error querying children:", error);
-            Xrm.Utility.closeProgressIndicator();
             Xrm.Navigation.openErrorDialog({
               message: `Error checking for child items: ${error.message}`,
             });
@@ -2353,86 +2375,64 @@ $(async function () {
           }
         }
         
-        // Delete the parent/item itself
-        const recordId = e.data.quotedetailid?._value 
-          ? e.data.quotedetailid._value 
-          : String(e.data.quotedetailid).replace(/^{|}$/g, '');
-        
-        Xrm.Utility.showProgressIndicator("Deleting...");
-        
-        try {
-          await Xrm.WebApi.deleteRecord("quotedetail", recordId);
-          console.log(`Record ${recordId} deleted successfully`);
+        // For non-parent items or parents without children, handle normally
+        // If this is a child, update parent sums after deletion
+        if (e.data._extreme_parentquoteline_value) {
+          const parentId = e.data._extreme_parentquoteline_value._value 
+            ? e.data._extreme_parentquoteline_value._value 
+            : String(e.data._extreme_parentquoteline_value).replace(/^{|}$/g, '');
           
-          // If this was a child, update parent sums
-          if (e.data._extreme_parentquoteline_value) {
-            const parentId = e.data._extreme_parentquoteline_value._value 
-              ? e.data._extreme_parentquoteline_value._value 
-              : String(e.data._extreme_parentquoteline_value).replace(/^{|}$/g, '');
-            
-            // Recalculate parent sums after deletion
-            setTimeout(async () => {
-              try {
-                const siblings = await Xrm.WebApi.retrieveMultipleRecords(
-                  "quotedetail",
-                  `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${parentId}`
-                );
-                
-                let baseamount_sum = 0;
-                let extendedamount_sum = 0;
-                let extreme_fullpd_sum = 0;
-                let extreme_fullpricewithdiscount_sum = 0;
-                let manualdiscountamount_sum = 0;
-                let extreme_supplierbaseamount_sum = 0;
-                let tax_sum = 0;
-                
-                siblings.entities.forEach((sibling) => {
-                  baseamount_sum += sibling.baseamount || 0;
-                  extendedamount_sum += sibling.extendedamount || 0;
-                  extreme_fullpd_sum += sibling.extreme_fullpd || 0;
-                  extreme_fullpricewithdiscount_sum += sibling.extreme_fullpricewithdiscount || 0;
-                  manualdiscountamount_sum += sibling.manualdiscountamount || 0;
-                  extreme_supplierbaseamount_sum += sibling.extreme_supplierbaseamount || 0;
-                  tax_sum += sibling.tax || 0;
-                });
-                
-                const avarageDiscountPercent = 
-                  baseamount_sum > 0 
-                    ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
-                    : 0;
-                
-                // Update parent locally
-                const parentDataSource = treeList.getDataSource();
-                const store = parentDataSource.store();
-                
-                store.update(parentId, {
-                  baseamount: parseFloat(baseamount_sum.toFixed(2)),
-                  extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
-                  extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
-                  extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
-                  manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
-                  extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
-                  tax: parseFloat(tax_sum.toFixed(2)),
-                  extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
-                });
-                
-                await treeList.refresh();
-              } catch (updateError) {
-                console.error("Error updating parent sums:", updateError);
-              }
-            }, 500);
-          }
-          
-          Xrm.Utility.closeProgressIndicator();
-          await treeList.refresh();
-          formContext.data.refresh(true);
-        } catch (deleteError) {
-          console.error("Error deleting record:", deleteError);
-          Xrm.Utility.closeProgressIndicator();
-          Xrm.Navigation.openErrorDialog({
-            message: `Failed to delete record: ${deleteError.message}`,
-          });
-          e.cancel = true;
+          // Schedule parent sum update after deletion completes
+          setTimeout(async () => {
+            try {
+              const siblings = await Xrm.WebApi.retrieveMultipleRecords(
+                "quotedetail",
+                `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${parentId}`
+              );
+              
+              let baseamount_sum = 0;
+              let extendedamount_sum = 0;
+              let extreme_fullpd_sum = 0;
+              let extreme_fullpricewithdiscount_sum = 0;
+              let manualdiscountamount_sum = 0;
+              let extreme_supplierbaseamount_sum = 0;
+              let tax_sum = 0;
+              
+              siblings.entities.forEach((sibling) => {
+                baseamount_sum += sibling.baseamount || 0;
+                extendedamount_sum += sibling.extendedamount || 0;
+                extreme_fullpd_sum += sibling.extreme_fullpd || 0;
+                extreme_fullpricewithdiscount_sum += sibling.extreme_fullpricewithdiscount || 0;
+                manualdiscountamount_sum += sibling.manualdiscountamount || 0;
+                extreme_supplierbaseamount_sum += sibling.extreme_supplierbaseamount || 0;
+                tax_sum += sibling.tax || 0;
+              });
+              
+              const avarageDiscountPercent = 
+                baseamount_sum > 0 
+                  ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+                  : 0;
+              
+              // Update parent locally
+              const parentDataSource = treeList.getDataSource();
+              const store = parentDataSource.store();
+              
+              store.update(parentId, {
+                baseamount: parseFloat(baseamount_sum.toFixed(2)),
+                extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+                extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+                extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+                manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+                extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+                tax: parseFloat(tax_sum.toFixed(2)),
+                extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+              });
+              
+              await treeList.refresh();
+            } catch (updateError) {
+              console.error("Error updating parent sums:", updateError);
+            }
+          }, 500);
         }
       },
       onRowInserted: async function (e) {
@@ -2762,7 +2762,8 @@ $(async function () {
           await treeList.refresh();
           
           // Calculate and display sums in parent SET row
-          const parentNode = treeList.getNodeByKey(e.key);
+          // Use parentQuoteDetailId (actual GUID) instead of e.key (temporary ID)
+          const parentNode = treeList.getNodeByKey(parentQuoteDetailId);
           if (parentNode && parentNode.children && parentNode.children.length > 0) {
             let baseamount_sum = 0;
             let extendedamount_sum = 0;
@@ -2788,11 +2789,11 @@ $(async function () {
                 ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
                 : 0;
             
-            // Update parent locally to show sums
+            // Update parent locally to show sums (don't save to Dynamics - SET rows only display)
             const parentDataSource = treeList.getDataSource();
             const store = parentDataSource.store();
             
-            store.update(e.key, {
+            store.update(parentQuoteDetailId, {
               baseamount: parseFloat(baseamount_sum.toFixed(2)),
               extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
               extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
@@ -2820,8 +2821,8 @@ $(async function () {
       onRowUpdated: async function (e) {
         console.log(e);
         
-        // Handle parent item (SET) distribution to children
-        if (e.data.extreme_isparentitem === true && (e.data._needsChildDistribution || e.data.baseamount || e.data.extreme_discount !== undefined)) {
+        // Handle parent item (SET) distribution to children - ONLY when explicitly flagged
+        if (e.data.extreme_isparentitem === true && e.data._needsChildDistribution === true) {
           const parentKey = e.key;
           const parentNode = treeList.getNodeByKey(parentKey);
           
