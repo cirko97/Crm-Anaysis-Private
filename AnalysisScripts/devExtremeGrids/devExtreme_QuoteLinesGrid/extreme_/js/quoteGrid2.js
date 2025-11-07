@@ -974,6 +974,18 @@ $(async function () {
           caption: "Sales Amount",
           dataType: "number",
           allowEditing: true,
+          setCellValue: async function (newData, value, currentRowData) {
+            // If this is a parent item (SET), distribute the amount proportionally to children
+            if (currentRowData.extreme_isparentitem === true) {
+              // Store the new baseamount value - actual distribution happens in onRowUpdated
+              newData.baseamount = value;
+              newData._needsChildDistribution = true;
+              newData._distributionType = 'baseamount';
+            } else {
+              // For non-parent items, just set the value
+              newData.baseamount = value;
+            }
+          },
         },
         {
           dataField: "extreme_discount",
@@ -981,6 +993,14 @@ $(async function () {
           dataType: "number",
           width: 62,
           setCellValue: async function (newData, value, currentRowData) {
+            // Handle parent item (SET) - distribute discount to all children
+            if (currentRowData.extreme_isparentitem === true) {
+              newData.extreme_discount = value;
+              newData._needsChildDistribution = true;
+              newData._distributionType = 'discount';
+              return;
+            }
+            
             // Do so only if it is not parent item (SET)
             if (currentRowData.extreme_isparentitem !== true) {
               if (
@@ -2606,6 +2626,192 @@ $(async function () {
       },
       onRowUpdated: async function (e) {
         console.log(e);
+        
+        // Handle parent item (SET) distribution to children
+        if (e.data.extreme_isparentitem === true && (e.data._needsChildDistribution || e.data.baseamount || e.data.extreme_discount !== undefined)) {
+          const parentKey = e.key;
+          const parentNode = treeList.getNodeByKey(parentKey);
+          
+          if (parentNode && parentNode.children && parentNode.children.length > 0) {
+            Xrm.Utility.showProgressIndicator("Recalculating... Please wait...");
+            
+            console.log("Distributing SET values to children");
+            
+            // Function to adjust amounts proportionally
+            function adjustProportionalAmounts(newTotal, amounts) {
+              const currentTotal = amounts.reduce((sum, a) => sum + a, 0);
+              
+              // Handle case where all amounts are 0
+              if (currentTotal === 0) {
+                return amounts.map(() => 0);
+              }
+              
+              const scaleFactor = newTotal / currentTotal;
+              let adjustedAmounts = amounts.map(amount => Math.round(amount * scaleFactor * 100) / 100);
+              let adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+              let difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+              if (difference !== 0) {
+                const numChildren = amounts.length;
+                const fractionalAdjustment = Math.round((difference / numChildren) * 100) / 100;
+
+                adjustedAmounts = adjustedAmounts.map(amount => Math.round((amount + fractionalAdjustment) * 100) / 100);
+
+                adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+                difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+                if (Math.abs(difference) > 0) {
+                  const smallestIndex = adjustedAmounts.findIndex(amount => amount === Math.min(...adjustedAmounts));
+                  adjustedAmounts[smallestIndex] = Math.round((adjustedAmounts[smallestIndex] + difference) * 100) / 100;
+                }
+              }
+
+              return adjustedAmounts;
+            }
+            
+            const children = parentNode.children;
+            const parentData = parentNode.data;
+            
+            // Get current or updated values
+            const parentDiscountPercent = e.data.extreme_discount !== undefined ? e.data.extreme_discount : parentData.extreme_discount || 0;
+            const parentBaseAmount = e.data.baseamount !== undefined ? e.data.baseamount : parentData.baseamount || 0;
+            const parentFullPriceWDiscount = parentBaseAmount * (1 - parentDiscountPercent / 100);
+            const parentManualDiscountAmount = parentBaseAmount * (parentDiscountPercent / 100);
+            
+            // Calculate parent tax from children
+            const parentTax = children.reduce((sum, child) => {
+              const childData = child.data;
+              const discountedPrice = (childData.priceperunit || 0) * (1 - parentDiscountPercent / 100) * (childData.quantity || 0);
+              return sum + (discountedPrice * ((childData.extreme_tax || 0) / 100));
+            }, 0);
+            
+            // Collect child values
+            const childBaseAmounts = children.map(child => child.data.baseamount || 0);
+            const childFullPrices = children.map(child => {
+              const childData = child.data;
+              return ((childData.priceperunit || 0) * (1 - parentDiscountPercent / 100)) * (childData.quantity || 1);
+            });
+            const childManualDiscountAmounts = children.map(child => {
+              const childData = child.data;
+              return childData.manualdiscountamount || ((childData.baseamount || 0) * (parentDiscountPercent / 100));
+            });
+            const childTaxAmounts = children.map(child => {
+              const childData = child.data;
+              const discountedPrice = (childData.priceperunit || 0) * (1 - parentDiscountPercent / 100) * (childData.quantity || 0);
+              return discountedPrice * ((childData.extreme_tax || 0) / 100);
+            });
+            
+            // Adjust child values proportionally
+            const adjustedBaseAmounts = adjustProportionalAmounts(parentBaseAmount, childBaseAmounts);
+            const adjustedChildFullPrices = adjustProportionalAmounts(parentFullPriceWDiscount, childFullPrices);
+            const adjustedChildManualDiscountAmounts = adjustProportionalAmounts(parentManualDiscountAmount, childManualDiscountAmounts);
+            const adjustedChildTaxAmounts = adjustProportionalAmounts(parentTax, childTaxAmounts);
+            
+            // Update each child
+            const updatePromises = [];
+            children.forEach((child, index) => {
+              const childData = child.data;
+              const newBaseAmount = adjustedBaseAmounts[index];
+              const newFullPriceWDiscount = adjustedChildFullPrices[index];
+              const newManualDiscountAmount = adjustedChildManualDiscountAmounts[index];
+              const newTaxAmount = adjustedChildTaxAmounts[index];
+              const newTotalAmount = newFullPriceWDiscount + newTaxAmount;
+              
+              const supplierDiscountAmount = (childData.extreme_supplierpriceperunit || 0) * ((childData.extreme_supplierdiscount || 0) / 100);
+              const pricePerUnitWithSupplierDiscount = (childData.extreme_supplierpriceperunit || 0) - supplierDiscountAmount;
+              const pricePerUnit = newBaseAmount / (childData.quantity || 1);
+              const pricePerUnitWithCustomDiscount = pricePerUnit - newManualDiscountAmount / (childData.quantity || 1);
+              const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+              
+              // Calculate the updated margin
+              const margin = (childData.extreme_supplierpriceperunit || 0) !== 0
+                ? pricePerUnit / (childData.extreme_supplierpriceperunit || 1)
+                : 0;
+              
+              const childRecord = {
+                baseamount: newBaseAmount,
+                extreme_fullpricewithdiscount: newFullPriceWDiscount,
+                manualdiscountamount: newManualDiscountAmount,
+                extreme_discount: parentDiscountPercent,
+                tax: newTaxAmount,
+                extendedamount: newTotalAmount
+              };
+              
+              if (childData.extreme_supplierpriceperunit !== null) {
+                childRecord.priceperunit = pricePerUnit;
+                childRecord.extreme_margin = margin;
+                childRecord.extreme_pd = pdPerUnit;
+                childRecord.extreme_fullpd = pdPerUnit * (childData.quantity || 1);
+              }
+              
+              const childId = childData.quotedetailid?._value 
+                ? childData.quotedetailid._value 
+                : String(childData.quotedetailid).replace(/^{|}$/g, '');
+              
+              updatePromises.push(
+                Xrm.WebApi.updateRecord("quotedetail", childId, childRecord)
+              );
+            });
+            
+            try {
+              await Promise.all(updatePromises);
+              console.log("All child updates completed");
+              
+              // After updating children, recalculate parent sums
+              let baseamount_sum = 0;
+              let extendedamount_sum = 0;
+              let extreme_fullpd_sum = 0;
+              let extreme_fullpricewithdiscount_sum = 0;
+              let manualdiscountamount_sum = 0;
+              let extreme_supplierbaseamount_sum = 0;
+              let tax_sum = 0;
+              
+              // Refresh to get updated values
+              await treeList.getDataSource().reload();
+              const refreshedParentNode = treeList.getNodeByKey(parentKey);
+              
+              if (refreshedParentNode && refreshedParentNode.children) {
+                refreshedParentNode.children.forEach((child) => {
+                  const childData = child.data;
+                  baseamount_sum += childData.baseamount || 0;
+                  extendedamount_sum += childData.extendedamount || 0;
+                  extreme_fullpd_sum += childData.extreme_fullpd || 0;
+                  extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
+                  manualdiscountamount_sum += childData.manualdiscountamount || 0;
+                  extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
+                  tax_sum += childData.tax || 0;
+                });
+                
+                // Update parent with calculated sums
+                const parentId = parentData.quotedetailid?._value 
+                  ? parentData.quotedetailid._value 
+                  : String(parentData.quotedetailid).replace(/^{|}$/g, '');
+                
+                await Xrm.WebApi.updateRecord("quotedetail", parentId, {
+                  baseamount: parseFloat(baseamount_sum.toFixed(2)),
+                  extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+                  extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+                  extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+                  manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+                  extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+                  tax: parseFloat(tax_sum.toFixed(2)),
+                  extreme_discount: parseFloat(parentDiscountPercent.toFixed(2))
+                });
+              }
+              
+              await treeList.getDataSource().reload();
+              Xrm.Utility.closeProgressIndicator();
+            } catch (error) {
+              console.error("Error distributing to children:", error);
+              Xrm.Utility.closeProgressIndicator();
+              Xrm.Navigation.openErrorDialog({
+                message: "Error distributing values to children: " + error.message,
+              });
+            }
+            
+            return; // Exit early, we've handled the parent update
+          }
+        }
         
         // Check if this row has a parent - if so, aggregate child values to parent
         const currentRow = treeList.getNodeByKey(e.key);
