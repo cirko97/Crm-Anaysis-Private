@@ -2613,6 +2613,51 @@ $(async function () {
           console.log("Refreshing tree list...");
           await treeList.refresh();
           
+          // Calculate and display sums in parent SET row
+          const parentNode = treeList.getNodeByKey(e.key);
+          if (parentNode && parentNode.children && parentNode.children.length > 0) {
+            let baseamount_sum = 0;
+            let extendedamount_sum = 0;
+            let extreme_fullpd_sum = 0;
+            let extreme_fullpricewithdiscount_sum = 0;
+            let manualdiscountamount_sum = 0;
+            let extreme_supplierbaseamount_sum = 0;
+            let tax_sum = 0;
+            
+            parentNode.children.forEach((child) => {
+              const childData = child.data;
+              baseamount_sum += childData.baseamount || 0;
+              extendedamount_sum += childData.extendedamount || 0;
+              extreme_fullpd_sum += childData.extreme_fullpd || 0;
+              extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
+              manualdiscountamount_sum += childData.manualdiscountamount || 0;
+              extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
+              tax_sum += childData.tax || 0;
+            });
+            
+            const avarageDiscountPercent = 
+              baseamount_sum > 0 
+                ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+                : 0;
+            
+            // Update parent locally to show sums
+            const parentDataSource = treeList.getDataSource();
+            const store = parentDataSource.store();
+            
+            store.update(e.key, {
+              baseamount: parseFloat(baseamount_sum.toFixed(2)),
+              extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+              extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+              extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+              manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+              extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+              tax: parseFloat(tax_sum.toFixed(2)),
+              extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+            });
+            
+            await treeList.refresh();
+          }
+          
           Xrm.Navigation.openAlertDialog({
             text: `Created ${childProducts.entities.length} child items for the set.`,
           });
@@ -2782,12 +2827,12 @@ $(async function () {
                   tax_sum += childData.tax || 0;
                 });
                 
-                // Update parent with calculated sums
-                const parentId = parentData.quotedetailid?._value 
-                  ? parentData.quotedetailid._value 
-                  : String(parentData.quotedetailid).replace(/^{|}$/g, '');
+                // Update parent locally (don't save to Dynamics - SET rows only display sums)
+                const parentDataSource = treeList.getDataSource();
+                const store = parentDataSource.store();
                 
-                await Xrm.WebApi.updateRecord("quotedetail", parentId, {
+                // Update in local cache without triggering a save
+                store.update(parentKey, {
                   baseamount: parseFloat(baseamount_sum.toFixed(2)),
                   extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
                   extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
@@ -2799,7 +2844,7 @@ $(async function () {
                 });
               }
               
-              await treeList.getDataSource().reload();
+              await treeList.refresh();
               Xrm.Utility.closeProgressIndicator();
             } catch (error) {
               console.error("Error distributing to children:", error);
@@ -2847,8 +2892,12 @@ $(async function () {
                 ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
                 : 0;
             
-            // Update the parent row
-            await quotedetailODataStore.update(parentKey, {
+            // Update the parent row locally (don't save to Dynamics - SET rows only display sums)
+            const parentDataSource = treeList.getDataSource();
+            const store = parentDataSource.store();
+            
+            // Update in local cache without triggering a save
+            store.update(parentKey, {
               baseamount: parseFloat(baseamount_sum.toFixed(2)),
               extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
               extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
