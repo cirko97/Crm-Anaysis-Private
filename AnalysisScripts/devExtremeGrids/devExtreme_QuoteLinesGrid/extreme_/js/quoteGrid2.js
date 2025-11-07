@@ -135,13 +135,22 @@ $(async function () {
             if (!e.dropInsideItem && sourceCurrentParent) {
               // Check if target item has the same parent
               const targetRow = visibleRows[e.toIndex];
-              if (targetRow && targetRow.node && targetRow.node.parent) {
-                const targetParentKey = targetRow.node.parent.key;
-                const cleanTargetParentId = targetParentKey?._value 
-                  ? targetParentKey._value 
-                  : String(targetParentKey).replace(/^{|}$/g, '');
+              if (targetRow && targetRow.data) {
+                // Get target item's parent directly from data
+                const targetItemId = targetRow.data.quotedetailid?._value 
+                  ? targetRow.data.quotedetailid._value 
+                  : String(targetRow.data.quotedetailid).replace(/^{|}$/g, '');
                 
-                if (cleanTargetParentId === sourceCurrentParent) {
+                const targetItemData = await Xrm.WebApi.retrieveRecord(
+                  "quotedetail",
+                  targetItemId,
+                  "?$select=_extreme_parentquoteline_value"
+                );
+                const targetCurrentParent = targetItemData._extreme_parentquoteline_value;
+                
+                console.log("Target current parent:", targetCurrentParent);
+                
+                if (targetCurrentParent && targetCurrentParent === sourceCurrentParent) {
                   isReorderWithinChildren = true;
                   reorderParentId = sourceCurrentParent;
                   console.log("Reordering within children of parent:", reorderParentId);
@@ -2332,6 +2341,36 @@ $(async function () {
           if (childProducts.entities.length === 0) {
             console.log("No child products found for this parent product");
             Xrm.Utility.closeProgressIndicator();
+            return;
+          }
+
+          // Verify parent exists before creating children
+          // Do one more verification with retry to ensure parent is fully committed
+          let parentVerified = false;
+          for (let verifyAttempt = 0; verifyAttempt < 3; verifyAttempt++) {
+            try {
+              await Xrm.WebApi.retrieveRecord(
+                "quotedetail",
+                parentQuoteDetailId,
+                "?$select=quotedetailid"
+              );
+              parentVerified = true;
+              console.log("Parent record verified to exist");
+              break;
+            } catch (verifyError) {
+              console.warn(`Parent verification attempt ${verifyAttempt + 1} failed:`, verifyError.message);
+              if (verifyAttempt < 2) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+              }
+            }
+          }
+          
+          if (!parentVerified) {
+            console.error("Could not verify parent record exists, aborting child creation");
+            Xrm.Utility.closeProgressIndicator();
+            Xrm.Navigation.openErrorDialog({
+              message: "Parent record not fully created. Please try again or manually add child items.",
+            });
             return;
           }
 
