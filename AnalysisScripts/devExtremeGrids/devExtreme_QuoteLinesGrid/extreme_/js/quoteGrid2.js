@@ -2271,51 +2271,54 @@ $(async function () {
           return;
         }
 
-        // Extract the key - it might be an object with _value or a string
-        let parentKeyToUse = e.key;
-        if (e.key && typeof e.key === 'object' && e.key._value) {
-          parentKeyToUse = e.key._value;
-        }
-        
-        // Clean GUID of curly braces if present
-        const cleanParentId = String(parentKeyToUse).replace(/^{|}$/g, '');
-        console.log("e.key raw:", e.key);
-        console.log("Cleaned parent ID to query:", cleanParentId);
+        console.log("Parent item detected - will create children after record is committed");
 
-        // Wait longer for the record to be fully created in Dynamics
+        // Wait for the record to be fully created and committed in Dynamics 365
+        // This is critical - e.key is a temporary ID that doesn't match the actual created GUID
+        console.log("Waiting 2 seconds for record to be committed...");
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Re-query the created record to get the latest data including productid
-        // Use retry logic in case the record is not immediately available
+        // Instead of using e.key (which is temporary), query for the most recently created
+        // parent item for this quote that matches our product
         let createdRecord = null;
         let retries = 0;
         const maxRetries = 5;
         
         try {
+          // Get the product ID from the event data
+          const productIdFromData = e.data._productid_value || e.data.productid;
+          console.log("Product ID from event data:", productIdFromData);
+          
           while (retries < maxRetries && !createdRecord) {
             try {
-              console.log(`Retrieving created record with ID (attempt ${retries + 1}/${maxRetries}):`, cleanParentId);
-              const retrievedRecord = await Xrm.WebApi.retrieveRecord(
-                "quotedetail",
-                cleanParentId,
-                "?$select=quotedetailid,_productid_value,extreme_customproductid"
-              );
-              console.log("Retrieved record:", retrievedRecord);
-              console.log("Retrieved quotedetailid:", retrievedRecord.quotedetailid);
+              console.log(`Attempt ${retries + 1}/${maxRetries}: Querying for recently created parent item`);
               
-              // Verify that the retrieved record ID matches what we queried for
-              const retrievedId = String(retrievedRecord.quotedetailid).replace(/^{|}$/g, '');
-              if (retrievedId !== cleanParentId) {
-                console.warn(`Retrieved record ID (${retrievedId}) does not match query ID (${cleanParentId})`);
-                console.warn("This might indicate a data inconsistency. Using retrieved ID.");
+              // Query for the most recently created parent item for this quote
+              // We'll find it by looking for parent items with our product that were just created
+              let queryFilter = `_quoteid_value eq ${quoteId} and extreme_isparentitem eq true`;
+              
+              if (productIdFromData && isGuid(productIdFromData)) {
+                queryFilter += ` and _productid_value eq ${productIdFromData}`;
               }
               
-              createdRecord = retrievedRecord;
-              console.log("Successfully retrieved created record");
+              const recentParents = await Xrm.WebApi.retrieveMultipleRecords(
+                "quotedetail",
+                `?$select=quotedetailid,_productid_value,extreme_customproductid,createdon&$filter=${queryFilter}&$orderby=createdon desc&$top=1`
+              );
+              
+              if (recentParents.entities.length > 0) {
+                createdRecord = recentParents.entities[0];
+                console.log("Found recently created parent record:", createdRecord.quotedetailid);
+                console.log("Created on:", createdRecord.createdon);
+              } else {
+                throw new Error("No matching parent record found");
+              }
+              
             } catch (retrieveError) {
               console.warn(`Attempt ${retries + 1} failed:`, retrieveError.message);
               retries++;
               if (retries < maxRetries) {
+                console.log("Waiting 1 second before retry...");
                 await new Promise(resolve => setTimeout(resolve, 1000));
               } else {
                 throw retrieveError;
@@ -2323,11 +2326,14 @@ $(async function () {
             }
           }
           
-          console.log("quotedetailid from retrieved record:", createdRecord.quotedetailid);
-          console.log("cleanParentId used for query:", cleanParentId);
-          console.log("IDs match:", createdRecord.quotedetailid === cleanParentId);
+          if (!createdRecord) {
+            console.error("Failed to retrieve created parent record after all retries");
+            return;
+          }
           
-          // IMPORTANT: Use the quotedetailid from the actual record, not the e.key
+          console.log("Successfully found parent record with ID:", createdRecord.quotedetailid);
+          
+          // IMPORTANT: Use the quotedetailid from the actual record, NOT e.key
           // The e.key might be a temporary ID that doesn't match the actual created record
           const parentQuoteDetailId = createdRecord.quotedetailid;
           const productId = createdRecord._productid_value;
