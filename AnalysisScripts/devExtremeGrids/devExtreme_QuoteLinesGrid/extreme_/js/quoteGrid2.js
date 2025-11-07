@@ -2287,6 +2287,154 @@ $(async function () {
           );
         }
       },
+      onRowRemoving: async function (e) {
+        console.log("onRowRemoving called");
+        console.log("Row being deleted:", e.data);
+        
+        // Check if this is a parent SET with children
+        const isParent = e.data.extreme_isparentitem === true;
+        
+        if (isParent) {
+          // Get all children of this parent
+          const parentId = e.data.quotedetailid?._value 
+            ? e.data.quotedetailid._value 
+            : String(e.data.quotedetailid).replace(/^{|}$/g, '');
+          
+          try {
+            const children = await Xrm.WebApi.retrieveMultipleRecords(
+              "quotedetail",
+              `?$select=quotedetailid&$filter=_extreme_parentquoteline_value eq ${parentId}`
+            );
+            
+            const childCount = children.entities.length;
+            
+            if (childCount > 0) {
+              // Show confirmation dialog
+              const confirmResult = await Xrm.Navigation.openConfirmDialog({
+                text: `This SET has ${childCount} child item(s). Deleting this SET will also delete all ${childCount} child item(s). Do you want to continue?`,
+                title: "Delete SET with Children"
+              });
+              
+              if (!confirmResult.confirmed) {
+                // User cancelled, prevent deletion
+                e.cancel = true;
+                return;
+              }
+              
+              // User confirmed, delete all children first
+              Xrm.Utility.showProgressIndicator(`Deleting SET and ${childCount} child item(s)...`);
+              
+              for (const child of children.entities) {
+                const childId = child.quotedetailid;
+                console.log(`Deleting child: ${childId}`);
+                try {
+                  await Xrm.WebApi.deleteRecord("quotedetail", childId);
+                } catch (childDeleteError) {
+                  console.error(`Error deleting child ${childId}:`, childDeleteError);
+                  Xrm.Utility.closeProgressIndicator();
+                  Xrm.Navigation.openErrorDialog({
+                    message: `Failed to delete child item: ${childDeleteError.message}`,
+                  });
+                  e.cancel = true;
+                  return;
+                }
+              }
+              
+              console.log(`All ${childCount} children deleted successfully`);
+            }
+          } catch (error) {
+            console.error("Error querying children:", error);
+            Xrm.Utility.closeProgressIndicator();
+            Xrm.Navigation.openErrorDialog({
+              message: `Error checking for child items: ${error.message}`,
+            });
+            e.cancel = true;
+            return;
+          }
+        }
+        
+        // Delete the parent/item itself
+        const recordId = e.data.quotedetailid?._value 
+          ? e.data.quotedetailid._value 
+          : String(e.data.quotedetailid).replace(/^{|}$/g, '');
+        
+        Xrm.Utility.showProgressIndicator("Deleting...");
+        
+        try {
+          await Xrm.WebApi.deleteRecord("quotedetail", recordId);
+          console.log(`Record ${recordId} deleted successfully`);
+          
+          // If this was a child, update parent sums
+          if (e.data._extreme_parentquoteline_value) {
+            const parentId = e.data._extreme_parentquoteline_value._value 
+              ? e.data._extreme_parentquoteline_value._value 
+              : String(e.data._extreme_parentquoteline_value).replace(/^{|}$/g, '');
+            
+            // Recalculate parent sums after deletion
+            setTimeout(async () => {
+              try {
+                const siblings = await Xrm.WebApi.retrieveMultipleRecords(
+                  "quotedetail",
+                  `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${parentId}`
+                );
+                
+                let baseamount_sum = 0;
+                let extendedamount_sum = 0;
+                let extreme_fullpd_sum = 0;
+                let extreme_fullpricewithdiscount_sum = 0;
+                let manualdiscountamount_sum = 0;
+                let extreme_supplierbaseamount_sum = 0;
+                let tax_sum = 0;
+                
+                siblings.entities.forEach((sibling) => {
+                  baseamount_sum += sibling.baseamount || 0;
+                  extendedamount_sum += sibling.extendedamount || 0;
+                  extreme_fullpd_sum += sibling.extreme_fullpd || 0;
+                  extreme_fullpricewithdiscount_sum += sibling.extreme_fullpricewithdiscount || 0;
+                  manualdiscountamount_sum += sibling.manualdiscountamount || 0;
+                  extreme_supplierbaseamount_sum += sibling.extreme_supplierbaseamount || 0;
+                  tax_sum += sibling.tax || 0;
+                });
+                
+                const avarageDiscountPercent = 
+                  baseamount_sum > 0 
+                    ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+                    : 0;
+                
+                // Update parent locally
+                const parentDataSource = treeList.getDataSource();
+                const store = parentDataSource.store();
+                
+                store.update(parentId, {
+                  baseamount: parseFloat(baseamount_sum.toFixed(2)),
+                  extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+                  extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+                  extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+                  manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+                  extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+                  tax: parseFloat(tax_sum.toFixed(2)),
+                  extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+                });
+                
+                await treeList.refresh();
+              } catch (updateError) {
+                console.error("Error updating parent sums:", updateError);
+              }
+            }, 500);
+          }
+          
+          Xrm.Utility.closeProgressIndicator();
+          await treeList.refresh();
+          formContext.data.refresh(true);
+        } catch (deleteError) {
+          console.error("Error deleting record:", deleteError);
+          Xrm.Utility.closeProgressIndicator();
+          Xrm.Navigation.openErrorDialog({
+            message: `Failed to delete record: ${deleteError.message}`,
+          });
+          e.cancel = true;
+        }
+      },
       onRowInserted: async function (e) {
         console.log("onRowInserted called");
         console.log("e.data:", e.data);
