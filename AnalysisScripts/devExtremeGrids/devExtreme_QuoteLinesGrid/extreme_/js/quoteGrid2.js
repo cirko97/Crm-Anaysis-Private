@@ -2271,9 +2271,16 @@ $(async function () {
           return;
         }
 
+        // Extract the key - it might be an object with _value or a string
+        let parentKeyToUse = e.key;
+        if (e.key && typeof e.key === 'object' && e.key._value) {
+          parentKeyToUse = e.key._value;
+        }
+        
         // Clean GUID of curly braces if present
-        const cleanParentId = String(e.key).replace(/^{|}$/g, '');
-        console.log("Cleaned parent ID:", cleanParentId);
+        const cleanParentId = String(parentKeyToUse).replace(/^{|}$/g, '');
+        console.log("e.key raw:", e.key);
+        console.log("Cleaned parent ID to query:", cleanParentId);
 
         // Wait longer for the record to be fully created in Dynamics
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -2288,12 +2295,23 @@ $(async function () {
           while (retries < maxRetries && !createdRecord) {
             try {
               console.log(`Retrieving created record with ID (attempt ${retries + 1}/${maxRetries}):`, cleanParentId);
-              createdRecord = await Xrm.WebApi.retrieveRecord(
+              const retrievedRecord = await Xrm.WebApi.retrieveRecord(
                 "quotedetail",
                 cleanParentId,
                 "?$select=quotedetailid,_productid_value,extreme_customproductid"
               );
-              console.log("Retrieved created record:", createdRecord);
+              console.log("Retrieved record:", retrievedRecord);
+              console.log("Retrieved quotedetailid:", retrievedRecord.quotedetailid);
+              
+              // Verify that the retrieved record ID matches what we queried for
+              const retrievedId = String(retrievedRecord.quotedetailid).replace(/^{|}$/g, '');
+              if (retrievedId !== cleanParentId) {
+                console.warn(`Retrieved record ID (${retrievedId}) does not match query ID (${cleanParentId})`);
+                console.warn("This might indicate a data inconsistency. Using retrieved ID.");
+              }
+              
+              createdRecord = retrievedRecord;
+              console.log("Successfully retrieved created record");
             } catch (retrieveError) {
               console.warn(`Attempt ${retries + 1} failed:`, retrieveError.message);
               retries++;
@@ -2306,11 +2324,16 @@ $(async function () {
           }
           
           console.log("quotedetailid from retrieved record:", createdRecord.quotedetailid);
+          console.log("cleanParentId used for query:", cleanParentId);
+          console.log("IDs match:", createdRecord.quotedetailid === cleanParentId);
           
+          // IMPORTANT: Use the quotedetailid from the actual record, not the e.key
+          // The e.key might be a temporary ID that doesn't match the actual created record
           const parentQuoteDetailId = createdRecord.quotedetailid;
           const productId = createdRecord._productid_value;
           const customProductId = createdRecord.extreme_customproductid;
           
+          console.log("Using parentQuoteDetailId for children:", parentQuoteDetailId);
           console.log("productId from server:", productId);
           console.log("customProductId from server:", customProductId);
 
