@@ -71,15 +71,23 @@ $(async function () {
           const sourceNode = treeList.getNodeByKey(e.itemData.quotedetailid);
           let targetNode = visibleRows[e.toIndex].node;
 
+          // Prevent dropping a node into itself or its descendants
           while (targetNode && targetNode.data) {
-            if (
-              targetNode.data.quotedetailid === sourceNode.data.quotedetailid ||
-              targetNode.data._extreme_parentquoteline_value
-            ) {
+            if (targetNode.data.quotedetailid === sourceNode.data.quotedetailid) {
               e.cancel = true;
               break;
             }
             targetNode = targetNode.parent;
+          }
+          
+          // Allow reordering among siblings (children with same parent)
+          // Only prevent if trying to drop into a child item (nested more than 1 level)
+          if (!e.cancel && e.dropInsideItem) {
+            const targetRowData = visibleRows[e.toIndex].data;
+            // Prevent nesting beyond 1 level (can't make children of children)
+            if (targetRowData._extreme_parentquoteline_value) {
+              e.cancel = true;
+            }
           }
         },
         onReorder: async function (e) {
