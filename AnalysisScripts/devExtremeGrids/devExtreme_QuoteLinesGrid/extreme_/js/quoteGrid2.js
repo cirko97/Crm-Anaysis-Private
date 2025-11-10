@@ -71,15 +71,23 @@ $(async function () {
           const sourceNode = treeList.getNodeByKey(e.itemData.quotedetailid);
           let targetNode = visibleRows[e.toIndex].node;
 
+          // Prevent dropping a node into itself or its descendants
           while (targetNode && targetNode.data) {
-            if (
-              targetNode.data.quotedetailid === sourceNode.data.quotedetailid ||
-              targetNode.data._extreme_parentquoteline_value
-            ) {
+            if (targetNode.data.quotedetailid === sourceNode.data.quotedetailid) {
               e.cancel = true;
               break;
             }
             targetNode = targetNode.parent;
+          }
+          
+          // Allow reordering among siblings (children with same parent)
+          // Only prevent if trying to drop into a child item (nested more than 1 level)
+          if (!e.cancel && e.dropInsideItem) {
+            const targetRowData = visibleRows[e.toIndex].data;
+            // Prevent nesting beyond 1 level (can't make children of children)
+            if (targetRowData._extreme_parentquoteline_value) {
+              e.cancel = true;
+            }
           }
         },
         onReorder: async function (e) {
@@ -92,13 +100,21 @@ $(async function () {
           const treeList = e.component;
           const visibleRows = treeList.getVisibleRows();
           const sourceData = e.itemData;
-          const sourceId = sourceData.quotedetailid;
+          
+          // Clean GUID - extract _value if it's an object, otherwise clean string
+          const sourceId = sourceData.quotedetailid?._value 
+            ? sourceData.quotedetailid._value 
+            : String(sourceData.quotedetailid).replace(/^{|}$/g, '');
 
           let parentId = null;
 
           if (e.dropInsideItem) {
             // Dropped inside an item — make it a child
-            parentId = visibleRows[e.toIndex].key;
+            const rawParentId = visibleRows[e.toIndex].key;
+            // Clean parent GUID
+            parentId = rawParentId?._value 
+              ? rawParentId._value 
+              : String(rawParentId).replace(/^{|}$/g, '');
             console.log("Dropping inside item, new parent:", parentId);
           } else {
             // Dropped between items - keep at root level
@@ -107,70 +123,198 @@ $(async function () {
           }
 
           try {
-            // Update parent relationship
-            const updateData = {
-              _extreme_parentquoteline_value: parentId,
-            };
-            
-            console.log("Updating record:", sourceId, "with data:", updateData);
-            await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
-
-            // Now update sequence numbers based on new visual order
-            // Wait a bit for the update to process
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Fetch all items with current order
-            const allItems = await Xrm.WebApi.retrieveMultipleRecords(
+            // Check if this is a reorder within children (both items have the same parent)
+            // Get the source item's current parent
+            const sourceItemData = await Xrm.WebApi.retrieveRecord(
               "quotedetail",
-              `?$select=quotedetailid,sequencenumber,_extreme_parentquoteline_value&$filter=_quoteid_value eq ${quoteId}`
+              sourceId,
+              "?$select=_extreme_parentquoteline_value"
             );
-
-            console.log("All items count:", allItems.entities.length);
-
-            // Get the new visual order from TreeList
-            const rootNodes = treeList.getRootNode().children || [];
-            console.log("Root nodes count:", rootNodes.length);
+            const sourceCurrentParent = sourceItemData._extreme_parentquoteline_value;
             
-            // Update sequence numbers for root-level items based on visual order
-            for (let i = 0; i < rootNodes.length; i++) {
-              const node = rootNodes[i];
-              const itemId = node.key;
-              const newSequence = (i + 1) * 100; // 100, 200, 300, etc.
+            console.log("Source current parent:", sourceCurrentParent);
+            console.log("Target parent:", parentId);
+            console.log("dropInsideItem:", e.dropInsideItem);
+            
+            // Determine if this is a reorder within the same parent
+            let isReorderWithinChildren = false;
+            let reorderParentId = null;
+            
+            if (!e.dropInsideItem && sourceCurrentParent) {
+              // Check if target item has the same parent
+              const targetRow = visibleRows[e.toIndex];
+              if (targetRow && targetRow.data) {
+                // Get target item's parent directly from data
+                const targetItemId = targetRow.data.quotedetailid?._value 
+                  ? targetRow.data.quotedetailid._value 
+                  : String(targetRow.data.quotedetailid).replace(/^{|}$/g, '');
+                
+                const targetItemData = await Xrm.WebApi.retrieveRecord(
+                  "quotedetail",
+                  targetItemId,
+                  "?$select=_extreme_parentquoteline_value"
+                );
+                const targetCurrentParent = targetItemData._extreme_parentquoteline_value;
+                
+                console.log("Target current parent:", targetCurrentParent);
+                
+                if (targetCurrentParent && targetCurrentParent === sourceCurrentParent) {
+                  isReorderWithinChildren = true;
+                  reorderParentId = sourceCurrentParent;
+                  console.log("Reordering within children of parent:", reorderParentId);
+                }
+              }
+            }
+            
+            // Update parent relationship using OData binding format (if parent is changing)
+            if (!isReorderWithinChildren) {
+              const updateData = {};
+              if (parentId === null) {
+                // Clear parent relationship
+                updateData["extreme_ParentQuoteLine@odata.bind"] = null;
+              } else {
+                // Set parent relationship
+                updateData["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${parentId})`;
+              }
               
-              console.log(`Updating root item ${i + 1}: ${itemId} to sequence ${newSequence}`);
-              await Xrm.WebApi.updateRecord(
+              console.log("Updating record:", sourceId, "with data:", updateData);
+              await Xrm.WebApi.updateRecord("quotedetail", sourceId, updateData);
+            } else {
+              console.log("Parent relationship unchanged - reordering within children");
+            }
+
+            // Wait for the update to process
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (isReorderWithinChildren) {
+              // Handle reordering within child items
+              console.log("Handling child reordering for parent:", reorderParentId);
+              
+              const childItems = await Xrm.WebApi.retrieveMultipleRecords(
                 "quotedetail",
-                itemId,
-                { sequencenumber: newSequence }
+                `?$select=quotedetailid,sequencenumber&$filter=_extreme_parentquoteline_value eq ${reorderParentId}&$orderby=sequencenumber asc`
               );
               
-              // Update sequence numbers for children of this parent
-              if (node.children && node.children.length > 0) {
-                for (let j = 0; j < node.children.length; j++) {
-                  const childNode = node.children[j];
-                  const childId = childNode.key;
-                  const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
-                  
-                  console.log(`  Updating child ${j + 1}: ${childId} to sequence ${childSequence}`);
-                  await Xrm.WebApi.updateRecord(
-                    "quotedetail",
-                    childId,
-                    { sequencenumber: childSequence }
-                  );
+              console.log("Child items from server:", childItems.entities.length);
+              
+              // Build the current order of children
+              const currentChildOrder = childItems.entities.map(item => item.quotedetailid);
+              console.log("Current child order before reorder:", currentChildOrder);
+              
+              // Find the actual indices in the children array
+              const sourceIndexInChildren = currentChildOrder.findIndex(id => 
+                String(id).replace(/^{|}$/g, '') === sourceId
+              );
+              
+              if (sourceIndexInChildren !== -1 && e.fromIndex !== undefined && e.toIndex !== undefined) {
+                // Calculate the target index within children
+                // Note: fromIndex and toIndex are visual indices which may include parent items
+                // We need to calculate based on the sibling position change
+                const visualFromIndex = e.fromIndex;
+                const visualToIndex = e.toIndex;
+                
+                // For simplicity, we'll use the difference to determine the new position
+                const indexDiff = visualToIndex - visualFromIndex;
+                let targetIndexInChildren = sourceIndexInChildren + indexDiff;
+                
+                // Clamp to valid range
+                targetIndexInChildren = Math.max(0, Math.min(currentChildOrder.length - 1, targetIndexInChildren));
+                
+                console.log(`Moving child from index ${sourceIndexInChildren} to ${targetIndexInChildren}`);
+                
+                // Apply the reorder
+                const [movedItem] = currentChildOrder.splice(sourceIndexInChildren, 1);
+                currentChildOrder.splice(targetIndexInChildren, 0, movedItem);
+                console.log("New child order after reorder:", currentChildOrder);
+              }
+              
+              // Update sequence numbers for children
+              for (let j = 0; j < currentChildOrder.length; j++) {
+                const childId = String(currentChildOrder[j]).replace(/^{|}$/g, '');
+                const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
+                
+                console.log(`  Updating child ${j + 1}: ${childId} to sequence ${childSequence}`);
+                await Xrm.WebApi.updateRecord(
+                  "quotedetail",
+                  childId,
+                  { sequencenumber: childSequence }
+                );
+              }
+            } else {
+              // Handle root-level reordering or parent changes
+              // Get the current root nodes to determine new sequence numbers
+              const allRootItems = await Xrm.WebApi.retrieveMultipleRecords(
+                "quotedetail",
+                `?$select=quotedetailid,sequencenumber&$filter=(_quoteid_value eq ${quoteId} and _extreme_parentquoteline_value eq null)&$orderby=sequencenumber asc`
+              );
+              
+              console.log("Root items from server:", allRootItems.entities.length);
+              
+              // Build the new order array by applying the drag operation
+              const currentOrder = allRootItems.entities.map(item => item.quotedetailid);
+              
+              console.log("Current order before reorder:", currentOrder);
+              
+              // Apply the reorder operation if we're staying at root level
+              if (parentId === null && e.fromIndex !== undefined && e.toIndex !== undefined) {
+                // Remove the item from its old position
+                const [movedItem] = currentOrder.splice(e.fromIndex, 1);
+                // Insert it at the new position
+                currentOrder.splice(e.toIndex, 0, movedItem);
+                console.log("New order after reorder:", currentOrder);
+              }
+              
+              // Update sequence numbers based on the new order
+              for (let i = 0; i < currentOrder.length; i++) {
+                const itemId = String(currentOrder[i]).replace(/^{|}$/g, '');
+                const newSequence = (i + 1) * 100; // 100, 200, 300, etc.
+                
+                console.log(`Updating root item ${i + 1}: ${itemId} to sequence ${newSequence}`);
+                await Xrm.WebApi.updateRecord(
+                  "quotedetail",
+                  itemId,
+                  { sequencenumber: newSequence }
+                );
+              }
+              
+              // Also update sequence numbers for all children
+              for (const rootItemId of currentOrder) {
+                const cleanRootId = String(rootItemId).replace(/^{|}$/g, '');
+                const childItems = await Xrm.WebApi.retrieveMultipleRecords(
+                  "quotedetail",
+                  `?$select=quotedetailid,sequencenumber&$filter=_extreme_parentquoteline_value eq ${cleanRootId}&$orderby=sequencenumber asc`
+                );
+                
+                if (childItems.entities.length > 0) {
+                  for (let j = 0; j < childItems.entities.length; j++) {
+                    const childId = String(childItems.entities[j].quotedetailid).replace(/^{|}$/g, '');
+                    const childSequence = (j + 1) * 10; // 10, 20, 30, etc.
+                    
+                    console.log(`  Updating child ${j + 1} of ${cleanRootId}: ${childId} to sequence ${childSequence}`);
+                    await Xrm.WebApi.updateRecord(
+                      "quotedetail",
+                      childId,
+                      { sequencenumber: childSequence }
+                    );
+                  }
                 }
               }
             }
 
             console.log("Refreshing TreeList...");
-            await treeList.refresh();
+            // Reload the data source to ensure we get the updated sequence numbers
+            await treeList.getDataSource().reload();
             Xrm.Utility.closeProgressIndicator();
             console.log("Reorder complete");
           } catch (err) {
             Xrm.Utility.closeProgressIndicator();
             console.error("Reorder update failed", err);
+            console.error("Error details:", err);
             Xrm.Navigation.openErrorDialog({
-              message: "Error reordering items: " + err.message,
+              message: "Error reordering items: " + (err.message || err.toString()),
             });
+            // Refresh anyway to reset the UI
+            await treeList.refresh();
           }
         },
       },
@@ -830,6 +974,18 @@ $(async function () {
           caption: "Sales Amount",
           dataType: "number",
           allowEditing: true,
+          setCellValue: async function (newData, value, currentRowData) {
+            // If this is a parent item (SET), distribute the amount proportionally to children
+            if (currentRowData.extreme_isparentitem === true) {
+              // Store the new baseamount value - actual distribution happens in onRowUpdated
+              newData.baseamount = value;
+              newData._needsChildDistribution = true;
+              newData._distributionType = 'baseamount';
+            } else {
+              // For non-parent items, just set the value
+              newData.baseamount = value;
+            }
+          },
         },
         {
           dataField: "extreme_discount",
@@ -837,6 +993,14 @@ $(async function () {
           dataType: "number",
           width: 62,
           setCellValue: async function (newData, value, currentRowData) {
+            // Handle parent item (SET) - distribute discount to all children
+            if (currentRowData.extreme_isparentitem === true) {
+              newData.extreme_discount = value;
+              newData._needsChildDistribution = true;
+              newData._distributionType = 'discount';
+              return;
+            }
+            
             // Do so only if it is not parent item (SET)
             if (currentRowData.extreme_isparentitem !== true) {
               if (
@@ -849,6 +1013,7 @@ $(async function () {
                   supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                   supplierDiscount: currentRowData.extreme_supplierdiscount,
                   margin: currentRowData.extreme_margin,
+                  pricePerUnit: currentRowData.priceperunit,
                   discount: value,
                   TaxPercent: currentRowData.extreme_tax,
                 });
@@ -988,6 +1153,7 @@ $(async function () {
                     supplierPricePerUnit: currentRowData.extreme_supplierpriceperunit,
                     supplierDiscount: currentRowData.extreme_supplierdiscount,
                     margin: currentRowData.extreme_margin,
+                    pricePerUnit: currentRowData.priceperunit,
                     discount: currentRowData.extreme_discount,
                     TaxPercent: vatSetting.extreme_VATGroup.extreme_vat,
                   });
@@ -1454,9 +1620,11 @@ $(async function () {
 
                   try {
                     if (e.row.data.quotedetailid) {
+                      // Clean GUID of curly braces if present
+                      const cleanId = String(e.row.data.quotedetailid).replace(/^{|}$/g, '');
                       await Xrm.WebApi.updateRecord(
                         "quotedetail",
-                        e.row.data.quotedetailid,
+                        cleanId,
                         { extreme_productdescription: value }
                       );
                       console.log("Description saved successfully");
@@ -2119,6 +2287,154 @@ $(async function () {
           );
         }
       },
+      onRowRemoving: async function (e) {
+        console.log("onRowRemoving called");
+        console.log("Row being deleted:", e.data);
+        
+        // Check if this is a parent SET with children
+        const isParent = e.data.extreme_isparentitem === true;
+        
+        if (isParent) {
+          // Get all children of this parent
+          const parentId = e.data.quotedetailid?._value 
+            ? e.data.quotedetailid._value 
+            : String(e.data.quotedetailid).replace(/^{|}$/g, '');
+          
+          try {
+            const children = await Xrm.WebApi.retrieveMultipleRecords(
+              "quotedetail",
+              `?$select=quotedetailid&$filter=_extreme_parentquoteline_value eq ${parentId}`
+            );
+            
+            const childCount = children.entities.length;
+            
+            if (childCount > 0) {
+              // Cancel the automatic deletion
+              e.cancel = true;
+              
+              // Show confirmation dialog
+              const confirmResult = await Xrm.Navigation.openConfirmDialog({
+                text: `This SET has ${childCount} child item(s). Deleting this SET will also delete all ${childCount} child item(s). Do you want to continue?`,
+                title: "Delete SET with Children"
+              });
+              
+              if (!confirmResult.confirmed) {
+                // User cancelled
+                return;
+              }
+              
+              // User confirmed, delete all children first
+              Xrm.Utility.showProgressIndicator(`Deleting SET and ${childCount} child item(s)...`);
+              
+              for (const child of children.entities) {
+                const childId = child.quotedetailid;
+                console.log(`Deleting child: ${childId}`);
+                try {
+                  await Xrm.WebApi.deleteRecord("quotedetail", childId);
+                  // Also remove from TreeList
+                  const childNode = treeList.getNodeByKey(childId);
+                  if (childNode) {
+                    await treeList.getDataSource().store().remove(childId);
+                  }
+                } catch (childDeleteError) {
+                  console.error(`Error deleting child ${childId}:`, childDeleteError);
+                  Xrm.Utility.closeProgressIndicator();
+                  Xrm.Navigation.openErrorDialog({
+                    message: `Failed to delete child item: ${childDeleteError.message}`,
+                  });
+                  return;
+                }
+              }
+              
+              console.log(`All ${childCount} children deleted successfully`);
+              
+              // Now delete the parent from Dynamics and TreeList
+              try {
+                await Xrm.WebApi.deleteRecord("quotedetail", parentId);
+                await treeList.getDataSource().store().remove(parentId);
+                await treeList.refresh();
+                formContext.data.refresh(true);
+                Xrm.Utility.closeProgressIndicator();
+              } catch (parentDeleteError) {
+                console.error(`Error deleting parent ${parentId}:`, parentDeleteError);
+                Xrm.Utility.closeProgressIndicator();
+                Xrm.Navigation.openErrorDialog({
+                  message: `Failed to delete SET: ${parentDeleteError.message}`,
+                });
+              }
+              
+              return;
+            }
+          } catch (error) {
+            console.error("Error querying children:", error);
+            Xrm.Navigation.openErrorDialog({
+              message: `Error checking for child items: ${error.message}`,
+            });
+            e.cancel = true;
+            return;
+          }
+        }
+        
+        // For non-parent items or parents without children, handle normally
+        // If this is a child, update parent sums after deletion
+        if (e.data._extreme_parentquoteline_value) {
+          const parentId = e.data._extreme_parentquoteline_value._value 
+            ? e.data._extreme_parentquoteline_value._value 
+            : String(e.data._extreme_parentquoteline_value).replace(/^{|}$/g, '');
+          
+          // Schedule parent sum update after deletion completes
+          setTimeout(async () => {
+            try {
+              const siblings = await Xrm.WebApi.retrieveMultipleRecords(
+                "quotedetail",
+                `?$select=baseamount,extendedamount,extreme_fullpd,extreme_fullpricewithdiscount,manualdiscountamount,extreme_supplierbaseamount,tax&$filter=_extreme_parentquoteline_value eq ${parentId}`
+              );
+              
+              let baseamount_sum = 0;
+              let extendedamount_sum = 0;
+              let extreme_fullpd_sum = 0;
+              let extreme_fullpricewithdiscount_sum = 0;
+              let manualdiscountamount_sum = 0;
+              let extreme_supplierbaseamount_sum = 0;
+              let tax_sum = 0;
+              
+              siblings.entities.forEach((sibling) => {
+                baseamount_sum += sibling.baseamount || 0;
+                extendedamount_sum += sibling.extendedamount || 0;
+                extreme_fullpd_sum += sibling.extreme_fullpd || 0;
+                extreme_fullpricewithdiscount_sum += sibling.extreme_fullpricewithdiscount || 0;
+                manualdiscountamount_sum += sibling.manualdiscountamount || 0;
+                extreme_supplierbaseamount_sum += sibling.extreme_supplierbaseamount || 0;
+                tax_sum += sibling.tax || 0;
+              });
+              
+              const avarageDiscountPercent = 
+                baseamount_sum > 0 
+                  ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+                  : 0;
+              
+              // Update parent locally
+              const parentDataSource = treeList.getDataSource();
+              const store = parentDataSource.store();
+              
+              store.update(parentId, {
+                baseamount: parseFloat(baseamount_sum.toFixed(2)),
+                extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+                extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+                extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+                manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+                extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+                tax: parseFloat(tax_sum.toFixed(2)),
+                extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+              });
+              
+              await treeList.refresh();
+            } catch (updateError) {
+              console.error("Error updating parent sums:", updateError);
+            }
+          }, 500);
+        }
+      },
       onRowInserted: async function (e) {
         console.log("onRowInserted called");
         console.log("e.data:", e.data);
@@ -2131,25 +2447,75 @@ $(async function () {
           return;
         }
 
-        // Wait a moment for the record to be fully created in Dynamics
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Parent item detected - will create children after record is committed");
 
-        // Re-query the created record to get the latest data including productid
+        // Wait for the record to be fully created and committed in Dynamics 365
+        // This is critical - e.key is a temporary ID that doesn't match the actual created GUID
+        console.log("Waiting 2 seconds for record to be committed...");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Instead of using e.key (which is temporary), query for the most recently created
+        // parent item for this quote that matches our product
+        let createdRecord = null;
+        let retries = 0;
+        const maxRetries = 5;
+        
         try {
-          console.log("Retrieving created record with ID:", e.key);
-          const createdRecord = await Xrm.WebApi.retrieveRecord(
-            "quotedetail",
-            e.key,
-            "?$select=quotedetailid,_productid_value,extreme_customproductid"
-          );
+          // Get the product ID from the event data
+          const productIdFromData = e.data._productid_value || e.data.productid;
+          console.log("Product ID from event data:", productIdFromData);
           
-          console.log("Retrieved created record:", createdRecord);
-          console.log("quotedetailid from retrieved record:", createdRecord.quotedetailid);
+          while (retries < maxRetries && !createdRecord) {
+            try {
+              console.log(`Attempt ${retries + 1}/${maxRetries}: Querying for recently created parent item`);
+              
+              // Query for the most recently created parent item for this quote
+              // We'll find it by looking for parent items with our product that were just created
+              let queryFilter = `_quoteid_value eq ${quoteId} and extreme_isparentitem eq true`;
+              
+              if (productIdFromData && isGuid(productIdFromData)) {
+                queryFilter += ` and _productid_value eq ${productIdFromData}`;
+              }
+              
+              const recentParents = await Xrm.WebApi.retrieveMultipleRecords(
+                "quotedetail",
+                `?$select=quotedetailid,_productid_value,extreme_customproductid,createdon&$filter=${queryFilter}&$orderby=createdon desc&$top=1`
+              );
+              
+              if (recentParents.entities.length > 0) {
+                createdRecord = recentParents.entities[0];
+                console.log("Found recently created parent record:", createdRecord.quotedetailid);
+                console.log("Created on:", createdRecord.createdon);
+              } else {
+                throw new Error("No matching parent record found");
+              }
+              
+            } catch (retrieveError) {
+              console.warn(`Attempt ${retries + 1} failed:`, retrieveError.message);
+              retries++;
+              if (retries < maxRetries) {
+                console.log("Waiting 1 second before retry...");
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else {
+                throw retrieveError;
+              }
+            }
+          }
           
+          if (!createdRecord) {
+            console.error("Failed to retrieve created parent record after all retries");
+            return;
+          }
+          
+          console.log("Successfully found parent record with ID:", createdRecord.quotedetailid);
+          
+          // IMPORTANT: Use the quotedetailid from the actual record, NOT e.key
+          // The e.key might be a temporary ID that doesn't match the actual created record
           const parentQuoteDetailId = createdRecord.quotedetailid;
           const productId = createdRecord._productid_value;
           const customProductId = createdRecord.extreme_customproductid;
           
+          console.log("Using parentQuoteDetailId for children:", parentQuoteDetailId);
           console.log("productId from server:", productId);
           console.log("customProductId from server:", customProductId);
 
@@ -2180,6 +2546,36 @@ $(async function () {
           if (childProducts.entities.length === 0) {
             console.log("No child products found for this parent product");
             Xrm.Utility.closeProgressIndicator();
+            return;
+          }
+
+          // Verify parent exists before creating children
+          // Do one more verification with retry to ensure parent is fully committed
+          let parentVerified = false;
+          for (let verifyAttempt = 0; verifyAttempt < 3; verifyAttempt++) {
+            try {
+              await Xrm.WebApi.retrieveRecord(
+                "quotedetail",
+                parentQuoteDetailId,
+                "?$select=quotedetailid"
+              );
+              parentVerified = true;
+              console.log("Parent record verified to exist");
+              break;
+            } catch (verifyError) {
+              console.warn(`Parent verification attempt ${verifyAttempt + 1} failed:`, verifyError.message);
+              if (verifyAttempt < 2) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+              }
+            }
+          }
+          
+          if (!parentVerified) {
+            console.error("Could not verify parent record exists, aborting child creation");
+            Xrm.Utility.closeProgressIndicator();
+            Xrm.Navigation.openErrorDialog({
+              message: "Parent record not fully created. Please try again or manually add child items.",
+            });
             return;
           }
 
@@ -2275,10 +2671,12 @@ $(async function () {
             });
 
             // Build record for child quote detail
+            // Ensure parent ID is clean
+            const cleanedParentId = String(parentQuoteDetailId).replace(/^{|}$/g, '');
             const record = {
               "quoteid@odata.bind": `/quotes(${quoteId})`,
               "productid@odata.bind": `/products(${childProductId})`,
-              "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${parentQuoteDetailId})`,
+              "extreme_ParentQuoteLine@odata.bind": `/quotedetails(${cleanedParentId})`,
               extreme_customproductname: childProduct.name,
               extreme_isparentitem: false,
               ispriceoverridden: true,
@@ -2363,6 +2761,52 @@ $(async function () {
           console.log("Refreshing tree list...");
           await treeList.refresh();
           
+          // Calculate and display sums in parent SET row
+          // Use parentQuoteDetailId (actual GUID) instead of e.key (temporary ID)
+          const parentNode = treeList.getNodeByKey(parentQuoteDetailId);
+          if (parentNode && parentNode.children && parentNode.children.length > 0) {
+            let baseamount_sum = 0;
+            let extendedamount_sum = 0;
+            let extreme_fullpd_sum = 0;
+            let extreme_fullpricewithdiscount_sum = 0;
+            let manualdiscountamount_sum = 0;
+            let extreme_supplierbaseamount_sum = 0;
+            let tax_sum = 0;
+            
+            parentNode.children.forEach((child) => {
+              const childData = child.data;
+              baseamount_sum += childData.baseamount || 0;
+              extendedamount_sum += childData.extendedamount || 0;
+              extreme_fullpd_sum += childData.extreme_fullpd || 0;
+              extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
+              manualdiscountamount_sum += childData.manualdiscountamount || 0;
+              extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
+              tax_sum += childData.tax || 0;
+            });
+            
+            const avarageDiscountPercent = 
+              baseamount_sum > 0 
+                ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+                : 0;
+            
+            // Update parent locally to show sums (don't save to Dynamics - SET rows only display)
+            const parentDataSource = treeList.getDataSource();
+            const store = parentDataSource.store();
+            
+            store.update(parentQuoteDetailId, {
+              baseamount: parseFloat(baseamount_sum.toFixed(2)),
+              extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+              extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+              extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+              manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+              extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+              tax: parseFloat(tax_sum.toFixed(2)),
+              extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+            });
+            
+            await treeList.refresh();
+          }
+          
           Xrm.Navigation.openAlertDialog({
             text: `Created ${childProducts.entities.length} child items for the set.`,
           });
@@ -2376,6 +2820,192 @@ $(async function () {
       },
       onRowUpdated: async function (e) {
         console.log(e);
+        
+        // Handle parent item (SET) distribution to children - ONLY when explicitly flagged
+        if (e.data.extreme_isparentitem === true && e.data._needsChildDistribution === true) {
+          const parentKey = e.key;
+          const parentNode = treeList.getNodeByKey(parentKey);
+          
+          if (parentNode && parentNode.children && parentNode.children.length > 0) {
+            Xrm.Utility.showProgressIndicator("Recalculating... Please wait...");
+            
+            console.log("Distributing SET values to children");
+            
+            // Function to adjust amounts proportionally
+            function adjustProportionalAmounts(newTotal, amounts) {
+              const currentTotal = amounts.reduce((sum, a) => sum + a, 0);
+              
+              // Handle case where all amounts are 0
+              if (currentTotal === 0) {
+                return amounts.map(() => 0);
+              }
+              
+              const scaleFactor = newTotal / currentTotal;
+              let adjustedAmounts = amounts.map(amount => Math.round(amount * scaleFactor * 100) / 100);
+              let adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+              let difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+              if (difference !== 0) {
+                const numChildren = amounts.length;
+                const fractionalAdjustment = Math.round((difference / numChildren) * 100) / 100;
+
+                adjustedAmounts = adjustedAmounts.map(amount => Math.round((amount + fractionalAdjustment) * 100) / 100);
+
+                adjustedSum = adjustedAmounts.reduce((sum, a) => sum + a, 0);
+                difference = Math.round((newTotal - adjustedSum) * 100) / 100;
+
+                if (Math.abs(difference) > 0) {
+                  const smallestIndex = adjustedAmounts.findIndex(amount => amount === Math.min(...adjustedAmounts));
+                  adjustedAmounts[smallestIndex] = Math.round((adjustedAmounts[smallestIndex] + difference) * 100) / 100;
+                }
+              }
+
+              return adjustedAmounts;
+            }
+            
+            const children = parentNode.children;
+            const parentData = parentNode.data;
+            
+            // Get current or updated values
+            const parentDiscountPercent = e.data.extreme_discount !== undefined ? e.data.extreme_discount : parentData.extreme_discount || 0;
+            const parentBaseAmount = e.data.baseamount !== undefined ? e.data.baseamount : parentData.baseamount || 0;
+            const parentFullPriceWDiscount = parentBaseAmount * (1 - parentDiscountPercent / 100);
+            const parentManualDiscountAmount = parentBaseAmount * (parentDiscountPercent / 100);
+            
+            // Calculate parent tax from children
+            const parentTax = children.reduce((sum, child) => {
+              const childData = child.data;
+              const discountedPrice = (childData.priceperunit || 0) * (1 - parentDiscountPercent / 100) * (childData.quantity || 0);
+              return sum + (discountedPrice * ((childData.extreme_tax || 0) / 100));
+            }, 0);
+            
+            // Collect child values
+            const childBaseAmounts = children.map(child => child.data.baseamount || 0);
+            const childFullPrices = children.map(child => {
+              const childData = child.data;
+              return ((childData.priceperunit || 0) * (1 - parentDiscountPercent / 100)) * (childData.quantity || 1);
+            });
+            const childManualDiscountAmounts = children.map(child => {
+              const childData = child.data;
+              return childData.manualdiscountamount || ((childData.baseamount || 0) * (parentDiscountPercent / 100));
+            });
+            const childTaxAmounts = children.map(child => {
+              const childData = child.data;
+              const discountedPrice = (childData.priceperunit || 0) * (1 - parentDiscountPercent / 100) * (childData.quantity || 0);
+              return discountedPrice * ((childData.extreme_tax || 0) / 100);
+            });
+            
+            // Adjust child values proportionally
+            const adjustedBaseAmounts = adjustProportionalAmounts(parentBaseAmount, childBaseAmounts);
+            const adjustedChildFullPrices = adjustProportionalAmounts(parentFullPriceWDiscount, childFullPrices);
+            const adjustedChildManualDiscountAmounts = adjustProportionalAmounts(parentManualDiscountAmount, childManualDiscountAmounts);
+            const adjustedChildTaxAmounts = adjustProportionalAmounts(parentTax, childTaxAmounts);
+            
+            // Update each child
+            const updatePromises = [];
+            children.forEach((child, index) => {
+              const childData = child.data;
+              const newBaseAmount = adjustedBaseAmounts[index];
+              const newFullPriceWDiscount = adjustedChildFullPrices[index];
+              const newManualDiscountAmount = adjustedChildManualDiscountAmounts[index];
+              const newTaxAmount = adjustedChildTaxAmounts[index];
+              const newTotalAmount = newFullPriceWDiscount + newTaxAmount;
+              
+              const supplierDiscountAmount = (childData.extreme_supplierpriceperunit || 0) * ((childData.extreme_supplierdiscount || 0) / 100);
+              const pricePerUnitWithSupplierDiscount = (childData.extreme_supplierpriceperunit || 0) - supplierDiscountAmount;
+              const pricePerUnit = newBaseAmount / (childData.quantity || 1);
+              const pricePerUnitWithCustomDiscount = pricePerUnit - newManualDiscountAmount / (childData.quantity || 1);
+              const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+              
+              // Calculate the updated margin
+              const margin = (childData.extreme_supplierpriceperunit || 0) !== 0
+                ? pricePerUnit / (childData.extreme_supplierpriceperunit || 1)
+                : 0;
+              
+              const childRecord = {
+                baseamount: newBaseAmount,
+                extreme_fullpricewithdiscount: newFullPriceWDiscount,
+                manualdiscountamount: newManualDiscountAmount,
+                extreme_discount: parentDiscountPercent,
+                tax: newTaxAmount,
+                extendedamount: newTotalAmount
+              };
+              
+              if (childData.extreme_supplierpriceperunit !== null) {
+                childRecord.priceperunit = pricePerUnit;
+                childRecord.extreme_margin = margin;
+                childRecord.extreme_pd = pdPerUnit;
+                childRecord.extreme_fullpd = pdPerUnit * (childData.quantity || 1);
+              }
+              
+              const childId = childData.quotedetailid?._value 
+                ? childData.quotedetailid._value 
+                : String(childData.quotedetailid).replace(/^{|}$/g, '');
+              
+              updatePromises.push(
+                Xrm.WebApi.updateRecord("quotedetail", childId, childRecord)
+              );
+            });
+            
+            try {
+              await Promise.all(updatePromises);
+              console.log("All child updates completed");
+              
+              // After updating children, recalculate parent sums
+              let baseamount_sum = 0;
+              let extendedamount_sum = 0;
+              let extreme_fullpd_sum = 0;
+              let extreme_fullpricewithdiscount_sum = 0;
+              let manualdiscountamount_sum = 0;
+              let extreme_supplierbaseamount_sum = 0;
+              let tax_sum = 0;
+              
+              // Refresh to get updated values
+              await treeList.getDataSource().reload();
+              const refreshedParentNode = treeList.getNodeByKey(parentKey);
+              
+              if (refreshedParentNode && refreshedParentNode.children) {
+                refreshedParentNode.children.forEach((child) => {
+                  const childData = child.data;
+                  baseamount_sum += childData.baseamount || 0;
+                  extendedamount_sum += childData.extendedamount || 0;
+                  extreme_fullpd_sum += childData.extreme_fullpd || 0;
+                  extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
+                  manualdiscountamount_sum += childData.manualdiscountamount || 0;
+                  extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
+                  tax_sum += childData.tax || 0;
+                });
+                
+                // Update parent locally (don't save to Dynamics - SET rows only display sums)
+                const parentDataSource = treeList.getDataSource();
+                const store = parentDataSource.store();
+                
+                // Update in local cache without triggering a save
+                store.update(parentKey, {
+                  baseamount: parseFloat(baseamount_sum.toFixed(2)),
+                  extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+                  extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+                  extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+                  manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+                  extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+                  tax: parseFloat(tax_sum.toFixed(2)),
+                  extreme_discount: parseFloat(parentDiscountPercent.toFixed(2))
+                });
+              }
+              
+              await treeList.refresh();
+              Xrm.Utility.closeProgressIndicator();
+            } catch (error) {
+              console.error("Error distributing to children:", error);
+              Xrm.Utility.closeProgressIndicator();
+              Xrm.Navigation.openErrorDialog({
+                message: "Error distributing values to children: " + error.message,
+              });
+            }
+            
+            return; // Exit early, we've handled the parent update
+          }
+        }
         
         // Check if this row has a parent - if so, aggregate child values to parent
         const currentRow = treeList.getNodeByKey(e.key);
@@ -2411,8 +3041,12 @@ $(async function () {
                 ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
                 : 0;
             
-            // Update the parent row
-            await quotedetailODataStore.update(parentKey, {
+            // Update the parent row locally (don't save to Dynamics - SET rows only display sums)
+            const parentDataSource = treeList.getDataSource();
+            const store = parentDataSource.store();
+            
+            // Update in local cache without triggering a save
+            store.update(parentKey, {
               baseamount: parseFloat(baseamount_sum.toFixed(2)),
               extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
               extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
