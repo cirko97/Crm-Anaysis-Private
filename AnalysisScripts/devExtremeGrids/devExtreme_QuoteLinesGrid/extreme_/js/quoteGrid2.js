@@ -3416,10 +3416,6 @@ $(async function () {
         
         // Update all parent SET rows with aggregated child values
         updateAllParentSums();
-        
-        const parentDoc = parent.document;
-        if (parentDoc.getElementById("floating-delete-icon"))
-          parentDoc.getElementById("floating-delete-icon").remove();
       },
     })
     .dxTreeList("instance");
