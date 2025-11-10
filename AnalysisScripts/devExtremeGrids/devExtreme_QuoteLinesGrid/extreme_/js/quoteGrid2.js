@@ -64,8 +64,8 @@ function updateAllParentSums() {
       }
     });
     
-    // Refresh the TreeList to show updated values
-    treeList.refresh();
+    // Note: No refresh needed here - store updates are reflected automatically
+    // and refresh would trigger onContentReady again causing infinite loop
   } catch (error) {
     console.error("Error updating parent sums:", error);
   }
