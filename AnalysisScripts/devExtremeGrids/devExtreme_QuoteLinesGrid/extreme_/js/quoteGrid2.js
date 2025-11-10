@@ -2882,6 +2882,40 @@ $(async function () {
           });
         }
       },
+      onRowUpdating: function (e) {
+        console.log("onRowUpdating:", e);
+        
+        // If this is a parent item (SET), prevent saving calculated fields to the database
+        // Parent items should only display aggregated child values, not be saved themselves
+        if (e.oldData && e.oldData.extreme_isparentitem === true) {
+          // Remove calculated/aggregated fields that shouldn't be saved for parent items
+          // Only allow changes to editable fields like productid, name, description, etc.
+          if (e.newData.hasOwnProperty('baseamount')) {
+            delete e.newData.baseamount;
+          }
+          if (e.newData.hasOwnProperty('extendedamount')) {
+            delete e.newData.extendedamount;
+          }
+          if (e.newData.hasOwnProperty('tax')) {
+            delete e.newData.tax;
+          }
+          if (e.newData.hasOwnProperty('extreme_fullpd')) {
+            delete e.newData.extreme_fullpd;
+          }
+          if (e.newData.hasOwnProperty('extreme_fullpricewithdiscount')) {
+            delete e.newData.extreme_fullpricewithdiscount;
+          }
+          if (e.newData.hasOwnProperty('manualdiscountamount')) {
+            delete e.newData.manualdiscountamount;
+          }
+          if (e.newData.hasOwnProperty('extreme_supplierbaseamount')) {
+            delete e.newData.extreme_supplierbaseamount;
+          }
+          if (e.newData.hasOwnProperty('priceperunit')) {
+            delete e.newData.priceperunit;
+          }
+        }
+      },
       onRowUpdated: async function (e) {
         console.log(e);
         
