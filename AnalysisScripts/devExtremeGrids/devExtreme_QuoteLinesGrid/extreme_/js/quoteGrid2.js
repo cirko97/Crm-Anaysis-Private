@@ -5,13 +5,15 @@ let isAddingSet = false;
 let selectedDescriptionItem = null;
 let gridContainer;
 let currenciesArray = [];
+let isUpdatingParentSums = false; // Flag to prevent infinite loop
 const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 
 // Function to update all parent SET rows with aggregated child values
-function updateAllParentSums() {
-  if (!treeList) return;
+function updateAllParentSums(skipRefresh = false) {
+  if (!treeList || isUpdatingParentSums) return;
   
   try {
+    isUpdatingParentSums = true;
     const dataSource = treeList.getDataSource();
     const store = dataSource.store();
     
@@ -64,10 +66,14 @@ function updateAllParentSums() {
       }
     });
     
-    // Note: No refresh needed here - store updates are reflected automatically
-    // and refresh would trigger onContentReady again causing infinite loop
+    // Refresh TreeList to show updated values unless explicitly skipped
+    if (!skipRefresh) {
+      treeList.repaint(); // Use repaint instead of refresh to avoid reloading data
+    }
   } catch (error) {
     console.error("Error updating parent sums:", error);
+  } finally {
+    isUpdatingParentSums = false;
   }
 }
 
@@ -2868,7 +2874,8 @@ $(async function () {
               extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
             });
             
-            await treeList.refresh();
+            // Use repaint to update display without reloading data
+            treeList.repaint();
           }
           
           Xrm.Navigation.openAlertDialog({
@@ -3155,8 +3162,8 @@ $(async function () {
               extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
             });
             
-            // Refresh to show updated values
-            await treeList.refresh();
+            // Refresh to show updated values - use repaint to avoid reloading data
+            treeList.repaint();
           }
         }
         
