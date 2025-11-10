@@ -2191,6 +2191,7 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_euroexchangerate: parseFloat(newValue) }
                           );
+                          jsonForConverting.EUR = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
 
                           break;
@@ -2200,6 +2201,7 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_dollarexchangerate: parseFloat(newValue) }
                           );
+                          jsonForConverting.USD = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
 
                           break;
@@ -2209,6 +2211,7 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_chfexchangerate: parseFloat(newValue) }
                           );
+                          jsonForConverting.CHF = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
 
                           break;
@@ -2218,6 +2221,7 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_rsdexchangerate: parseFloat(newValue) }
                           );
+                          jsonForConverting.RSD = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
 
                           break;
@@ -2230,6 +2234,7 @@ $(async function () {
                                 parseFloat(newValue),
                             }
                           );
+                          jsonForConverting.MKD = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
 
                           break;
@@ -2239,6 +2244,7 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_gbpexchangerate: parseFloat(newValue) }
                           );
+                          jsonForConverting.GBP = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
 
                           break;
