@@ -7,6 +7,70 @@ let gridContainer;
 let currenciesArray = [];
 const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 
+// Function to update all parent SET rows with aggregated child values
+function updateAllParentSums() {
+  if (!treeList) return;
+  
+  try {
+    const dataSource = treeList.getDataSource();
+    const store = dataSource.store();
+    
+    // Get all root nodes
+    const rootNodes = treeList.getRootNode().children || [];
+    
+    rootNodes.forEach((node) => {
+      // Only process parent items (SETs)
+      if (node.data && node.data.extreme_isparentitem === true) {
+        const children = node.children || [];
+        
+        if (children.length > 0) {
+          let baseamount_sum = 0;
+          let extendedamount_sum = 0;
+          let extreme_fullpd_sum = 0;
+          let extreme_fullpricewithdiscount_sum = 0;
+          let manualdiscountamount_sum = 0;
+          let extreme_supplierbaseamount_sum = 0;
+          let tax_sum = 0;
+          
+          children.forEach((child) => {
+            const childData = child.data;
+            baseamount_sum += childData.baseamount || 0;
+            extendedamount_sum += childData.extendedamount || 0;
+            extreme_fullpd_sum += childData.extreme_fullpd || 0;
+            extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
+            manualdiscountamount_sum += childData.manualdiscountamount || 0;
+            extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
+            tax_sum += childData.tax || 0;
+          });
+          
+          const avarageDiscountPercent = 
+            baseamount_sum > 0 
+              ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+              : 0;
+          
+          // Update parent in the store
+          const parentKey = node.key;
+          store.update(parentKey, {
+            baseamount: parseFloat(baseamount_sum.toFixed(2)),
+            extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+            extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+            extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+            manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+            extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+            tax: parseFloat(tax_sum.toFixed(2)),
+            extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+          });
+        }
+      }
+    });
+    
+    // Refresh the TreeList to show updated values
+    treeList.refresh();
+  } catch (error) {
+    console.error("Error updating parent sums:", error);
+  }
+}
+
 $(async function () {
   // Load currencies
   await Xrm.WebApi.retrieveMultipleRecords(
@@ -569,24 +633,24 @@ $(async function () {
               : null;
 
             newData.productid = value;
-            // if (!isAddingSet) {
-            //   newData.extreme_tax =
-            //     defaultVatSetting === null
-            //       ? 0
-            //       : vatSettingsArray.find((item) => item.id === defaultVatSetting)
-            //           .vat;
-            //   defaultTax =
-            //     defaultVatSetting === null
-            //       ? 0
-            //       : vatSettingsArray.find((item) => item.id === defaultVatSetting)
-            //           .vat;
-            // }
-            // if (!isAddingSet && defaultVatSetting !== null) {
-            //   newData.extreme_vatsetting = defaultVatSetting;
-            //   newData.extreme_vatgroup = vatSettingsArray.find(
-            //     (item) => item.id === defaultVatSetting
-            //   ).idVatGroup;
-            // }
+            
+            // Set default VAT setting if not adding a SET
+            if (!isAddingSet && defaultVatSetting !== null) {
+              // Fetch VAT details to get the actual VAT percentage
+              const vatSettingDetails = await Xrm.WebApi.retrieveRecord(
+                "extreme_vatsetting",
+                defaultVatSetting,
+                "?$select=_extreme_vatgroup_value&$expand=extreme_VATGroup($select=extreme_vat)"
+              );
+              
+              if (vatSettingDetails && vatSettingDetails.extreme_VATGroup) {
+                newData._extreme_vatsetting_value = defaultVatSetting;
+                newData._extreme_vatgroup_value = vatSettingDetails._extreme_vatgroup_value;
+                newData.extreme_tax = vatSettingDetails.extreme_VATGroup.extreme_vat;
+                defaultTax = vatSettingDetails.extreme_VATGroup.extreme_vat;
+              }
+            }
+            
             newData.extreme_customproductname = productInfo.name;
             if (productInfo._defaultuomid_value !== null)
               newData._uomid_value = productInfo._defaultuomid_value;
@@ -623,7 +687,7 @@ $(async function () {
                 supplierDiscount: currentRowData.extreme_supplierdiscount,
                 margin: priceListMargin,
                 discount: currentRowData.extreme_discount,
-                TaxPercent: currentRowData.extreme_tax || 0,
+                TaxPercent: newData.extreme_tax || defaultTax || 0,
               });
 
               newData.extreme_margin = recalcResult.margin;
@@ -3115,6 +3179,10 @@ $(async function () {
       onContentReady: function (e) {
         console.log(e);
         replaceLoader();
+        
+        // Update all parent SET rows with aggregated child values
+        updateAllParentSums();
+        
         const parentDoc = parent.document;
         if (parentDoc.getElementById("floating-delete-icon"))
           parentDoc.getElementById("floating-delete-icon").remove();
