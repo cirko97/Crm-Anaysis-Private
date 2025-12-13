@@ -2191,8 +2191,9 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_euroexchangerate: parseFloat(newValue) }
                           );
-                          jsonForConverting.EUR = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
+                          // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
+                          jsonForConverting.EUR = parseFloat(newValue);
 
                           break;
                         case "USD":
@@ -2201,8 +2202,9 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_dollarexchangerate: parseFloat(newValue) }
                           );
-                          jsonForConverting.USD = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
+                          // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
+                          jsonForConverting.USD = parseFloat(newValue);
 
                           break;
                         case "CHF":
@@ -2211,8 +2213,9 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_chfexchangerate: parseFloat(newValue) }
                           );
-                          jsonForConverting.CHF = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
+                          // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
+                          jsonForConverting.CHF = parseFloat(newValue);
 
                           break;
                         case "RSD":
@@ -2221,8 +2224,9 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_rsdexchangerate: parseFloat(newValue) }
                           );
-                          jsonForConverting.RSD = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
+                          // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
+                          jsonForConverting.RSD = parseFloat(newValue);
 
                           break;
                         case "MKD":
@@ -2234,8 +2238,9 @@ $(async function () {
                                 parseFloat(newValue),
                             }
                           );
-                          jsonForConverting.MKD = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
+                          // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
+                          jsonForConverting.MKD = parseFloat(newValue);
 
                           break;
                         case "GBP":
@@ -2244,8 +2249,9 @@ $(async function () {
                             `${quoteId}`,
                             { extreme_gbpexchangerate: parseFloat(newValue) }
                           );
-                          jsonForConverting.GBP = parseFloat(newValue);
                           await exchangeRateChange(currency, newValue);
+                          // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
+                          jsonForConverting.GBP = parseFloat(newValue);
 
                           break;
                         default:
