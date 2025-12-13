@@ -2898,7 +2898,7 @@ $(async function () {
       onRowUpdating: async function (e) {
         console.log("onRowUpdating:", e);
         
-        // If this is a parent item (SET), handle baseamount and discount changes specially
+        // If this is a parent item (SET), handle it specially
         if (e.oldData && e.oldData.extreme_isparentitem === true) {
           // Check if baseamount or discount is being changed
           const isBaseAmountChange = e.newData.hasOwnProperty('baseamount');
@@ -3088,12 +3088,30 @@ $(async function () {
                   message: "Error distributing values to children: " + error.message,
                 });
               }
+            } else {
+              // SET with no children - just cancel the save and show the value locally
+              console.log("SET has no children, just updating display locally");
               
-              return; // Exit early after handling parent distribution
+              // Update the value in the local store without saving
+              const parentDataSource = treeList.getDataSource();
+              const store = parentDataSource.store();
+              
+              const updates = {};
+              if (e.newData.baseamount !== undefined) {
+                updates.baseamount = e.newData.baseamount;
+              }
+              if (e.newData.extreme_discount !== undefined) {
+                updates.extreme_discount = e.newData.extreme_discount;
+              }
+              
+              store.update(e.key, updates);
+              treeList.repaint();
             }
+            
+            return; // Always return after handling baseamount/discount changes
           }
           
-          // For other parent field changes (not baseamount/discount), remove calculated fields
+          // For any other parent field changes, remove calculated fields (they shouldn't be editable anyway)
           // Only allow changes to editable fields like productid, name, description, etc.
           if (e.newData.hasOwnProperty('baseamount')) {
             delete e.newData.baseamount;
@@ -3118,6 +3136,9 @@ $(async function () {
           }
           if (e.newData.hasOwnProperty('priceperunit')) {
             delete e.newData.priceperunit;
+          }
+          if (e.newData.hasOwnProperty('extreme_discount')) {
+            delete e.newData.extreme_discount;
           }
         }
       },
