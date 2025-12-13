@@ -2227,6 +2227,8 @@ $(async function () {
                           await exchangeRateChange(currency, newValue);
                           // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
                           jsonForConverting.EUR = parseFloat(newValue);
+                          // Also update the input field value to reflect the change
+                          $("#EUR").val(parseFloat(newValue));
 
                           break;
                         case "USD":
@@ -2238,6 +2240,8 @@ $(async function () {
                           await exchangeRateChange(currency, newValue);
                           // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
                           jsonForConverting.USD = parseFloat(newValue);
+                          // Also update the input field value to reflect the change
+                          $("#USD").val(parseFloat(newValue));
 
                           break;
                         case "CHF":
@@ -2249,6 +2253,8 @@ $(async function () {
                           await exchangeRateChange(currency, newValue);
                           // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
                           jsonForConverting.CHF = parseFloat(newValue);
+                          // Also update the input field value to reflect the change
+                          $("#CHF").val(parseFloat(newValue));
 
                           break;
                         case "RSD":
@@ -2260,6 +2266,8 @@ $(async function () {
                           await exchangeRateChange(currency, newValue);
                           // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
                           jsonForConverting.RSD = parseFloat(newValue);
+                          // Also update the input field value to reflect the change
+                          $("#RSD").val(parseFloat(newValue));
 
                           break;
                         case "MKD":
@@ -2274,6 +2282,8 @@ $(async function () {
                           await exchangeRateChange(currency, newValue);
                           // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
                           jsonForConverting.MKD = parseFloat(newValue);
+                          // Also update the input field value to reflect the change
+                          $("#MKD").val(parseFloat(newValue));
 
                           break;
                         case "GBP":
@@ -2285,6 +2295,8 @@ $(async function () {
                           await exchangeRateChange(currency, newValue);
                           // Update jsonForConverting AFTER exchangeRateChange to ensure it persists after form refresh
                           jsonForConverting.GBP = parseFloat(newValue);
+                          // Also update the input field value to reflect the change
+                          $("#GBP").val(parseFloat(newValue));
 
                           break;
                         default:
