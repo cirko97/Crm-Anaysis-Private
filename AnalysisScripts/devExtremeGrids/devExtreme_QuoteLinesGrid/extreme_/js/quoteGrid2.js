@@ -6,6 +6,8 @@ let selectedDescriptionItem = null;
 let gridContainer;
 let currenciesArray = [];
 let isUpdatingParentSums = false; // Flag to prevent infinite loop
+let customProductsArray = []; // Array to store custom products
+let newIdForCustomProducts = 100001; // Counter for custom product IDs
 const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 
 // Function to update all parent SET rows with aggregated child values
@@ -98,6 +100,12 @@ $(async function () {
       console.error("Error loading currencies:", error);
     }
   );
+
+  // Create store for custom products (created via "Add new" button)
+  const customProductsStore = new DevExpress.data.ArrayStore({
+    key: "productid",
+    data: customProductsArray
+  });
 
   const exchangeRatesForm = await Xrm.WebApi.retrieveRecord(
     "quote",
@@ -455,6 +463,14 @@ $(async function () {
                 args.customItem = null;
                 return;
               }
+
+              // Create new custom product
+              var newItem = {};
+              newItem.productid = newIdForCustomProducts++;
+              newItem.name = args.text;
+              newItem.productnumber = args.text;
+              customProductsStore.insert(newItem);
+              args.customItem = newItem;
             },
             onOpened: function (e) {
               heightAuto = false;
@@ -1831,6 +1847,14 @@ $(async function () {
                       args.customItem = null;
                       return;
                     }
+
+                    // Create new custom product
+                    var newItem = {};
+                    newItem.productid = newIdForCustomProducts++;
+                    newItem.name = args.text;
+                    newItem.productnumber = args.text;
+                    customProductsStore.insert(newItem);
+                    args.customItem = newItem;
                   },
                   onOpened: function (e) {
                     heightAuto = false;
@@ -1848,6 +1872,15 @@ $(async function () {
                   onFocusOut: function (e) {
                     heightAuto = true;
                   },
+                });
+
+                // Configure lookup to use custom products store
+                treeList.columnOption("productid", "lookup", {
+                  dataSource: {
+                    store: customProductsStore,
+                  },
+                  displayExpr: 'productnumber',
+                  valueExpr: 'productid',
                 });
 
                 treeList.addRow();
