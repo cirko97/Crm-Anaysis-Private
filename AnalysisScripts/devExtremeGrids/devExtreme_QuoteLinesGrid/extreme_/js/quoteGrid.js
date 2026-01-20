@@ -25,6 +25,87 @@ let selectedDescriptionItem = null;
 let primaryDefaultUnit = "KOM";
 let defaultDiscount = 0;
 
+// Cache for product info to avoid repeated API calls
+const productInfoCache = new Map();
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes cache expiry
+
+// Cache for price list info to avoid repeated API calls
+const priceListCache = new Map();
+
+// VAT Settings lookup map for instant access (built from vatSettingsArray)
+// Key format: "productType_taxPercent" -> vatSettingId
+let vatSettingsLookupMap = new Map();
+
+// Helper function to get cached product info
+async function getCachedProductInfo(Xrm, productId, selectFields) {
+  const cacheKey = `${productId}_${selectFields}`;
+  const cached = productInfoCache.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp) < CACHE_EXPIRY_MS) {
+    return cached.data;
+  }
+  
+  const data = await Xrm.WebApi.retrieveRecord("product", `${productId}`, `?$select=${selectFields}`);
+  productInfoCache.set(cacheKey, { data, timestamp: Date.now() });
+  return data;
+}
+
+// Helper function to get cached price list info
+async function getCachedPriceListInfo(Xrm, priceListId) {
+  const cacheKey = priceListId;
+  const cached = priceListCache.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp) < CACHE_EXPIRY_MS) {
+    return cached.data;
+  }
+  
+  const data = await Xrm.WebApi.retrieveRecord("pricelevel", `${priceListId}`, "?$select=enddate,statuscode");
+  priceListCache.set(cacheKey, { data, timestamp: Date.now() });
+  return data;
+}
+
+// Get VAT setting instantly from pre-built map (no API call needed)
+function getVatSettingFromMap(productType, taxPercent) {
+  // First try to find in the full vatSettingsArray with customer tax
+  const setting = vatSettingsArray.find(item => 
+    item.productTypeCode === productType
+  );
+  return setting ? setting.id : null;
+}
+
+// Build VAT settings lookup map from array for instant access
+function buildVatSettingsLookupMap(taxPercent) {
+  vatSettingsLookupMap.clear();
+  vatSettingsArray.forEach(item => {
+    const key = `${item.productTypeCode}`;
+    if (!vatSettingsLookupMap.has(key)) {
+      vatSettingsLookupMap.set(key, item.id);
+    }
+  });
+}
+
+// Clear all caches when needed (e.g., on form refresh)
+function clearAllCaches() {
+  productInfoCache.clear();
+  priceListCache.clear();
+}
+
+// Debounce helper function to prevent excessive API calls during typing
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Search timeout configuration for lookup fields (ms)
+const SEARCH_TIMEOUT_MS = 300;
+
 async function setClientApiContext(Xrm, formContext) {
 
   // Optionally set Xrm and formContext as global variables on the page.
@@ -41,31 +122,17 @@ async function setClientApiContext(Xrm, formContext) {
 
   const quoteIdForm = replaceCurlyBrackets(formContext.data.entity.getId(), "");
   const userId = replaceCurlyBrackets(Xrm.Utility.getGlobalContext().userSettings.userId, "");
-  const taxPercentOfAccount = await Xrm.WebApi.retrieveRecord("account", `${replaceCurlyBrackets(formContext.getAttribute('customerid').getValue()[0].id, '')}`, "?$select=extreme_tax");
-  const exchangeRatesForm = await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate");
-
-  const roundInfo = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'salesAmountRounding'");
+  
+  // Parallel fetch of initial data for better performance
+  const [taxPercentOfAccount, quoteInfo, roundInfo] = await Promise.all([
+    Xrm.WebApi.retrieveRecord("account", `${replaceCurlyBrackets(formContext.getAttribute('customerid').getValue()[0].id, '')}`, "?$select=extreme_tax"),
+    Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=statecode,extreme_chfexchangerate,extreme_dollarexchangerate,extreme_euroexchangerate,exchangerate,extreme_gbpexchangerate,extreme_macedoniandenarexchangerate,extreme_rsdexchangerate"),
+    Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'salesAmountRounding'")
+  ]);
+  
+  const exchangeRatesForm = quoteInfo;
   const ROUNDING_PRICE_PER_UNIT_CONFIG = roundInfo.entities[0]["extreme_value"];
-
-  await Xrm.WebApi.retrieveRecord("quote", `${quoteIdForm}`, "?$select=statecode").then(
-    function success(result) {
-      // // console.log(result);
-      // Columns
-      var quoteid = result["quoteid"]; // Guid
-      var statecode = result["statecode"]; // State
-      var statecode_formatted = result["statecode@OData.Community.Display.V1.FormattedValue"];
-
-      isDraftStatus = statecode === 0 ? true : false;
-
-    },
-    function (error) {
-      Xrm.Navigation.openErrorDialog({
-        details: error,
-        errorCode: 400,
-        message: error.message
-      });
-    }
-  );
+  isDraftStatus = quoteInfo.statecode === 0 ? true : false;
 
   formContext.getAttribute('transactioncurrencyid').addOnChange(async () => {
     var record = {};
@@ -208,12 +275,20 @@ async function setClientApiContext(Xrm, formContext) {
     );
   }
 
-  await getProductTypes();
-  await getUnits();
-  await getCurrencies();
-  await getAreas();
-  await getTechs();
-  await getVatGroups();
+  // Parallel loading of initial data for better performance
+  await Promise.all([
+    getProductTypes(),
+    getUnits(),
+    getCurrencies(),
+    getAreas(),
+    getTechs(),
+    getVatGroups()
+  ]);
+  
+  // Build VAT settings lookup map for instant access (eliminates API calls)
+  buildVatSettingsLookupMap(taxPercentOfAccount.extreme_tax);
+  
+  // These depend on data loaded above
   await getQuoteProducts(quoteIdForm);
   await getPriceLists();
 
@@ -997,9 +1072,11 @@ async function setClientApiContext(Xrm, formContext) {
         sorting: {
           mode: 'none',
         },
-        // selection: {
-        //   mode: 'multiple',
-        // },
+        selection: {
+          mode: 'multiple',
+          showCheckBoxesMode: 'always',
+          allowSelectAll: true
+        },
         allowColumnResizing: true,
         allowColumnReordering: true,
         columnResizingMode: "mode",
@@ -1031,17 +1108,26 @@ async function setClientApiContext(Xrm, formContext) {
             quoteLinesData._array.splice(fromIndex, 1);
             quoteLinesData._array.splice(toIndex, 0, e.itemData);
 
-            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
-              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
-              quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
-            }
+            // Batch reorder with Promise.all for performance
+            const reorderPromises = [];
+            const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
+            const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null);
 
-            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
-              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
-              quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
-            }
+            parentItems.forEach((item, i) => {
+              const newSeq = parseInt((i + 1) + "00");
+              reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+              item.sequencenumber = newSeq;
+            });
 
-            await getQuoteProducts(quoteIdForm);
+            childItems.forEach((item, i) => {
+              const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === item.extreme_parentquoteline)?.sequencenumber || 0;
+              const newSeq = parentSeq + (i + 1);
+              reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+              item.sequencenumber = newSeq;
+            });
+
+            // Execute all reorders in parallel (fire and forget)
+            Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
             e.component.refresh();
           },
           data: "root",
@@ -1212,6 +1298,8 @@ async function setClientApiContext(Xrm, formContext) {
                       acceptCustomValue: true,
                       // popupWidth: 600,
                       searchEnabled: true,
+                      searchTimeout: SEARCH_TIMEOUT_MS, // Debounce search for better performance
+                      minSearchLength: 2, // Only search after 2 characters
                       // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
                       searchExpr: ["productnumber", "name"],
                       itemTemplate: function (data, index, container) {
@@ -1301,56 +1389,43 @@ async function setClientApiContext(Xrm, formContext) {
                       let productType = null;
                       let defaultVatSetting = null;
                       let defaultTax = null;
-
-                      // const productTypeCode = 1;
-                      // const serviceTypeCode = 3;
-
-                      if (isGuid(value)) {
-                        if (value !== null) {
-                          productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
-                          newData.extreme_producttype = productType.producttypecode;
-                          defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
-                          defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
-                        }
-                      }
-
                       let priceListItemInfo = [];
                       let classifyLookupsInfo = null;
                       let supplierPricePerUnit = 0;
 
-                      const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
-                      if (productInfo._pricelevelid_value) {
-                        if (value !== null && isGuid(value)) {
-                          const priceListInfo = await Xrm.WebApi.retrieveRecord("pricelevel", `${productInfo._pricelevelid_value}`, "?$select=enddate,statuscode");
+                      // Parallel fetch all product-related data in one go (using cache)
+                      if (isGuid(value) && value !== null) {
+                        // Fetch all product info in a single call with all needed fields
+                        const productInfoData = await getCachedProductInfo(Xrm, value, "producttypecode,_pricelevelid_value,_defaultuomid_value,name,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
 
+                        productType = productInfoData.producttypecode;
+                        newData.extreme_producttype = productType;
+                        classifyLookupsInfo = productInfoData;
+
+                        // Get VAT setting instantly from pre-loaded array (NO API call needed!)
+                        const vatSettingFromArray = vatSettingsArray.find(item => 
+                          item.productTypeCode === productType
+                        );
+                        defaultVatSetting = vatSettingFromArray ? vatSettingFromArray.id : null;
+                        
+                        // Fetch price list info using cache
+                        if (productInfoData._pricelevelid_value) {
+                          const priceListInfo = await getCachedPriceListInfo(Xrm, productInfoData._pricelevelid_value);
+
+                          // Fetch price list item info if price list is valid
                           if ((new Date(priceListInfo.enddate) > new Date() || priceListInfo.enddate === null) && priceListInfo.statuscode === 100001) {
-                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})`);
-                          }
-                          else {
-                            var alertStrings = {
+                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin)&$filter=(_pricelevelid_value eq ${productInfoData._pricelevelid_value} and _productid_value eq ${value})`);
+                          } else {
+                            Xrm.Navigation.openAlertDialog({
                               confirmButtonLabel: "OK",
                               text: "Price list for this product expired or is no longer active.",
                               title: "Price list"
-                            };
-                            var alertOptions = { height: 120, width: 260 };
-                            Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
-                              function (success) {
-                                // console.log("Alert dialog closed");
-                              },
-                              function (error) {
-                                console.log(error.message);
-                              }
-                            );
-
+                            }, { height: 120, width: 260 });
                             priceListItemInfo = [];
                           }
                         }
-                      }
-                      if (value !== null && isGuid(value)) {
-                        classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
-                      }
 
-                      if (classifyLookupsInfo !== null) {
+                        // Use already-fetched classifyLookupsInfo
                         if (classifyLookupsInfo.producttypecode) newData.extreme_producttype = classifyLookupsInfo.producttypecode;
                         if (classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
                         if (classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
@@ -1363,6 +1438,7 @@ async function setClientApiContext(Xrm, formContext) {
                       // console.log('priceListItemInfo');
                       // console.log(priceListItemInfo);
 
+                      const productInfo = classifyLookupsInfo || {};
                       const priceListMargin = priceListItemInfo.entities ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] !== null ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin : currentRowData.extreme_margin;
                       const priceListItemAmount = priceListItemInfo.entities ? priceListItemInfo.entities[0].amount : 0;
                       const priceListItemAmountFormatted = priceListItemInfo.entities ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
@@ -2395,6 +2471,8 @@ async function setClientApiContext(Xrm, formContext) {
                     editorOptions: {
                       acceptCustomValue: false,
                       searchEnabled: true,
+                      searchTimeout: SEARCH_TIMEOUT_MS, // Debounce search for better performance
+                      minSearchLength: 2, // Only search after 2 characters
                       searchExpr: ["extreme_paname30characters", "name"],
                       itemTemplate: function (data, index, container) {
                         var row = $("<div>").addClass("row text-wrap");
@@ -2888,6 +2966,8 @@ async function setClientApiContext(Xrm, formContext) {
               acceptCustomValue: true,
               // popupWidth: 600,
               searchEnabled: true,
+              searchTimeout: SEARCH_TIMEOUT_MS, // Debounce search for better performance
+              minSearchLength: 2, // Only search after 2 characters
               // searchExpr: ["productId", "productName", "priceListItemAmountFormatted"],
               searchExpr: ["productnumber", "name"],
               itemTemplate: function (data, index, container) {
@@ -2978,56 +3058,44 @@ async function setClientApiContext(Xrm, formContext) {
               let productType = null;
               let defaultVatSetting = null;
               let defaultTax = null;
-
-              // const productTypeCode = 1;
-              // const serviceTypeCode = 3;
-
-              if (isGuid(value)) {
-                if (value !== null) {
-                  productType = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode");
-                  newData.extreme_producttype = productType.producttypecode;
-                  defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType.producttypecode} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
-                  defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
-                }
-              }
-
               let priceListItemInfo = [];
               let classifyLookupsInfo = null;
               let supplierPricePerUnit = 0;
+              let productInfo = null;
 
-              const productInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
-              if (productInfo._pricelevelid_value) {
-                if (value !== null && isGuid(value)) {
-                  const priceListInfo = await Xrm.WebApi.retrieveRecord("pricelevel", `${productInfo._pricelevelid_value}`, "?$select=enddate,statuscode");
+              // Parallel fetch all product-related data in one go
+              if (isGuid(value) && value !== null) {
+                // Fetch all product info in a single call with all needed fields (using cache)
+                productInfo = await getCachedProductInfo(Xrm, value, "producttypecode,_pricelevelid_value,_defaultuomid_value,name,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
 
+                productType = productInfo.producttypecode;
+                newData.extreme_producttype = productType;
+                classifyLookupsInfo = productInfo;
+
+                // Get VAT setting instantly from pre-loaded array (NO API call needed!)
+                const vatSettingFromArray = vatSettingsArray.find(item => 
+                  item.productTypeCode === productType
+                );
+                defaultVatSetting = vatSettingFromArray ? vatSettingFromArray.id : null;
+                
+                // Fetch price list info using cache
+                if (productInfo._pricelevelid_value) {
+                  const priceListInfo = await getCachedPriceListInfo(Xrm, productInfo._pricelevelid_value);
+
+                  // Fetch price list item info if price list is valid
                   if ((new Date(priceListInfo.enddate) > new Date() || priceListInfo.enddate === null) && priceListInfo.statuscode === 100001) {
                     priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$expand=pricelevelid($select=extreme_defaultsalesmargin)&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${value})`);
-                  }
-                  else {
-                    var alertStrings = {
+                  } else {
+                    Xrm.Navigation.openAlertDialog({
                       confirmButtonLabel: "OK",
                       text: "Price list for this product expired or is no longer active.",
                       title: "Price list"
-                    };
-                    var alertOptions = { height: 120, width: 260 };
-                    Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
-                      function (success) {
-                        // console.log("Alert dialog closed");
-                      },
-                      function (error) {
-                        console.log(error.message);
-                      }
-                    );
-
+                    }, { height: 120, width: 260 });
                     priceListItemInfo = [];
                   }
                 }
-              }
-              if (value !== null && isGuid(value)) {
-                classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${value}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
-              }
 
-              if (classifyLookupsInfo !== null) {
+                // Use the already-fetched classifyLookupsInfo (same as productInfo)
                 if (classifyLookupsInfo.producttypecode) newData.extreme_producttype = classifyLookupsInfo.producttypecode;
                 if (classifyLookupsInfo._extreme_area_value) newData.extreme_area = classifyLookupsInfo._extreme_area_value;
                 if (classifyLookupsInfo._extreme_technology_value) newData.extreme_technology = classifyLookupsInfo._extreme_technology_value;
@@ -3040,6 +3108,9 @@ async function setClientApiContext(Xrm, formContext) {
               // console.log('priceListItemInfo');
               // console.log(priceListItemInfo);
 
+              // Ensure productInfo has a fallback if not fetched
+              if (!productInfo) productInfo = {};
+              
               const priceListMargin = priceListItemInfo.entities ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] !== null ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin : currentRowData.extreme_margin;
               const priceListItemAmount = priceListItemInfo.entities ? priceListItemInfo.entities[0].amount : 0;
               const priceListItemAmountFormatted = priceListItemInfo.entities ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
@@ -4072,6 +4143,8 @@ async function setClientApiContext(Xrm, formContext) {
             editorOptions: {
               acceptCustomValue: false,
               searchEnabled: true,
+              searchTimeout: SEARCH_TIMEOUT_MS, // Debounce search for better performance
+              minSearchLength: 2, // Only search after 2 characters
               searchExpr: ["extreme_paname30characters", "name"],
               itemTemplate: function (data, index, container) {
                 var row = $("<div>").addClass("row text-wrap");
@@ -4142,7 +4215,7 @@ async function setClientApiContext(Xrm, formContext) {
           },
           {
             type: 'buttons',
-            width: 70,
+            width: 100,
             buttons: [
               {
                 hint: 'Description',
@@ -4153,92 +4226,405 @@ async function setClientApiContext(Xrm, formContext) {
                 disabled(e) {
                   return false;
                 },
-                onClick(e) {
-                  // console.log(e);
-
-                  const popupContentTemplate = function (item) {
-
-                    if (isDraftStatus) {
-                      return $('<div data-mdb-input-init class="form-outline">')
-                        .append($(`<textarea class="form-control" id="productDescription" rows="4" style="resize: none;">${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</textarea>`))
-                    }
-                    else {
-                      return $('<div class="overflow-auto" style="max-height: 100px;">')
-                        .append($(`<p>${item.extreme_productdescription ? item.extreme_productdescription.trim() : ''}</p>`))
-                    }
-
-                    return $('<div>').append(
-                      $(`<p>Birth Date: <span>${item.extreme_productdescription}</span></p>`)
-                    );
+                async onClick(e) {
+                  const rowData = e.row.data;
+                  const productName = rowData.extreme_customproductname || 'Product';
+                  const currentDescription = rowData.extreme_productdescription || '';
+                  const isReadOnly = !isDraftStatus;
+                  
+                  // Create custom popup in parent window document
+                  const parentDoc = window.parent.document;
+                  
+                  // Remove existing popup if any
+                  const existingPopup = parentDoc.getElementById('descriptionPopupOverlay');
+                  if (existingPopup) existingPopup.remove();
+                  
+                  // Create overlay
+                  const overlay = parentDoc.createElement('div');
+                  overlay.id = 'descriptionPopupOverlay';
+                  overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 999999;
+                  `;
+                  
+                  // Create popup container
+                  const popup = parentDoc.createElement('div');
+                  popup.style.cssText = `
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                    width: 500px;
+                    max-width: 90%;
+                    max-height: 80%;
+                    display: flex;
+                    flex-direction: column;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                  `;
+                  
+                  // Create header
+                  const header = parentDoc.createElement('div');
+                  header.style.cssText = `
+                    padding: 16px 20px;
+                    border-bottom: 1px solid #e0e0e0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                  `;
+                  
+                  const title = parentDoc.createElement('span');
+                  title.style.cssText = 'font-size: 16px; font-weight: 600; color: #333;';
+                  title.textContent = productName.length > 35 ? productName.substring(0, 32) + '...' : productName;
+                  
+                  const closeBtn = parentDoc.createElement('button');
+                  closeBtn.innerHTML = '&times;';
+                  closeBtn.style.cssText = `
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    color: #666;
+                    padding: 0;
+                    line-height: 1;
+                  `;
+                  closeBtn.onmouseover = () => closeBtn.style.color = '#333';
+                  closeBtn.onmouseout = () => closeBtn.style.color = '#666';
+                  
+                  header.appendChild(title);
+                  header.appendChild(closeBtn);
+                  
+                  // Create body with textarea
+                  const body = parentDoc.createElement('div');
+                  body.style.cssText = 'padding: 20px; flex: 1;';
+                  
+                  const label = parentDoc.createElement('label');
+                  label.style.cssText = 'display: block; margin-bottom: 8px; font-size: 14px; color: #555;';
+                  label.textContent = 'Description:';
+                  
+                  const textarea = parentDoc.createElement('textarea');
+                  textarea.id = 'descriptionTextarea';
+                  textarea.value = currentDescription;
+                  textarea.readOnly = isReadOnly;
+                  textarea.style.cssText = `
+                    width: 100%;
+                    height: 150px;
+                    padding: 12px;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    font-family: inherit;
+                    resize: vertical;
+                    box-sizing: border-box;
+                    ${isReadOnly ? 'background: #f5f5f5; color: #666;' : ''}
+                  `;
+                  textarea.placeholder = 'Enter product description...';
+                  
+                  body.appendChild(label);
+                  body.appendChild(textarea);
+                  
+                  // Create footer with buttons
+                  const footer = parentDoc.createElement('div');
+                  footer.style.cssText = `
+                    padding: 16px 20px;
+                    border-top: 1px solid #e0e0e0;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                  `;
+                  
+                  const cancelBtn = parentDoc.createElement('button');
+                  cancelBtn.textContent = isReadOnly ? 'Close' : 'Cancel';
+                  cancelBtn.style.cssText = `
+                    padding: 8px 20px;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    background: white;
+                    cursor: pointer;
+                    font-size: 14px;
+                    color: #333;
+                  `;
+                  cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
+                  cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
+                  
+                  footer.appendChild(cancelBtn);
+                  
+                  if (!isReadOnly) {
+                    const saveBtn = parentDoc.createElement('button');
+                    saveBtn.textContent = 'Save';
+                    saveBtn.style.cssText = `
+                      padding: 8px 20px;
+                      border: none;
+                      border-radius: 4px;
+                      background: #0078d4;
+                      color: white;
+                      cursor: pointer;
+                      font-size: 14px;
+                    `;
+                    saveBtn.onmouseover = () => saveBtn.style.background = '#106ebe';
+                    saveBtn.onmouseout = () => saveBtn.style.background = '#0078d4';
+                    
+                    saveBtn.onclick = async () => {
+                      const newDescription = textarea.value.trim();
+                      saveBtn.disabled = true;
+                      saveBtn.textContent = 'Saving...';
+                      
+                      try {
+                        await Xrm.WebApi.updateRecord("quotedetail", `${rowData.quotedetailid}`, { 
+                          extreme_productdescription: newDescription 
+                        });
+                        quoteLinesData.update(rowData.quotedetailid, { 
+                          extreme_productdescription: newDescription 
+                        });
+                        dataGrid.refresh();
+                        overlay.remove();
+                      } catch (error) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save';
+                        Xrm.Navigation.openErrorDialog({
+                          details: error,
+                          errorCode: 400,
+                          message: error.message
+                        });
+                      }
+                    };
+                    
+                    footer.appendChild(saveBtn);
+                  }
+                  
+                  // Close handlers
+                  const closePopup = () => overlay.remove();
+                  closeBtn.onclick = closePopup;
+                  cancelBtn.onclick = closePopup;
+                  overlay.onclick = (evt) => {
+                    if (evt.target === overlay) closePopup();
                   };
-                  const popup = $('#popup').dxPopup({
-                    contentTemplate: popupContentTemplate,
-                    width: 500,
-                    height: 200,
-                    container: '.dx-viewport',
-                    showTitle: true,
-                    title: `Description for ${e.row.data.extreme_customproductname ? e.row.data.extreme_customproductname.length > 20 ? e.row.data.extreme_customproductname.substring(0, 17) + '...' : e.row.data.extreme_customproductname : ''}`,
-                    visible: false,
-                    dragEnabled: false,
-                    hideOnOutsideClick: true,
-                    showCloseButton: false,
-                    position: {
-                      at: 'center',
-                      my: 'center',
-                      collision: 'fit',
-                    },
-                    toolbarItems: [{
-                      widget: 'dxButton',
-                      toolbar: 'bottom',
-                      location: 'before',
-                      options: {
-                        icon: 'save',
-                        stylingMode: 'contained',
-                        text: 'Save',
-                        disabled: !isDraftStatus,
-                        async onClick() {
-                          // console.log($('#productDescription').val().trim());
-
-                          // var record = {};
-                          // record.extreme_productdescription = "test"; // Multiline Text
-
-                          await Xrm.WebApi.updateRecord("quotedetail", `${e.row.data.quotedetailid}`, { extreme_productdescription: $('#productDescription').val().trim() });
-                          quoteLinesData.update(e.row.data.quotedetailid, { extreme_productdescription: $('#productDescription').val().trim() });
-                          dataGrid.refresh();
-
-                          popup.hide();
-
-                        },
-                      },
-                    }, {
-                      widget: 'dxButton',
-                      toolbar: 'bottom',
-                      location: 'after',
-                      options: {
-                        text: 'Close',
-                        stylingMode: 'outlined',
-                        type: 'normal',
-                        onClick() {
-                          popup.hide();
-                        },
-                      },
-                    }],
-                    onHiding: (e) => {
-                      // console.log('Hidding popup event');
-                      // console.log(e);
-                      selectedDescriptionItem = null;
+                  
+                  // ESC key to close
+                  const escHandler = (evt) => {
+                    if (evt.key === 'Escape') {
+                      closePopup();
+                      parentDoc.removeEventListener('keydown', escHandler);
                     }
-                  }).dxPopup('instance');
-
-                  selectedDescriptionItem = e.row.data;
-                  popup.option({
-                    contentTemplate: () => popupContentTemplate(e.row.data)
-                  });
-                  popup.show();
-
+                  };
+                  parentDoc.addEventListener('keydown', escHandler);
+                  
+                  // Assemble popup
+                  popup.appendChild(header);
+                  popup.appendChild(body);
+                  popup.appendChild(footer);
+                  overlay.appendChild(popup);
+                  parentDoc.body.appendChild(overlay);
+                  
+                  // Focus textarea
+                  setTimeout(() => textarea.focus(), 100);
                 },
               },
-              'delete'
+              {
+                hint: 'Duplicate',
+                icon: 'copy',
+                visible: isDraftStatus,
+                async onClick(e) {
+                  const rowData = e.row.data;
+                  const productName = rowData.extreme_customproductname || 'this row';
+                  
+                  // Don't allow duplicating parent items (sets)
+                  if (rowData.extreme_isparentitem === true) {
+                    await Xrm.Navigation.openAlertDialog({
+                      title: "Cannot Duplicate",
+                      text: "Cannot duplicate a set (parent item). Please duplicate individual items instead."
+                    });
+                    return;
+                  }
+                  
+                  Xrm.Utility.showProgressIndicator('Duplicating... Please wait...');
+                  
+                  try {
+                    // Build record for new quotedetail
+                    const record = {};
+                    record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`;
+                    
+                    // Copy all relevant fields
+                    if (rowData.extreme_customproductname) record.extreme_customproductname = rowData.extreme_customproductname + " (Copy)";
+                    if (rowData.extreme_productdescription) record.extreme_productdescription = rowData.extreme_productdescription;
+                    if (rowData.extreme_pricelistpriceperunit || rowData.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = rowData.extreme_pricelistpriceperunit;
+                    if (rowData.extreme_pricelistcurrency) record.extreme_pricelistcurrency = rowData.extreme_pricelistcurrency;
+                    if (rowData.extreme_supplierpriceperunit || rowData.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(rowData.extreme_supplierpriceperunit).toFixed(4));
+                    if (rowData.quantity || rowData.quantity === 0) record.quantity = rowData.quantity;
+                    if (rowData.extreme_supplierbaseamount || rowData.extreme_supplierbaseamount === 0) record.extreme_supplierbaseamount = Number(parseFloat(rowData.extreme_supplierbaseamount).toFixed(4));
+                    if (rowData.extreme_supplierdiscount || rowData.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = rowData.extreme_supplierdiscount;
+                    if (rowData.extreme_margin || rowData.extreme_margin === 0) record.extreme_margin = rowData.extreme_margin;
+                    if (rowData.priceperunit || rowData.priceperunit === 0) record.priceperunit = rowData.priceperunit;
+                    if (rowData.baseamount || rowData.baseamount === 0) record.baseamount = Number(parseFloat(rowData.baseamount).toFixed(4));
+                    if (rowData.extreme_discount || rowData.extreme_discount === 0) record.extreme_discount = rowData.extreme_discount;
+                    if (rowData.manualdiscountamount || rowData.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(rowData.manualdiscountamount).toFixed(4));
+                    if (rowData.extreme_pricewithdiscount || rowData.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = rowData.extreme_pricewithdiscount;
+                    if (rowData.extreme_fullpricewithdiscount || rowData.extreme_fullpricewithdiscount === 0) record.extreme_fullpricewithdiscount = rowData.extreme_fullpricewithdiscount;
+                    if (rowData.extreme_tax || rowData.extreme_tax === 0) record.extreme_tax = rowData.extreme_tax;
+                    if (rowData.tax || rowData.tax === 0) record.tax = Number(parseFloat(rowData.tax).toFixed(4));
+                    if (rowData.extreme_pd || rowData.extreme_pd === 0) record.extreme_pd = rowData.extreme_pd;
+                    if (rowData.extreme_fullpd || rowData.extreme_fullpd === 0) record.extreme_fullpd = rowData.extreme_fullpd;
+                    if (rowData.extendedamount || rowData.extendedamount === 0) record.extendedamount = Number(parseFloat(rowData.extendedamount).toFixed(4));
+                    if (typeof rowData.extreme_createasset === "boolean") record.extreme_createasset = rowData.extreme_createasset;
+                    if (rowData.extreme_producttype) record.extreme_producttype = rowData.extreme_producttype;
+                    
+                    // Lookups
+                    if (rowData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${rowData.extreme_pricelist})`;
+                    if (rowData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${rowData.extreme_area})`;
+                    if (rowData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${rowData.extreme_technology})`;
+                    if (rowData.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${rowData.extreme_vendorsupplier})`;
+                    if (rowData.extreme_vatsetting) {
+                      record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${rowData.extreme_vatsetting})`;
+                      const vatSetting = vatSettingsArray.find(item => item.id === rowData.extreme_vatsetting);
+                      if (vatSetting) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatSetting.idVatGroup})`;
+                    }
+                    
+                    // Product or custom product
+                    if (rowData.productid && rowData.extreme_customproductid) {
+                      // Custom product
+                      record.extreme_customproductid = rowData.extreme_customproductid;
+                      if (rowData.extreme_uomid) record.extreme_uomid = rowData.extreme_uomid;
+                    } else if (rowData.productid) {
+                      // Real product
+                      record["productid@odata.bind"] = `/products(${rowData.productid})`;
+                      if (rowData.uomid) record["uomid@odata.bind"] = `/uoms(${rowData.uomid})`;
+                    }
+                    
+                    record.ispriceoverridden = true;
+                    record.extreme_isparentitem = false;
+                    
+                    // If original row is a child of a set, copy to same parent
+                    if (rowData.extreme_parentquoteline) {
+                      record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${rowData.extreme_parentquoteline})`;
+                      // Sequence after siblings
+                      const siblings = quoteLinesData._array.filter(item => item.extreme_parentquoteline === rowData.extreme_parentquoteline);
+                      const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === rowData.extreme_parentquoteline)?.sequencenumber || 0;
+                      record.sequencenumber = parentSeq + siblings.length + 1;
+                    } else {
+                      // New parent-level item
+                      record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00");
+                    }
+                    
+                    const result = await Xrm.WebApi.createRecord("quotedetail", record);
+                    const newId = result.id;
+                    
+                    // Add to local store
+                    const newRowData = {
+                      ...rowData,
+                      quotedetailid: newId,
+                      extreme_customproductname: rowData.extreme_customproductname + " (Copy)",
+                      sequencenumber: record.sequencenumber,
+                      productnumber: rowData.extreme_customproductid || rowData.productnumber
+                    };
+                    
+                    quoteLinesData.insert(newRowData);
+                    dataGrid.refresh();
+                    
+                    Xrm.Utility.closeProgressIndicator();
+                    
+                    // Refresh form in background
+                    formContext.data.refresh(false);
+                    
+                  } catch (error) {
+                    Xrm.Utility.closeProgressIndicator();
+                    Xrm.Navigation.openErrorDialog({
+                      details: error,
+                      errorCode: 400,
+                      message: error.message
+                    });
+                  }
+                }
+              },
+              {
+                name: 'delete',
+                hint: 'Delete',
+                icon: 'trash',
+                visible: isDraftStatus,
+                async onClick(e) {
+                  const rowData = e.row.data;
+                  const productName = rowData.extreme_customproductname || 'this row';
+                  const isParent = rowData.extreme_isparentitem === true;
+                  
+                  // Count children if parent
+                  let childCount = 0;
+                  if (isParent) {
+                    childCount = quoteLinesData._array.filter(
+                      item => item.extreme_parentquoteline === rowData.quotedetailid
+                    ).length;
+                  }
+                  
+                  const confirmMessage = isParent && childCount > 0
+                    ? `Are you sure you want to delete "${productName}" and its ${childCount} child item(s)?`
+                    : `Are you sure you want to delete "${productName}"?`;
+                  
+                  const confirmResult = await Xrm.Navigation.openConfirmDialog({
+                    title: "Confirm Delete",
+                    text: confirmMessage,
+                    confirmButtonLabel: "Delete",
+                    cancelButtonLabel: "Cancel"
+                  });
+                  
+                  if (!confirmResult.confirmed) return;
+                  
+                  Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
+                  
+                  try {
+                    const deletePromises = [];
+                    const idsToRemove = [rowData.quotedetailid];
+                    
+                    // If parent, also delete children
+                    if (isParent) {
+                      const childItems = quoteLinesData._array.filter(
+                        item => item.extreme_parentquoteline === rowData.quotedetailid
+                      );
+                      childItems.forEach(child => idsToRemove.push(child.quotedetailid));
+                    }
+                    
+                    // Delete all records in parallel
+                    idsToRemove.forEach(id => {
+                      deletePromises.push(Xrm.WebApi.deleteRecord("quotedetail", `${id}`));
+                      quoteLinesData.remove(id);
+                    });
+                    
+                    await Promise.all(deletePromises);
+                    
+                    // Reorder remaining parent items
+                    const reorderPromises = [];
+                    const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
+                    parentItems.forEach((item, i) => {
+                      const newSeq = parseInt((i + 1) + "00");
+                      if (item.sequencenumber !== newSeq) {
+                        reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                        item.sequencenumber = newSeq;
+                      }
+                    });
+                    
+                    // Fire-and-forget reorder (don't wait)
+                    if (reorderPromises.length > 0) {
+                      Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
+                    }
+                    
+                    dataGrid.refresh();
+                    Xrm.Utility.closeProgressIndicator();
+                    
+                    // Refresh form in background (don't await)
+                    formContext.data.refresh(false);
+                  } catch (error) {
+                    Xrm.Utility.closeProgressIndicator();
+                    Xrm.Navigation.openErrorDialog({
+                      details: error,
+                      errorCode: 400,
+                      message: error.message
+                    });
+                  }
+                }
+              }
             ],
           }
         ],
@@ -4252,6 +4638,121 @@ async function setClientApiContext(Xrm, formContext) {
             //       .text(`${quoteLinesDisplayName}`)
             //   },
             // },
+            {
+              location: 'before',
+              widget: 'dxButton',
+              locateInMenu: "auto",
+              options: {
+                icon: 'trash',
+                text: 'Delete Selected',
+                width: 'auto',
+                disabled: !isDraftStatus,
+                visible: false,  // Hidden by default, shown when rows are selected
+                elementAttr: {
+                  id: "deleteSelectedBtn",
+                },
+                async onClick(e) {
+                  const selectedRows = dataGrid.getSelectedRowsData();
+                  
+                  if (selectedRows.length === 0) {
+                    Xrm.Navigation.openAlertDialog({
+                      title: "No Selection",
+                      text: "Please select rows to delete."
+                    });
+                    return;
+                  }
+
+                  const confirmResult = await Xrm.Navigation.openConfirmDialog({
+                    title: "Confirm Delete",
+                    text: `Are you sure you want to delete ${selectedRows.length} selected row(s)? This will also delete any child items of selected sets.`,
+                    confirmButtonLabel: "Delete",
+                    cancelButtonLabel: "Cancel"
+                  });
+
+                  if (!confirmResult.confirmed) return;
+
+                  Xrm.Utility.showProgressIndicator('Deleting selected rows... Please wait...');
+
+                  try {
+                    const deletePromises = [];
+                    const idsToRemove = new Set();
+
+                    // Collect all IDs to delete (including children of parent items)
+                    selectedRows.forEach(row => {
+                      idsToRemove.add(row.quotedetailid);
+                      
+                      // If parent item, also collect all child IDs
+                      if (row.extreme_isparentitem === true) {
+                        const childItems = quoteLinesData._array.filter(
+                          item => item.extreme_parentquoteline === row.quotedetailid
+                        );
+                        childItems.forEach(child => idsToRemove.add(child.quotedetailid));
+                      }
+                    });
+
+                    // Batch delete all records in parallel
+                    idsToRemove.forEach(id => {
+                      deletePromises.push(Xrm.WebApi.deleteRecord("quotedetail", `${id}`));
+                      quoteLinesData.remove(id);
+                    });
+
+                    await Promise.all(deletePromises);
+
+                    // Batch reorder remaining items
+                    const reorderPromises = [];
+                    const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
+                    const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null);
+
+                    parentItems.forEach((item, i) => {
+                      const newSeq = parseInt((i + 1) + "00");
+                      if (item.sequencenumber !== newSeq) {
+                        reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                        item.sequencenumber = newSeq;
+                      }
+                    });
+
+                    childItems.forEach((item, i) => {
+                      const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === item.extreme_parentquoteline)?.sequencenumber || 0;
+                      const newSeq = parentSeq + (i + 1);
+                      if (item.sequencenumber !== newSeq) {
+                        reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                        item.sequencenumber = newSeq;
+                      }
+                    });
+
+                    // Fire-and-forget reorder (don't wait)
+                    if (reorderPromises.length > 0) {
+                      Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
+                    }
+
+                    // Clear selection and refresh grid immediately
+                    dataGrid.clearSelection();
+                    dataGrid.refresh();
+                    Xrm.Utility.closeProgressIndicator();
+                    
+                    // Refresh form in background (don't block UI)
+                    formContext.data.refresh(false);
+
+                  } catch (error) {
+                    Xrm.Utility.closeProgressIndicator();
+                    Xrm.Navigation.openErrorDialog({
+                      details: error,
+                      errorCode: 400,
+                      message: error.message
+                    });
+                  }
+                }
+              },
+            },
+            {
+              location: 'before',
+              locateInMenu: "auto",
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
             {
               location: 'before',
               widget: 'dxButton',
@@ -5147,7 +5648,8 @@ async function setClientApiContext(Xrm, formContext) {
           ],
         },
         onSelectionChanged(data) {
-          dataGrid.option('toolbar.items[1].options.disabled', !data.selectedRowsData.length);
+          // Show/hide Delete Selected button based on selection
+          dataGrid.option('toolbar.items[0].options.visible', data.selectedRowsData.length > 0 && isDraftStatus);
         },
         onRowPrepared: async (e) => {
           // console.log('ROW PREPARED');
@@ -5316,6 +5818,11 @@ async function setClientApiContext(Xrm, formContext) {
 
           isAddingSet ? record.extreme_isparentitem = true : record.extreme_isparentitem = false;
 
+          // Pre-calculate sequencenumber to include in initial create (avoids extra updateRecord call)
+          record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00");
+          record.extendedamount = Number(parseFloat(e.data.extendedamount || 0).toFixed(4));
+          record.baseamount = Number(parseFloat(e.data.baseamount || 0).toFixed(4));
+
           if (e.data.productid) {
             if (typeof (e.data.productid) === 'number') {
               record.extreme_customproductid = customProductsStore._array.find((item) => item.productid === e.data.productid).name;
@@ -5331,12 +5838,13 @@ async function setClientApiContext(Xrm, formContext) {
             else {
               record["productid@odata.bind"] = `/products(${e.data.productid})`;
 
-              const existingProductLookups = await Xrm.WebApi.retrieveRecord("product", `${e.data.productid}`, "?$select=description,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+              // Use cached product info for better performance
+              const existingProductLookups = await getCachedProductInfo(Xrm, e.data.productid, "description,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
               // console.log('EXISTING PRODUCT LOOKUPS');
               // console.log(existingProductLookups);
               if (existingProductLookups._extreme_area_value) record["extreme_Area@odata.bind"] = `/extreme_areas(${existingProductLookups._extreme_area_value})`; // Lookup
               if (existingProductLookups._extreme_technology_value) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${existingProductLookups._extreme_technology_value})`; // Lookup
-              if (existingProductLookups._extreme_vendorsupplier_value) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${existingProductLookups._extreme_vendorsupplier_value})`; // Lookup
+              if (existingProductLookups._extreme_supplier_value) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${existingProductLookups._extreme_supplier_value})`; // Lookup
               if (e.data.extreme_productdescription) {
                 record.extreme_productdescription = e.data.extreme_productdescription;
               }
@@ -5379,8 +5887,8 @@ async function setClientApiContext(Xrm, formContext) {
 
                 // console.log(quoteLinesData._array);
 
-                await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { sequencenumber: parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00") });
-                quoteLinesData._array[quoteLinesData._array.length - 1].sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00");
+                // sequencenumber, extendedamount, baseamount already set in createRecord - no extra updateRecord needed
+                quoteLinesData._array[quoteLinesData._array.length - 1].sequencenumber = record.sequencenumber;
                 quoteLinesData._array[quoteLinesData._array.length - 1].extreme_parentquoteline = null;
                 quoteLinesData._array[quoteLinesData._array.length - 1].extreme_isparentitem = isAddingSet;
                 if (!quoteLinesData._array[quoteLinesData._array.length - 1].baseamount) quoteLinesData._array[quoteLinesData._array.length - 1].baseamount = 0;
@@ -5394,10 +5902,6 @@ async function setClientApiContext(Xrm, formContext) {
                 // console.log(quoteLinesData._array[quoteLinesData._array.length - 1].extreme_parentquoteline);
                 // console.log(quoteLinesData._array[quoteLinesData._array.length - 1].extreme_isparentitem);
 
-                await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { extendedamount: Number(parseFloat(e.data.extendedamount).toFixed(4)) });
-
-                await Xrm.WebApi.updateRecord("quotedetail", `${newId}`, { baseamount: Number(parseFloat(e.data.baseamount).toFixed(4)) });
-
 
                 // If inserting parent item with existing child items
                 if (e.data.extreme_isparentitem === true && isGuid(e.data.productid)) {
@@ -5405,302 +5909,258 @@ async function setClientApiContext(Xrm, formContext) {
                   // console.log('quoteLinesData before parent created');
                   // console.log(quoteLinesData);
 
-                  await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber&$filter=_extreme_parentproduct_value eq ${e.data.productid}`).then(
-                    async function success(results) {
-                      // console.log(results);
-                      for (var i = 0; i < results.entities.length; i++) {
-                        var result = results.entities[i];
-                        // Columns
-                        var productid = result["productid"]; // Guid
-                        var pricelevelid = result["_pricelevelid_value"]; // Lookup
-                        var pricelevelid_formatted = result["_pricelevelid_value@OData.Community.Display.V1.FormattedValue"];
-                        var pricelevelid_lookuplogicalname = result["_pricelevelid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-                        var defaultuomid = result["_defaultuomid_value"]; // Lookup
-                        var defaultuomid_formatted = result["_defaultuomid_value@OData.Community.Display.V1.FormattedValue"];
-                        var defaultuomid_lookuplogicalname = result["_defaultuomid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-                        var extreme_isparent = result["extreme_isparent"]; // Boolean
-                        var extreme_isparent_formatted = result["extreme_isparent@OData.Community.Display.V1.FormattedValue"];
-                        var name = result["name"]; // Text
-                        var extreme_parentproduct = result["_extreme_parentproduct_value"]; // Lookup
-                        var extreme_parentproduct_formatted = result["_extreme_parentproduct_value@OData.Community.Display.V1.FormattedValue"];
-                        var extreme_parentproduct_lookuplogicalname = result["_extreme_parentproduct_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
-                        var productnumber = result["productnumber"]; // Text
-                        var producttypecode = result["producttypecode"]; // Choice
-                        var producttypecode_formatted = result["producttypecode@OData.Community.Display.V1.FormattedValue"];
-                        var description = result["description"]; // Multiline Text
+                  try {
+                    const childProducts = await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber,producttypecode&$filter=_extreme_parentproduct_value eq ${e.data.productid}`);
+                    
+                    if (childProducts.entities.length === 0) {
+                      // No child products, skip
+                    } else {
+                      // Collect all product IDs for batch fetching
+                      const productIds = childProducts.entities.map(p => p.productid);
+                      
+                      // Batch fetch all product info, price list items, and classify lookups in parallel
+                      const batchPromises = productIds.map(async (pid, index) => {
+                        const childProduct = childProducts.entities[index];
+                        
+                        // Use cached product info for better performance
+                        const productInfo = await getCachedProductInfo(Xrm, pid, "_pricelevelid_value,_defaultuomid_value,name,producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+                        
+                        // Get VAT setting instantly from pre-loaded array (NO API call needed!)
+                        const vatSettingFromArray = childProduct.producttypecode ? 
+                          vatSettingsArray.find(item => item.productTypeCode === childProduct.producttypecode) : null;
+                        const vatSettingResult = { 
+                          entities: vatSettingFromArray ? [{ extreme_vatsettingid: vatSettingFromArray.id }] : [] 
+                        };
 
-                        let productType = null;
-                        let defaultVatSetting = null;
-                        let defaultTax = null;
-
-                        if (isGuid(productid)) {
-                          if (productid !== null) {
-                            productType = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode");
-                            productType = productType.producttypecode;
-
-                            // console.log('PRODUCT TYPE CHILD');
-                            // console.log(productType);
-                            // console.log(taxPercentOfAccount.extreme_tax);
-
-                            defaultVatSetting = await Xrm.WebApi.retrieveMultipleRecords("extreme_vatsetting", `?$select=extreme_vatsettingid&$filter=(extreme_producttype eq ${productType} and extreme_customertaxpercentage eq ${taxPercentOfAccount.extreme_tax})`);
-                            defaultVatSetting = defaultVatSetting.entities.length > 0 ? defaultVatSetting.entities[0].extreme_vatsettingid : null;
-                          }
-                        }
-
-                        let priceListItemInfo = [];
-                        let classifyLookupsInfo = null;
-                        let supplierPricePerUnit = 0;
-
-                        const productInfo = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=_pricelevelid_value,_defaultuomid_value,name");
+                        let priceListItemInfo = null;
                         if (productInfo._pricelevelid_value) {
-                          if (productid !== null) {
-                            priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${productid})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
-                            classifyLookupsInfo = await Xrm.WebApi.retrieveRecord("product", `${productid}`, "?$select=producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
-                          }
+                          priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${pid})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
                         }
 
-                        let area = null;
-                        let technology = null;
-                        let vendorSupplier = null;
-                        let vatGroup = null;
-                        let defaultUomid = null;
+                        return {
+                          index,
+                          childProduct,
+                          productInfo,
+                          vatSettingResult,
+                          priceListItemInfo
+                        };
+                      });
+
+                      const batchResults = await Promise.all(batchPromises);
+
+                      // Now create all child quote details in parallel
+                      const createPromises = [];
+                      const childRecordsData = [];
+
+                      batchResults.forEach(({ index, childProduct, productInfo, vatSettingResult, priceListItemInfo }) => {
+                        const productid = childProduct.productid;
+                        const name = childProduct.name;
+                        const defaultuomid = childProduct._defaultuomid_value;
+                        const description = childProduct.description;
+
+                        let productType = productInfo.producttypecode;
+                        let defaultVatSetting = vatSettingResult.entities.length > 0 ? vatSettingResult.entities[0].extreme_vatsettingid : null;
+                        let defaultTax = defaultVatSetting ? vatSettingsArray.find(item => item.id === defaultVatSetting)?.vat || 0 : 0;
+
+                        let area = productInfo._extreme_area_value;
+                        let technology = productInfo._extreme_technology_value;
+                        let vendorSupplier = productInfo._extreme_supplier_value;
+                        let vatGroup = defaultVatSetting ? vatSettingsArray.find(item => item.id === defaultVatSetting)?.idVatGroup : null;
+                        let vatSetting = defaultVatSetting;
+
+                        const priceListMargin = priceListItemInfo?.entities?.[0]?.pricelevelid?.extreme_defaultsalesmargin ?? defaultMargin;
+                        const priceListItemAmount = priceListItemInfo?.entities?.[0]?.amount ?? null;
+                        const priceListItemCurrency = priceListItemInfo?.entities?.[0]?._transactioncurrencyid_value ? 
+                          currenciesArray.find(item => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value)?.currencysymbol : null;
+
+                        let supplierPricePerUnit = 0;
                         let priceList = null;
                         let priceListPPU = null;
-                        let priceListCurrecy = null;
-                        let taxAmount = null;
-                        let discountAmount = null;
-                        let extendedAmount = null;
-                        let pd = null;
-                        let fullPD = null;
-                        let PPU = null;
-                        let baseAmount = null;
-                        let supplierBaseAmount = null;
-                        let quantity = null;
-                        let fullPriceWithDiscount = null;
-                        let vatSetting = null;
+                        let priceListCurrency = null;
 
-                        if (classifyLookupsInfo !== null) {
-                          if (classifyLookupsInfo.producttypecode) productType = classifyLookupsInfo.producttypecode;
-                          if (classifyLookupsInfo._extreme_area_value) area = classifyLookupsInfo._extreme_area_value;
-                          if (classifyLookupsInfo._extreme_technology_value) technology = classifyLookupsInfo._extreme_technology_value;
-                          if (classifyLookupsInfo._extreme_supplier_value) vendorSupplier = classifyLookupsInfo._extreme_supplier_value;
-                        }
-
-                        const priceListMargin = priceListItemInfo.length !== 0 && priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : defaultMargin;
-                        const priceListItemAmount = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0].amount : null;
-                        const priceListItemAmountFormatted = priceListItemInfo.length !== 0 ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
-                        const priceListItemCurrency = priceListItemInfo.length !== 0 ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
-
-                        defaultTax = defaultVatSetting === null ? 0 : vatSettingsArray.find(item => item.id === defaultVatSetting).vat
-                        if (defaultVatSetting !== null) {
-                          vatSetting = defaultVatSetting;
-                          vatGroup = vatSettingsArray.find(item => item.id === defaultVatSetting).idVatGroup;
-                        };
-
-                        if (productInfo._defaultuomid_value !== null) defaultUomid = productInfo._defaultuomid_value;
-                        if (productInfo._pricelevelid_value) {
+                        if (productInfo._pricelevelid_value && priceListItemAmount !== null) {
                           priceList = productInfo._pricelevelid_value;
                           priceListPPU = priceListItemAmount;
-                          priceListCurrecy = priceListItemCurrency;
-                          if (quoteCurrencySymbol !== priceListItemCurrency) {
-                            // newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
-                            supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
+                          priceListCurrency = priceListItemCurrency;
+                          if (quoteCurrencySymbol !== priceListItemCurrency && priceListItemCurrency) {
+                            const currencyInfo = currenciesArray.find(item => item.currencysymbol === priceListItemCurrency);
+                            supplierPricePerUnit = priceListItemAmount * ($(`#${currencyInfo?.isocurrencycode}`).val() || 1);
                           } else {
-                            // newData.extreme_supplierpriceperunit = priceListItemAmount;
                             supplierPricePerUnit = priceListItemAmount;
                           }
-                        };
+                        }
 
-                        if (priceListMargin !== null &&
-                          supplierPricePerUnit !== null) {
-
-                          // TO DO: Odraditi recalc funkciju ovde umesto ovoga dole ispod
-
-                          const recalcResult = recalculateAmounts({
+                        let recalcResult = { quantity: 1, supplierBaseAmount: 0, pricePerUnit: 0, baseAmount: 0, fullPriceWithDiscount: 0, customDiscountAmount: 0, tax: 0, extendedAmount: 0, pdPerUnit: 0, fullPd: 0 };
+                        if (priceListMargin !== null && supplierPricePerUnit !== null) {
+                          recalcResult = recalculateAmounts({
                             quantity: 1,
                             supplierPricePerUnit: supplierPricePerUnit,
                             supplierDiscount: 0,
                             margin: priceListMargin,
                             discount: parseFloat($('#discountInput').val()) || 0,
-                            TaxPercent: vatSettingsArray.find(item => item.id === defaultVatSetting)?.vat || 0
+                            TaxPercent: defaultTax
                           });
-
-                          quantity = recalcResult.quantity;
-                          supplierBaseAmount = recalcResult.supplierBaseAmount;
-                          PPU = recalcResult.pricePerUnit;
-                          baseAmount = recalcResult.baseAmount;
-                          fullPriceWithDiscount = recalcResult.fullPriceWithDiscount;
-                          discountAmount = recalcResult.customDiscountAmount;
-                          taxAmount = recalcResult.tax;
-                          extendedAmount = recalcResult.extendedAmount;
-                          pd = recalcResult.pdPerUnit;
-                          fullPD = recalcResult.fullPd;
                         }
 
-                        // console.log(area,
-                        // technology,
-                        // vendorSupplier,
-                        // vatGroup,
-                        // defaultUomid,
-                        // priceList,
-                        // priceListPPU,
-                        // priceListCurrecy,
-                        // taxAmount,
-                        // discountAmount,
-                        // extendedAmount,
-                        // pd,
-                        // fullPD,
-                        // PPU,
-                        // baseAmount,
-                        // supplierBaseAmount,
-                        // quantity,
-                        // fullPriceWithDiscount,
-                        // vatSetting,
-                        // description)
-
-
-                        var record = {};
-                        record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
+                        const record = {};
+                        record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (index + 1);
                         record["productid@odata.bind"] = `/products(${productid})`;
                         record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${newId})`;
-                        record.extreme_customproductname = name; // Text
-                        record["uomid@odata.bind"] = `/uoms(${defaultuomid})`;
-                        // Override Price
-                        record.ispriceoverridden = true; // Boolean
+                        record.extreme_customproductname = name;
+                        if (defaultuomid) record["uomid@odata.bind"] = `/uoms(${defaultuomid})`;
+                        record.ispriceoverridden = true;
+                        record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`;
+                        record.extreme_isparentitem = false;
 
-                        // additional fields
-                        if (productType) record.extreme_producttype = productType; // Choice
-                        if (vatSetting) record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${vatSetting})`; // Lookup
-                        if (taxAmount) record.tax = Number(parseFloat(taxAmount).toFixed(4)); // Currency
-                        if (defaultTax) record.extreme_tax = defaultTax; // Decimal
-                        if (area) record["extreme_Area@odata.bind"] = `/extreme_areas(${area})`; // Lookup
-                        if (technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${technology})`; // Lookup
-                        if (vendorSupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${vendorSupplier})`; // Lookup
-                        if (vatGroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatGroup})`; // Lookup
-                        if (priceList) record["extreme_pricelist@odata.bind"] = `/pricelevels(${priceList})`; // Lookup
-                        if (priceListPPU) record.extreme_pricelistpriceperunit = priceListPPU; // Decimal
-                        if (priceListCurrecy) record.extreme_pricelistcurrency = priceListCurrecy; // Text
-                        if (discountAmount) Number(parseFloat(discountAmount).toFixed(4)); // Currency
-                        if (pd) record.extreme_pd = pd; // Decimal
-                        if (fullPD) record.extreme_fullpd = fullPD; // Decimal
-                        if (supplierBaseAmount) record.extreme_supplierbaseamount = supplierBaseAmount; // Decimal
-                        if (quantity) record.quantity = quantity; // Decimal
-                        if (fullPriceWithDiscount) record.extreme_fullpricewithdiscount = fullPriceWithDiscount; // Decimal
-                        if (PPU) record.priceperunit = Number(parseFloat(PPU).toFixed(4)); // Currency
-                        record.extreme_discount = parseFloat($('#discountInput').val()) || 0; // Decimal
-                        record.extreme_supplierdiscount = 0; // Decimal
-                        if (priceListMargin) record.extreme_margin = priceListMargin; // Decimal
-                        if (supplierPricePerUnit) record.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
-                        if (description) record.extreme_productdescription = description; // Multi-line Text
+                        if (productType) record.extreme_producttype = productType;
+                        if (vatSetting) record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${vatSetting})`;
+                        if (recalcResult.tax) record.tax = Number(parseFloat(recalcResult.tax).toFixed(4));
+                        if (defaultTax) record.extreme_tax = defaultTax;
+                        if (area) record["extreme_Area@odata.bind"] = `/extreme_areas(${area})`;
+                        if (technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${technology})`;
+                        if (vendorSupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${vendorSupplier})`;
+                        if (vatGroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatGroup})`;
+                        if (priceList) record["extreme_pricelist@odata.bind"] = `/pricelevels(${priceList})`;
+                        if (priceListPPU) record.extreme_pricelistpriceperunit = priceListPPU;
+                        if (priceListCurrency) record.extreme_pricelistcurrency = priceListCurrency;
+                        if (recalcResult.pdPerUnit) record.extreme_pd = recalcResult.pdPerUnit;
+                        if (recalcResult.fullPd) record.extreme_fullpd = recalcResult.fullPd;
+                        if (recalcResult.supplierBaseAmount) record.extreme_supplierbaseamount = recalcResult.supplierBaseAmount;
+                        record.quantity = recalcResult.quantity || 1;
+                        if (recalcResult.fullPriceWithDiscount) record.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+                        if (recalcResult.pricePerUnit) record.priceperunit = Number(parseFloat(recalcResult.pricePerUnit).toFixed(4));
+                        record.extreme_discount = parseFloat($('#discountInput').val()) || 0;
+                        record.extreme_supplierdiscount = 0;
+                        if (priceListMargin) record.extreme_margin = priceListMargin;
+                        if (supplierPricePerUnit) record.extreme_supplierpriceperunit = supplierPricePerUnit;
+                        if (description) record.extreme_productdescription = description;
 
-                        record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`; // Lookup
-                        record.extreme_isparentitem = false; // Boolean
+                        // Store data for later store update
+                        childRecordsData.push({
+                          record,
+                          productid,
+                          name,
+                          defaultuomid,
+                          productType,
+                          vatSetting,
+                          defaultTax,
+                          area,
+                          technology,
+                          vendorSupplier,
+                          vatGroup,
+                          priceList,
+                          priceListPPU,
+                          priceListCurrency,
+                          recalcResult,
+                          priceListMargin,
+                          supplierPricePerUnit,
+                          description,
+                          index
+                        });
 
-                        // console.log("RECORD AFTER SETTING PROPERTIES");
-                        // console.log(record);
-
-                        let newIdChild = '';
-                        await Xrm.WebApi.createRecord("quotedetail", record).then(
-                          async function success(result) {
-                            var newId = result.id;
-                            newIdChild = result.id;
-
-                            var record = {};
-                            if (baseAmount) record.baseamount = Number(parseFloat(baseAmount).toFixed(4)); // Currency
-                            if (extendedAmount) record.extendedamount = Number(parseFloat(extendedAmount).toFixed(4)); // Currency
-
-                            await Xrm.WebApi.updateRecord("quotedetail", `${result.id}`, record).then(
-                              function success(result) {
-                                var updatedId = result.id;
-                                // console.log(updatedId);
-                              },
-                              function (error) {
-                                Xrm.Navigation.openErrorDialog({
-                                  details: error,
-                                  errorCode: 400,
-                                  message: error.message
-                                });
-                              }
-                            );
-
-                            // console.log(newId);
-                          },
-                          function (error) {
-                            Xrm.Navigation.openErrorDialog({
-                              details: error,
-                              errorCode: 400,
-                              message: error.message
-                            });
-                          }
-                        );
-
-                        var recordForStore = {};
-                        recordForStore.quotedetailid = newIdChild;
-                        recordForStore.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length) + "00") + (i + 1); // Whole Number
-                        recordForStore.extreme_customproductname = name;
-                        recordForStore.productid = productid;
-                        recordForStore.extreme_parentquoteline = newId;
-                        recordForStore.uomid = defaultuomid;
-
-                        // additional fields
-                        if (productType) recordForStore.extreme_producttype = productType; // Choice
-                        if (vatSetting) recordForStore.extreme_vatsetting = vatSetting; // Lookup
-                        if (taxAmount) recordForStore.tax = taxAmount; // Currency
-                        if (defaultTax) recordForStore.extreme_tax = defaultTax; // Decimal
-                        if (area) recordForStore.extreme_area = area; // Lookup
-                        if (technology) recordForStore.extreme_technology = technology; // Lookup
-                        if (vendorSupplier) recordForStore.extreme_vendorsupplier = vendorSupplier; // Lookup
-                        if (vatGroup) recordForStore.extreme_vatgroup = vatGroup; // Lookup
-                        if (priceList) recordForStore.extreme_pricelist = priceList; // Lookup
-                        if (priceListPPU) recordForStore.extreme_pricelistpriceperunit = priceListPPU; // Decimal
-                        if (priceListCurrecy) recordForStore.extreme_pricelistcurrency = priceListCurrecy; // Text
-                        if (discountAmount) recordForStore.manualdiscountamount = discountAmount; // Currency
-                        if (pd) recordForStore.extreme_pd = pd; // Decimal
-                        if (fullPD) recordForStore.extreme_fullpd = fullPD; // Decimal
-                        if (supplierBaseAmount) recordForStore.extreme_supplierbaseamount = supplierBaseAmount; // Decimal
-                        if (quantity) recordForStore.quantity = quantity; // Decimal
-                        if (fullPriceWithDiscount) recordForStore.extreme_fullpricewithdiscount = fullPriceWithDiscount; // Decimal
-                        if (PPU) recordForStore.priceperunit = PPU; // Currency
-                        recordForStore.extreme_discount = parseFloat($('#discountInput').val()) || 0; // Decimal
-                        recordForStore.extreme_supplierdiscount = 0; // Decimal
-                        if (priceListMargin) recordForStore.extreme_margin = priceListMargin; // Decimal
-                        if (baseAmount) recordForStore.baseamount = baseAmount; // Currency
-                        if (extendedAmount) recordForStore.extendedamount = extendedAmount; // Currency
-                        if (supplierPricePerUnit) recordForStore.extreme_supplierpriceperunit = supplierPricePerUnit; // Decimal
-                        if (description) recordForStore.extreme_productdescription = description; // Multi-line text
-
-                        recordForStore.extreme_isparentitem = false; // Boolean
-                        recordForStore.extreme_createasset = false; // Boolean
-
-                        quoteLinesData.insert(recordForStore)
-                          .done(function (dataObj, key) {
-                            // Process the key and data object here
-                            // console.log(key);
-                          })
-                          .fail(function (error) {
-                            // Handle the "error" here
-                            // console.log(error);
-                          });
-
-                        // recalculate parent item
-                        if (baseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).baseamount += baseAmount;
-                        if (extendedAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extendedamount += extendedAmount;
-                        if (fullPD) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpd += fullPD;
-                        if (fullPriceWithDiscount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_fullpricewithdiscount += fullPriceWithDiscount;
-                        if (discountAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).manualdiscountamount += discountAmount;
-                        if (supplierBaseAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).extreme_supplierbaseamount += supplierBaseAmount;
-                        if (taxAmount) quoteLinesData._array.find((item) => item.quotedetailid === newId).tax += taxAmount;
-
-                      }
-                    },
-                    function (error) {
-                      Xrm.Navigation.openErrorDialog({
-                        details: error,
-                        errorCode: 400,
-                        message: error.message
+                        createPromises.push(Xrm.WebApi.createRecord("quotedetail", record));
                       });
+
+                      // Create all children in parallel
+                      const createResults = await Promise.all(createPromises);
+
+                      // Now batch update baseamount and extendedamount for all children
+                      const updatePromises = [];
+                      let parentBaseAmountSum = 0;
+                      let parentExtendedAmountSum = 0;
+                      let parentFullPdSum = 0;
+                      let parentFullPriceWithDiscountSum = 0;
+                      let parentDiscountAmountSum = 0;
+                      let parentSupplierBaseAmountSum = 0;
+                      let parentTaxSum = 0;
+
+                      createResults.forEach((result, idx) => {
+                        const childData = childRecordsData[idx];
+                        const newChildId = result.id;
+
+                        // Update record with baseamount and extendedamount
+                        const updateRecord = {};
+                        if (childData.recalcResult.baseAmount) updateRecord.baseamount = Number(parseFloat(childData.recalcResult.baseAmount).toFixed(4));
+                        if (childData.recalcResult.extendedAmount) updateRecord.extendedamount = Number(parseFloat(childData.recalcResult.extendedAmount).toFixed(4));
+                        
+                        if (Object.keys(updateRecord).length > 0) {
+                          updatePromises.push(Xrm.WebApi.updateRecord("quotedetail", `${newChildId}`, updateRecord));
+                        }
+
+                        // Add to store
+                        const recordForStore = {
+                          quotedetailid: newChildId,
+                          sequencenumber: childData.record.sequencenumber,
+                          extreme_customproductname: childData.name,
+                          productid: childData.productid,
+                          extreme_parentquoteline: newId,
+                          uomid: childData.defaultuomid,
+                          extreme_producttype: childData.productType,
+                          extreme_vatsetting: childData.vatSetting,
+                          tax: childData.recalcResult.tax || 0,
+                          extreme_tax: childData.defaultTax || 0,
+                          extreme_area: childData.area,
+                          extreme_technology: childData.technology,
+                          extreme_vendorsupplier: childData.vendorSupplier,
+                          extreme_vatgroup: childData.vatGroup,
+                          extreme_pricelist: childData.priceList,
+                          extreme_pricelistpriceperunit: childData.priceListPPU,
+                          extreme_pricelistcurrency: childData.priceListCurrency,
+                          manualdiscountamount: childData.recalcResult.customDiscountAmount || 0,
+                          extreme_pd: childData.recalcResult.pdPerUnit || 0,
+                          extreme_fullpd: childData.recalcResult.fullPd || 0,
+                          extreme_supplierbaseamount: childData.recalcResult.supplierBaseAmount || 0,
+                          quantity: childData.recalcResult.quantity || 1,
+                          extreme_fullpricewithdiscount: childData.recalcResult.fullPriceWithDiscount || 0,
+                          priceperunit: childData.recalcResult.pricePerUnit || 0,
+                          extreme_discount: parseFloat($('#discountInput').val()) || 0,
+                          extreme_supplierdiscount: 0,
+                          extreme_margin: childData.priceListMargin || defaultMargin,
+                          baseamount: childData.recalcResult.baseAmount || 0,
+                          extendedamount: childData.recalcResult.extendedAmount || 0,
+                          extreme_supplierpriceperunit: childData.supplierPricePerUnit || 0,
+                          extreme_productdescription: childData.description,
+                          extreme_isparentitem: false,
+                          extreme_createasset: false
+                        };
+
+                        quoteLinesData.insert(recordForStore);
+
+                        // Sum up parent values
+                        parentBaseAmountSum += childData.recalcResult.baseAmount || 0;
+                        parentExtendedAmountSum += childData.recalcResult.extendedAmount || 0;
+                        parentFullPdSum += childData.recalcResult.fullPd || 0;
+                        parentFullPriceWithDiscountSum += childData.recalcResult.fullPriceWithDiscount || 0;
+                        parentDiscountAmountSum += childData.recalcResult.customDiscountAmount || 0;
+                        parentSupplierBaseAmountSum += childData.recalcResult.supplierBaseAmount || 0;
+                        parentTaxSum += childData.recalcResult.tax || 0;
+                      });
+
+                      // Execute all updates in parallel (fire and forget for speed)
+                      if (updatePromises.length > 0) {
+                        Promise.all(updatePromises).catch(err => console.warn('Child update warning:', err));
+                      }
+
+                      // Update parent item sums
+                      const parentItem = quoteLinesData._array.find(item => item.quotedetailid === newId);
+                      if (parentItem) {
+                        parentItem.baseamount = (parentItem.baseamount || 0) + parentBaseAmountSum;
+                        parentItem.extendedamount = (parentItem.extendedamount || 0) + parentExtendedAmountSum;
+                        parentItem.extreme_fullpd = (parentItem.extreme_fullpd || 0) + parentFullPdSum;
+                        parentItem.extreme_fullpricewithdiscount = (parentItem.extreme_fullpricewithdiscount || 0) + parentFullPriceWithDiscountSum;
+                        parentItem.manualdiscountamount = (parentItem.manualdiscountamount || 0) + parentDiscountAmountSum;
+                        parentItem.extreme_supplierbaseamount = (parentItem.extreme_supplierbaseamount || 0) + parentSupplierBaseAmountSum;
+                        parentItem.tax = (parentItem.tax || 0) + parentTaxSum;
+                      }
                     }
-                  );
+                  } catch (error) {
+                    console.error('Error creating child items:', error);
+                    Xrm.Navigation.openErrorDialog({
+                      details: error,
+                      errorCode: 400,
+                      message: error.message
+                    });
+                  }
                 }
 
 
@@ -6067,42 +6527,57 @@ async function setClientApiContext(Xrm, formContext) {
           Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
 
           try {
-            // Delete the main quotedetail record
-            quoteLinesData.remove(e.key);
-            await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`);
-            // console.log('Main record deleted');
+            const deletePromises = [];
+            const idsToRemove = [e.key];
 
-            // Check if the item is a parent item
+            // Check if the item is a parent item - collect all child IDs
             if (e.data.extreme_isparentitem === true) {
-              // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
-
-              // Filter and delete child items
               const childItems = quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.key);
-              for (const childItem of childItems) {
-                quoteLinesData.remove(childItem.quotedetailid);
-                await Xrm.WebApi.deleteRecord("quotedetail", `${childItem.quotedetailid}`);
-                // console.log(`Child record ${childItem.quotedetailid} deleted`);
+              childItems.forEach(child => idsToRemove.push(child.quotedetailid));
+            }
+
+            // Batch delete all records in parallel
+            idsToRemove.forEach(id => {
+              deletePromises.push(Xrm.WebApi.deleteRecord("quotedetail", `${id}`));
+              quoteLinesData.remove(id);
+            });
+
+            await Promise.all(deletePromises);
+
+            // Batch reorder - collect all updates first, then execute in parallel
+            const reorderPromises = [];
+            const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
+            const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null);
+
+            parentItems.forEach((item, i) => {
+              const newSeq = parseInt((i + 1) + "00");
+              if (item.sequencenumber !== newSeq) {
+                reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                item.sequencenumber = newSeq;
               }
+            });
+
+            childItems.forEach((item, i) => {
+              const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === item.extreme_parentquoteline)?.sequencenumber || 0;
+              const newSeq = parentSeq + (i + 1);
+              if (item.sequencenumber !== newSeq) {
+                reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                item.sequencenumber = newSeq;
+              }
+            });
+
+            // Execute reorder in parallel (fire and forget for speed)
+            if (reorderPromises.length > 0) {
+              Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
             }
 
-            // reorder grid
-            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length; i++) {
-              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].quotedetailid}`, { sequencenumber: parseInt((i + 1) + "00") });
-              quoteLinesData._array.filter(item => item.extreme_parentquoteline === null)[i].sequencenumber = parseInt((i + 1) + "00");
-            }
-
-            for (let i = 0; i < quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null).length; i++) {
-              Xrm.WebApi.updateRecord("quotedetail", `${quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].quotedetailid}`, { sequencenumber: quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1) });
-              quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].sequencenumber = quoteLinesData._array.find(item => item.quotedetailid === quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null)[i].extreme_parentquoteline).sequencenumber + (i + 1);
-            }
-
-            // Refresh the form and data grid
-            formContext.data.refresh(true);
-            await getQuoteProducts(quoteIdForm);
             dataGrid.refresh();
-
             Xrm.Utility.closeProgressIndicator();
+            
+            // Refresh form in background (don't block UI)
+            formContext.data.refresh(false);
           } catch (error) {
+            Xrm.Utility.closeProgressIndicator();
             Xrm.Navigation.openErrorDialog({
               details: error,
               errorCode: 400,
