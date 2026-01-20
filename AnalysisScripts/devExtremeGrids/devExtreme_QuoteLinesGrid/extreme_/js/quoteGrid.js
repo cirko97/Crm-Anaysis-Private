@@ -106,6 +106,20 @@ function debounce(func, wait) {
 // Search timeout configuration for lookup fields (ms)
 const SEARCH_TIMEOUT_MS = 300;
 
+// Batch processing configuration
+const BATCH_SIZE = 25; // Number of parallel API calls per batch
+
+// Helper function to process items in batches with parallel execution
+async function processBatchesInParallel(items, asyncOperation, batchSize = BATCH_SIZE) {
+  const results = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(asyncOperation));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 async function setClientApiContext(Xrm, formContext) {
 
   // Optionally set Xrm and formContext as global variables on the page.
@@ -4671,10 +4685,9 @@ async function setClientApiContext(Xrm, formContext) {
 
                   if (!confirmResult.confirmed) return;
 
-                  Xrm.Utility.showProgressIndicator('Deleting selected rows... Please wait...');
+                  Xrm.Utility.showProgressIndicator(`Deleting ${selectedRows.length} rows... Please wait...`);
 
                   try {
-                    const deletePromises = [];
                     const idsToRemove = new Set();
 
                     // Collect all IDs to delete (including children of parent items)
@@ -4690,40 +4703,14 @@ async function setClientApiContext(Xrm, formContext) {
                       }
                     });
 
-                    // Batch delete all records in parallel
-                    idsToRemove.forEach(id => {
-                      deletePromises.push(Xrm.WebApi.deleteRecord("quotedetail", `${id}`));
+                    const idsArray = Array.from(idsToRemove);
+
+                    // Batch delete all records in parallel with chunking for large sets
+                    await processBatchesInParallel(idsArray, async (id) => {
+                      await Xrm.WebApi.deleteRecord("quotedetail", `${id}`);
                       quoteLinesData.remove(id);
+                      return id;
                     });
-
-                    await Promise.all(deletePromises);
-
-                    // Batch reorder remaining items
-                    const reorderPromises = [];
-                    const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
-                    const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null);
-
-                    parentItems.forEach((item, i) => {
-                      const newSeq = parseInt((i + 1) + "00");
-                      if (item.sequencenumber !== newSeq) {
-                        reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
-                        item.sequencenumber = newSeq;
-                      }
-                    });
-
-                    childItems.forEach((item, i) => {
-                      const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === item.extreme_parentquoteline)?.sequencenumber || 0;
-                      const newSeq = parentSeq + (i + 1);
-                      if (item.sequencenumber !== newSeq) {
-                        reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
-                        item.sequencenumber = newSeq;
-                      }
-                    });
-
-                    // Fire-and-forget reorder (don't wait)
-                    if (reorderPromises.length > 0) {
-                      Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
-                    }
 
                     // Clear selection and refresh grid immediately
                     dataGrid.clearSelection();
@@ -4732,6 +4719,49 @@ async function setClientApiContext(Xrm, formContext) {
                     
                     // Refresh form in background (don't block UI)
                     formContext.data.refresh(false);
+
+                    // Lazy reorder in background (fire-and-forget) - fixes sequence numbers without blocking UI
+                    setTimeout(async () => {
+                      try {
+                        const parentItems = quoteLinesData._array
+                          .filter(item => item.extreme_parentquoteline === null)
+                          .sort((a, b) => a.sequencenumber - b.sequencenumber);
+                        
+                        const reorderUpdates = [];
+                        parentItems.forEach((item, i) => {
+                          const newSeq = parseInt((i + 1) + "00");
+                          if (item.sequencenumber !== newSeq) {
+                            reorderUpdates.push({ id: item.quotedetailid, seq: newSeq });
+                            item.sequencenumber = newSeq;
+                          }
+                        });
+
+                        // Also fix child items
+                        const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null);
+                        childItems.forEach((item) => {
+                          const parent = quoteLinesData._array.find(p => p.quotedetailid === item.extreme_parentquoteline);
+                          if (parent) {
+                            const siblings = childItems.filter(c => c.extreme_parentquoteline === parent.quotedetailid)
+                              .sort((a, b) => a.sequencenumber - b.sequencenumber);
+                            const idx = siblings.findIndex(s => s.quotedetailid === item.quotedetailid);
+                            const newSeq = parent.sequencenumber + (idx + 1);
+                            if (item.sequencenumber !== newSeq) {
+                              reorderUpdates.push({ id: item.quotedetailid, seq: newSeq });
+                              item.sequencenumber = newSeq;
+                            }
+                          }
+                        });
+
+                        // Execute reorder in batches (background, no await needed in main flow)
+                        if (reorderUpdates.length > 0) {
+                          await processBatchesInParallel(reorderUpdates, async ({ id, seq }) => {
+                            return Xrm.WebApi.updateRecord("quotedetail", `${id}`, { sequencenumber: seq });
+                          });
+                        }
+                      } catch (err) {
+                        console.warn('Background reorder warning:', err);
+                      }
+                    }, 500); // Start after 500ms to not interfere with UI
 
                   } catch (error) {
                     Xrm.Utility.closeProgressIndicator();
@@ -5449,8 +5479,10 @@ async function setClientApiContext(Xrm, formContext) {
                       async function (success) {
                         if (success.confirmed) {
                           Xrm.Utility.showProgressIndicator('Updating discount... Please wait...');
-                          const updatePromises = [];
-                          // First update all non-parent (child) rows
+                          // Use batch processing for large datasets
+                          const allRecords = [];
+                          
+                          // First prepare all non-parent (child) rows
                           quoteLinesData._array.forEach(row => {
                             if (!row.extreme_isparentitem) {
                               row.extreme_discount = discountValue;
@@ -5481,26 +5513,28 @@ async function setClientApiContext(Xrm, formContext) {
                               row.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage;
 
                               // Prepare record for update
-                              const record = {
-                                extreme_discount: discountValue,
-                                priceperunit: row.priceperunit,
-                                baseamount: row.baseamount,
-                                extreme_fullpricewithdiscount: row.extreme_fullpricewithdiscount,
-                                manualdiscountamount: row.manualdiscountamount,
-                                tax: row.tax,
-                                extendedamount: row.extendedamount,
-                                extreme_pd: row.extreme_pd,
-                                extreme_fullpd: row.extreme_fullpd,
-                                extreme_margin: row.extreme_margin,
-                                extreme_supplierpriceperunit: row.extreme_supplierpriceperunit,
-                                extreme_supplierbaseamount: row.extreme_supplierbaseamount,
-                                extreme_supplierdiscount: row.extreme_supplierdiscount
-                              };
-                              updatePromises.push(Xrm.WebApi.updateRecord("quotedetail", row.quotedetailid, record));
+                              allRecords.push({
+                                id: row.quotedetailid,
+                                record: {
+                                  extreme_discount: discountValue,
+                                  priceperunit: row.priceperunit,
+                                  baseamount: row.baseamount,
+                                  extreme_fullpricewithdiscount: row.extreme_fullpricewithdiscount,
+                                  manualdiscountamount: row.manualdiscountamount,
+                                  tax: row.tax,
+                                  extendedamount: row.extendedamount,
+                                  extreme_pd: row.extreme_pd,
+                                  extreme_fullpd: row.extreme_fullpd,
+                                  extreme_margin: row.extreme_margin,
+                                  extreme_supplierpriceperunit: row.extreme_supplierpriceperunit,
+                                  extreme_supplierbaseamount: row.extreme_supplierbaseamount,
+                                  extreme_supplierdiscount: row.extreme_supplierdiscount
+                                }
+                              });
                             }
                           });
 
-                          // Now update all parent (set) rows by summing their children
+                          // Now prepare all parent (set) rows by summing their children
                           quoteLinesData._array.filter(row => row.extreme_isparentitem).forEach(parentRow => {
                             // Find all children for this parent
                             const children = quoteLinesData._array.filter(child => child.extreme_parentquoteline === parentRow.quotedetailid);
@@ -5534,24 +5568,29 @@ async function setClientApiContext(Xrm, formContext) {
                             parentRow.tax = parseFloat(tax_sum.toFixed(2));
                             parentRow.extreme_discount = parseFloat(avarageDiscountPercent.toFixed(2));
                             // Prepare record for update
-                            const parentRecord = {
-                              baseamount: parentRow.baseamount,
-                              extendedamount: parentRow.extendedamount,
-                              extreme_fullpd: parentRow.extreme_fullpd,
-                              extreme_fullpricewithdiscount: parentRow.extreme_fullpricewithdiscount,
-                              manualdiscountamount: parentRow.manualdiscountamount,
-                              extreme_supplierbaseamount: parentRow.extreme_supplierbaseamount,
-                              tax: parentRow.tax,
-                              extreme_discount: parentRow.extreme_discount
-                            };
-                            updatePromises.push(Xrm.WebApi.updateRecord("quotedetail", parentRow.quotedetailid, parentRecord));
+                            allRecords.push({
+                              id: parentRow.quotedetailid,
+                              record: {
+                                baseamount: parentRow.baseamount,
+                                extendedamount: parentRow.extendedamount,
+                                extreme_fullpd: parentRow.extreme_fullpd,
+                                extreme_fullpricewithdiscount: parentRow.extreme_fullpricewithdiscount,
+                                manualdiscountamount: parentRow.manualdiscountamount,
+                                extreme_supplierbaseamount: parentRow.extreme_supplierbaseamount,
+                                tax: parentRow.tax,
+                                extreme_discount: parentRow.extreme_discount
+                              }
+                            });
                           });
 
-                          Promise.all(updatePromises).then(() => {
-                            dataGrid.refresh();
-                            Xrm.Utility.closeProgressIndicator();
-                            formContext.data.refresh(true);
+                          // Execute all updates in parallel batches
+                          await processBatchesInParallel(allRecords, async ({ id, record }) => {
+                            return Xrm.WebApi.updateRecord("quotedetail", id, record);
                           });
+
+                          dataGrid.refresh();
+                          Xrm.Utility.closeProgressIndicator();
+                          formContext.data.refresh(false);
                         }
                       });
                   }
@@ -6790,126 +6829,124 @@ async function setClientApiContext(Xrm, formContext) {
       }
 
 
-      // function for changing exchange rates
+      // function for changing exchange rates - OPTIMIZED with batch processing
       const exchangeRateChange = async (currency, newValue) => {
-        await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol}')`).then(
-          async function success(results) {
-            // console.log(results);
-            for (var i = 0; i < results.entities.length; i++) {
-              var result = results.entities[i];
-              // Columns
-              var quotedetailid = result["quotedetailid"]; // Guid
-              var quantity = result["quantity"]; // Decimal
-              var extreme_pricelistpriceperunit = result["extreme_pricelistpriceperunit"]; // Decimal
-              var extreme_margin = result["extreme_margin"]; // Decimal
-              var extreme_discount = result["extreme_discount"]; // Decimal
-              var extreme_supplierdiscount = result["extreme_supplierdiscount"]; // Decimal
-              var extreme_tax = result["extreme_tax"]; // Decimal
+        try {
+          const currencySymbol = currenciesArray.find((item) => item.isocurrencycode === currency)?.currencysymbol;
+          if (!currencySymbol) return;
 
-              var pricePerUnit = (extreme_pricelistpriceperunit * parseFloat(newValue)) * extreme_margin;
-              var baseAmount = pricePerUnit * quantity;
-              var manualDiscountAmount = baseAmount - (baseAmount * (1 - extreme_discount / 100));
-              var fullPriceWithDiscount = pricePerUnit * (1 - extreme_discount / 100) * quantity;
-              var tax = ((pricePerUnit * (1 - extreme_discount / 100)) * quantity * (1 + extreme_tax / 100)) - (pricePerUnit * (1 - extreme_discount / 100) * quantity);
-              var extendedAmount = tax + (pricePerUnit * (1 - extreme_discount / 100) * quantity);
+          const results = await Xrm.WebApi.retrieveMultipleRecords("quotedetail", `?$select=extreme_supplierdiscount,extreme_pd,extreme_fullpd,quotedetailid,extreme_tax,extreme_discount,extreme_margin,extreme_pricelistpriceperunit,quantity&$filter=(_quoteid_value eq ${quoteIdForm} and extreme_pricelistcurrency eq '${currencySymbol}')`);
+          
+          if (results.entities.length === 0) return;
 
-              const supplierDiscountAmount = extreme_pricelistpriceperunit * parseFloat(newValue) * (extreme_supplierdiscount / 100);
-              const pricePerUnitWithSupplierDiscount = extreme_pricelistpriceperunit * parseFloat(newValue) - supplierDiscountAmount;
-              const customDiscountAmount = pricePerUnit * (extreme_discount / 100);
-              const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
-              const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
-              var newPd = pdPerUnit;
-              var newFullPd = newPd * quantity;
+          Xrm.Utility.showProgressIndicator(`Updating ${results.entities.length} items... Please wait...`);
 
-              await Xrm.WebApi.updateRecord("quotedetail", `${quotedetailid}`, {
-                extreme_supplierpriceperunit: extreme_pricelistpriceperunit * parseFloat(newValue),
-                extreme_supplierbaseamount: (extreme_pricelistpriceperunit * parseFloat(newValue)) * quantity,
-                priceperunit: pricePerUnit,
-                baseamount: baseAmount,
-                manualdiscountamount: manualDiscountAmount,
-                extreme_fullpricewithdiscount: fullPriceWithDiscount,
-                tax: tax,
-                extendedamount: extendedAmount,
-                extreme_pd: newPd,
-                extreme_fullpd: newFullPd
-              });
+          // Prepare all updates with calculated values
+          const updatesWithData = results.entities.map(result => {
+            const quotedetailid = result["quotedetailid"];
+            const quantity = result["quantity"];
+            const extreme_pricelistpriceperunit = result["extreme_pricelistpriceperunit"];
+            const extreme_margin = result["extreme_margin"];
+            const extreme_discount = result["extreme_discount"];
+            const extreme_supplierdiscount = result["extreme_supplierdiscount"];
+            const extreme_tax = result["extreme_tax"];
 
-              quoteLinesData.update(quotedetailid, {
-                extreme_supplierpriceperunit: extreme_pricelistpriceperunit * parseFloat(newValue),
-                extreme_supplierbaseamount: (extreme_pricelistpriceperunit * parseFloat(newValue)) * quantity,
-                priceperunit: pricePerUnit,
-                baseamount: baseAmount,
-                manualdiscountamount: manualDiscountAmount,
-                extreme_fullpricewithdiscount: fullPriceWithDiscount,
-                tax: tax,
-                extendedamount: extendedAmount,
-                extreme_pd: newPd,
-                extreme_fullpd: newFullPd
-              });
+            const pricePerUnit = (extreme_pricelistpriceperunit * parseFloat(newValue)) * extreme_margin;
+            const baseAmount = pricePerUnit * quantity;
+            const manualDiscountAmount = baseAmount - (baseAmount * (1 - extreme_discount / 100));
+            const fullPriceWithDiscount = pricePerUnit * (1 - extreme_discount / 100) * quantity;
+            const tax = ((pricePerUnit * (1 - extreme_discount / 100)) * quantity * (1 + extreme_tax / 100)) - (pricePerUnit * (1 - extreme_discount / 100) * quantity);
+            const extendedAmount = tax + (pricePerUnit * (1 - extreme_discount / 100) * quantity);
 
-              if (quoteLinesData._array.find((item) => item.quotedetailid === quotedetailid).extreme_parentquoteline) {
-                // // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
-                const parentQuoteLineGUID = quoteLinesData._array.find((item) => item.quotedetailid === quotedetailid).extreme_parentquoteline;
+            const supplierDiscountAmount = extreme_pricelistpriceperunit * parseFloat(newValue) * (extreme_supplierdiscount / 100);
+            const pricePerUnitWithSupplierDiscount = extreme_pricelistpriceperunit * parseFloat(newValue) - supplierDiscountAmount;
+            const customDiscountAmount = pricePerUnit * (extreme_discount / 100);
+            const pricePerUnitWithCustomDiscount = pricePerUnit - customDiscountAmount;
+            const pdPerUnit = pricePerUnitWithCustomDiscount - pricePerUnitWithSupplierDiscount;
+            const newPd = pdPerUnit;
+            const newFullPd = newPd * quantity;
 
-                let baseamount_sum = 0;
-                let extendedamount_sum = 0;
-                let extreme_fullpd_sum = 0;
-                let extreme_fullpricewithdiscount_sum = 0;
-                let manualdiscountamount_sum = 0;
-                let extreme_supplierbaseamount_sum = 0;
-                let tax_sum = 0;
-                let avarageDiscountPercent = 0;
+            const updateData = {
+              extreme_supplierpriceperunit: extreme_pricelistpriceperunit * parseFloat(newValue),
+              extreme_supplierbaseamount: (extreme_pricelistpriceperunit * parseFloat(newValue)) * quantity,
+              priceperunit: pricePerUnit,
+              baseamount: baseAmount,
+              manualdiscountamount: manualDiscountAmount,
+              extreme_fullpricewithdiscount: fullPriceWithDiscount,
+              tax: tax,
+              extendedamount: extendedAmount,
+              extreme_pd: newPd,
+              extreme_fullpd: newFullPd
+            };
 
-                quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
-                  baseamount_sum += e.baseamount;
-                  extendedamount_sum += e.extendedamount;
-                  extreme_fullpd_sum += e.extreme_fullpd;
-                  extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount;
-                  manualdiscountamount_sum += e.manualdiscountamount;
-                  extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
-                  tax_sum += e.tax;
-                });
+            return { quotedetailid, updateData };
+          });
 
-                avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+          // Execute all API updates in parallel batches
+          await processBatchesInParallel(updatesWithData, async ({ quotedetailid, updateData }) => {
+            await Xrm.WebApi.updateRecord("quotedetail", `${quotedetailid}`, updateData);
+            quoteLinesData.update(quotedetailid, updateData);
+            return quotedetailid;
+          });
 
-                quoteLinesData.update(parentQuoteLineGUID, {
-                  baseamount: baseamount_sum.toFixed(2),
-                  extendedamount: extendedamount_sum.toFixed(2),
-                  extreme_fullpd: extreme_fullpd_sum.toFixed(2),
-                  extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
-                  manualdiscountamount: manualdiscountamount_sum.toFixed(2),
-                  extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
-                  tax: tax_sum.toFixed(2),
-                  extreme_discount: avarageDiscountPercent.toFixed(2)
-                });
-
-                dataGrid.getController('data').updateItems({
-                  changeType: 'update',
-                  rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)]
-                });
-              }
-
-              // dataGrid.getController('data').updateItems({
-              //   changeType: 'update',
-              //   rowIndices: [dataGrid.getRowIndexByKey(quotedetailid)]
-              // });
-
+          // Collect unique parent IDs that need updating
+          const parentIdsToUpdate = new Set();
+          updatesWithData.forEach(({ quotedetailid }) => {
+            const item = quoteLinesData._array.find((item) => item.quotedetailid === quotedetailid);
+            if (item?.extreme_parentquoteline) {
+              parentIdsToUpdate.add(item.extreme_parentquoteline);
             }
+          });
 
-            await getQuoteProducts(quoteIdForm);
-            dataGrid.refresh();
+          // Update all parent items in one pass (instead of after each child)
+          parentIdsToUpdate.forEach(parentQuoteLineGUID => {
+            let baseamount_sum = 0;
+            let extendedamount_sum = 0;
+            let extreme_fullpd_sum = 0;
+            let extreme_fullpricewithdiscount_sum = 0;
+            let manualdiscountamount_sum = 0;
+            let extreme_supplierbaseamount_sum = 0;
+            let tax_sum = 0;
 
-          },
-          function (error) {
-            Xrm.Navigation.openErrorDialog({
-              details: error,
-              errorCode: 400,
-              message: error.message
+            quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
+              baseamount_sum += e.baseamount;
+              extendedamount_sum += e.extendedamount;
+              extreme_fullpd_sum += e.extreme_fullpd;
+              extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount;
+              manualdiscountamount_sum += e.manualdiscountamount;
+              extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
+              tax_sum += e.tax;
             });
-          }
-        );
 
-        formContext.data.refresh(true);
+            const avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+
+            quoteLinesData.update(parentQuoteLineGUID, {
+              baseamount: baseamount_sum.toFixed(2),
+              extendedamount: extendedamount_sum.toFixed(2),
+              extreme_fullpd: extreme_fullpd_sum.toFixed(2),
+              extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
+              manualdiscountamount: manualdiscountamount_sum.toFixed(2),
+              extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
+              tax: tax_sum.toFixed(2),
+              extreme_discount: avarageDiscountPercent.toFixed(2)
+            });
+          });
+
+          // Refresh grid data
+          await getQuoteProducts(quoteIdForm);
+          dataGrid.refresh();
+          Xrm.Utility.closeProgressIndicator();
+
+        } catch (error) {
+          Xrm.Utility.closeProgressIndicator();
+          Xrm.Navigation.openErrorDialog({
+            details: error,
+            errorCode: 400,
+            message: error.message
+          });
+        }
+
+        formContext.data.refresh(false);
 
         // quoteLinesData._array.filter((item) => item.extreme_pricelistcurrency === currenciesArray.find((item) => item.isocurrencycode === currency).currencysymbol).forEach((e) => {
 
