@@ -2991,15 +2991,18 @@ $(async function () {
       onRowUpdating: async function (e) {
         console.log("onRowUpdating:", e);
         
-        // If this is a parent item (SET), handle it specially
+        // If this is a parent item (SET), ALWAYS cancel the save and handle locally
+        // Parent items should NEVER be saved to the database - only displayed locally
         if (e.oldData && e.oldData.extreme_isparentitem === true) {
+          // Cancel the save operation for ALL parent item updates
+          e.cancel = true;
+          
           // Check if baseamount or discount is being changed
           const isBaseAmountChange = e.newData.hasOwnProperty('baseamount');
           const isDiscountChange = e.newData.hasOwnProperty('extreme_discount');
           
           if (isBaseAmountChange || isDiscountChange) {
-            // Cancel the default save operation
-            e.cancel = true;
+            // Handle baseamount/discount changes by distributing to children
             
             // Distribute the changes to children
             const parentKey = e.key;
@@ -3208,36 +3211,18 @@ $(async function () {
             }
             
             return; // Always return after handling baseamount/discount changes
-          }
-          
-          // For any other parent field changes, remove calculated fields (they shouldn't be editable anyway)
-          // Only allow changes to editable fields like productid, name, description, etc.
-          if (e.newData.hasOwnProperty('baseamount')) {
-            delete e.newData.baseamount;
-          }
-          if (e.newData.hasOwnProperty('extendedamount')) {
-            delete e.newData.extendedamount;
-          }
-          if (e.newData.hasOwnProperty('tax')) {
-            delete e.newData.tax;
-          }
-          if (e.newData.hasOwnProperty('extreme_fullpd')) {
-            delete e.newData.extreme_fullpd;
-          }
-          if (e.newData.hasOwnProperty('extreme_fullpricewithdiscount')) {
-            delete e.newData.extreme_fullpricewithdiscount;
-          }
-          if (e.newData.hasOwnProperty('manualdiscountamount')) {
-            delete e.newData.manualdiscountamount;
-          }
-          if (e.newData.hasOwnProperty('extreme_supplierbaseamount')) {
-            delete e.newData.extreme_supplierbaseamount;
-          }
-          if (e.newData.hasOwnProperty('priceperunit')) {
-            delete e.newData.priceperunit;
-          }
-          if (e.newData.hasOwnProperty('extreme_discount')) {
-            delete e.newData.extreme_discount;
+          } else {
+            // For other field changes on parent (like productid, name, description, etc.), just update locally
+            console.log("Parent item field change (not baseamount/discount), updating locally only");
+            
+            const parentDataSource = treeList.getDataSource();
+            const store = parentDataSource.store();
+            
+            // Update in local cache without triggering a save (already cancelled above with e.cancel = true)
+            store.update(e.key, e.newData);
+            treeList.repaint();
+            
+            return; // Always return after handling parent item
           }
         }
       },
