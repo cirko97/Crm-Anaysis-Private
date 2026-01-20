@@ -10,14 +10,58 @@ let customProductsArray = []; // Array to store custom products
 let newIdForCustomProducts = 100001; // Counter for custom product IDs
 const wrControl = Xrm.Page.getControl("WebResource_quoteLinesGrid2");
 
-// Function to update all parent SET rows with aggregated child values
+// LOCAL CACHE for parent SET row calculated values (NOT saved to database)
+// Key: quotedetailid, Value: { baseamount, extendedamount, extreme_fullpd, etc. }
+let parentSumsCache = {};
+
+// Function to calculate parent sums from children (LOCAL ONLY - never saves to DB)
+function calculateParentSumsFromChildren(parentNode) {
+  if (!parentNode || !parentNode.children || parentNode.children.length === 0) {
+    return null;
+  }
+  
+  let baseamount_sum = 0;
+  let extendedamount_sum = 0;
+  let extreme_fullpd_sum = 0;
+  let extreme_fullpricewithdiscount_sum = 0;
+  let manualdiscountamount_sum = 0;
+  let extreme_supplierbaseamount_sum = 0;
+  let tax_sum = 0;
+  
+  parentNode.children.forEach((child) => {
+    const childData = child.data;
+    baseamount_sum += childData.baseamount || 0;
+    extendedamount_sum += childData.extendedamount || 0;
+    extreme_fullpd_sum += childData.extreme_fullpd || 0;
+    extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
+    manualdiscountamount_sum += childData.manualdiscountamount || 0;
+    extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
+    tax_sum += childData.tax || 0;
+  });
+  
+  const avarageDiscountPercent = 
+    baseamount_sum > 0 
+      ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
+      : 0;
+  
+  return {
+    baseamount: parseFloat(baseamount_sum.toFixed(2)),
+    extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+    extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+    extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+    manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+    extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+    tax: parseFloat(tax_sum.toFixed(2)),
+    extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
+  };
+}
+
+// Function to update all parent SET rows with aggregated child values (LOCAL DISPLAY ONLY)
 function updateAllParentSums(skipRefresh = false) {
   if (!treeList || isUpdatingParentSums) return;
   
   try {
     isUpdatingParentSums = true;
-    const dataSource = treeList.getDataSource();
-    const store = dataSource.store();
     
     // Get all root nodes
     const rootNodes = treeList.getRootNode().children || [];
@@ -25,57 +69,45 @@ function updateAllParentSums(skipRefresh = false) {
     rootNodes.forEach((node) => {
       // Only process parent items (SETs)
       if (node.data && node.data.extreme_isparentitem === true) {
-        const children = node.children || [];
+        const parentKey = node.key?._value || node.key;
+        const sums = calculateParentSumsFromChildren(node);
         
-        if (children.length > 0) {
-          let baseamount_sum = 0;
-          let extendedamount_sum = 0;
-          let extreme_fullpd_sum = 0;
-          let extreme_fullpricewithdiscount_sum = 0;
-          let manualdiscountamount_sum = 0;
-          let extreme_supplierbaseamount_sum = 0;
-          let tax_sum = 0;
+        if (sums) {
+          // Store in local cache (NOT in database)
+          parentSumsCache[parentKey] = sums;
           
-          children.forEach((child) => {
-            const childData = child.data;
-            baseamount_sum += childData.baseamount || 0;
-            extendedamount_sum += childData.extendedamount || 0;
-            extreme_fullpd_sum += childData.extreme_fullpd || 0;
-            extreme_fullpricewithdiscount_sum += childData.extreme_fullpricewithdiscount || 0;
-            manualdiscountamount_sum += childData.manualdiscountamount || 0;
-            extreme_supplierbaseamount_sum += childData.extreme_supplierbaseamount || 0;
-            tax_sum += childData.tax || 0;
-          });
-          
-          const avarageDiscountPercent = 
-            baseamount_sum > 0 
-              ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
-              : 0;
-          
-          // Update parent in the store
-          const parentKey = node.key;
-          store.update(parentKey, {
-            baseamount: parseFloat(baseamount_sum.toFixed(2)),
-            extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
-            extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
-            extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
-            manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
-            extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
-            tax: parseFloat(tax_sum.toFixed(2)),
-            extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
-          });
+          // Update the node's data directly for display purposes
+          // This modifies the in-memory data without triggering a save
+          Object.assign(node.data, sums);
         }
       }
     });
     
-    // Refresh TreeList to show updated values unless explicitly skipped
+    // Repaint TreeList to show updated values
     if (!skipRefresh) {
-      treeList.repaint(); // Use repaint instead of refresh to avoid reloading data
+      treeList.repaint();
     }
   } catch (error) {
     console.error("Error updating parent sums:", error);
   } finally {
     isUpdatingParentSums = false;
+  }
+}
+
+// Helper function to update a single parent's sums locally
+function updateSingleParentSums(parentKey) {
+  if (!treeList) return;
+  
+  const parentNode = treeList.getNodeByKey(parentKey);
+  if (!parentNode || !parentNode.data || parentNode.data.extreme_isparentitem !== true) {
+    return;
+  }
+  
+  const sums = calculateParentSumsFromChildren(parentNode);
+  if (sums) {
+    const cleanKey = parentKey?._value || parentKey;
+    parentSumsCache[cleanKey] = sums;
+    Object.assign(parentNode.data, sums);
   }
 }
 
@@ -2540,11 +2572,8 @@ $(async function () {
                   ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
                   : 0;
               
-              // Update parent locally
-              const parentDataSource = treeList.getDataSource();
-              const store = parentDataSource.store();
-              
-              store.update(parentId, {
+              // Update parent LOCALLY ONLY (no database save for SET sums)
+              const parentSums = {
                 baseamount: parseFloat(baseamount_sum.toFixed(2)),
                 extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
                 extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
@@ -2553,9 +2582,19 @@ $(async function () {
                 extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
                 tax: parseFloat(tax_sum.toFixed(2)),
                 extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
-              });
+              };
               
-              await treeList.refresh();
+              // Store in local cache
+              parentSumsCache[parentId] = parentSums;
+              
+              // Update parent node data directly in TreeList (local only)
+              const parentNode = treeList.getNodeByKey(parentId);
+              if (parentNode && parentNode.data) {
+                Object.assign(parentNode.data, parentSums);
+              }
+              
+              // Repaint to show updated values without database reload
+              treeList.repaint();
             } catch (updateError) {
               console.error("Error updating parent sums:", updateError);
             }
@@ -2916,11 +2955,8 @@ $(async function () {
                 ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
                 : 0;
             
-            // Update parent locally to show sums (don't save to Dynamics - SET rows only display)
-            const parentDataSource = treeList.getDataSource();
-            const store = parentDataSource.store();
-            
-            store.update(parentQuoteDetailId, {
+            // Update parent LOCALLY ONLY (no database save for SET sums)
+            const parentSums = {
               baseamount: parseFloat(baseamount_sum.toFixed(2)),
               extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
               extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
@@ -2929,7 +2965,13 @@ $(async function () {
               extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
               tax: parseFloat(tax_sum.toFixed(2)),
               extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
-            });
+            };
+            
+            // Store in local cache
+            parentSumsCache[parentQuoteDetailId] = parentSums;
+            
+            // Update parent node data directly (local only)
+            Object.assign(parentNode.data, parentSums);
             
             // Use repaint to update display without reloading data
             treeList.repaint();
@@ -3113,12 +3155,9 @@ $(async function () {
                     tax_sum += childData.tax || 0;
                   });
                   
-                  // Update parent locally (don't save to Dynamics - SET rows only display sums)
-                  const parentDataSource = treeList.getDataSource();
-                  const store = parentDataSource.store();
-                  
-                  // Update in local cache without triggering a save
-                  store.update(parentKey, {
+                  // Update parent display locally (NOT saved to Dynamics - SET rows only show sums)
+                  const cleanParentKey = parentKey?._value || parentKey;
+                  const parentSums = {
                     baseamount: parseFloat(baseamount_sum.toFixed(2)),
                     extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
                     extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
@@ -3127,7 +3166,13 @@ $(async function () {
                     extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
                     tax: parseFloat(tax_sum.toFixed(2)),
                     extreme_discount: parseFloat(parentDiscountPercent.toFixed(2))
-                  });
+                  };
+                  
+                  // Store in local cache (NOT database)
+                  parentSumsCache[cleanParentKey] = parentSums;
+                  
+                  // Update the node's data directly for display
+                  Object.assign(refreshedParentNode.data, parentSums);
                 }
                 
                 treeList.repaint();
@@ -3143,19 +3188,22 @@ $(async function () {
               // SET with no children - just cancel the save and show the value locally
               console.log("SET has no children, just updating display locally");
               
-              // Update the value in the local store without saving
-              const parentDataSource = treeList.getDataSource();
-              const store = parentDataSource.store();
+              // Update the value in the local cache without saving to database
+              const cleanKey = e.key?._value || e.key;
               
-              const updates = {};
+              if (!parentSumsCache[cleanKey]) {
+                parentSumsCache[cleanKey] = {};
+              }
+              
               if (e.newData.baseamount !== undefined) {
-                updates.baseamount = e.newData.baseamount;
+                parentSumsCache[cleanKey].baseamount = e.newData.baseamount;
+                e.oldData.baseamount = e.newData.baseamount;
               }
               if (e.newData.extreme_discount !== undefined) {
-                updates.extreme_discount = e.newData.extreme_discount;
+                parentSumsCache[cleanKey].extreme_discount = e.newData.extreme_discount;
+                e.oldData.extreme_discount = e.newData.extreme_discount;
               }
               
-              store.update(e.key, updates);
               treeList.repaint();
             }
             
@@ -3352,12 +3400,8 @@ $(async function () {
                   tax_sum += childData.tax || 0;
                 });
                 
-                // Update parent locally (don't save to Dynamics - SET rows only display sums)
-                const parentDataSource = treeList.getDataSource();
-                const store = parentDataSource.store();
-                
-                // Update in local cache without triggering a save
-                store.update(parentKey, {
+                // Update parent LOCALLY ONLY (no database save for SET sums)
+                const parentSums = {
                   baseamount: parseFloat(baseamount_sum.toFixed(2)),
                   extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
                   extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
@@ -3366,10 +3410,17 @@ $(async function () {
                   extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
                   tax: parseFloat(tax_sum.toFixed(2)),
                   extreme_discount: parseFloat(parentDiscountPercent.toFixed(2))
-                });
+                };
+                
+                // Store in local cache
+                parentSumsCache[parentKey] = parentSums;
+                
+                // Update parent node data directly (local only)
+                Object.assign(refreshedParentNode.data, parentSums);
               }
               
-              await treeList.refresh();
+              // Repaint to show updated values
+              treeList.repaint();
               Xrm.Utility.closeProgressIndicator();
             } catch (error) {
               console.error("Error distributing to children:", error);
@@ -3417,12 +3468,9 @@ $(async function () {
                 ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 
                 : 0;
             
-            // Update the parent row locally (don't save to Dynamics - SET rows only display sums)
-            const parentDataSource = treeList.getDataSource();
-            const store = parentDataSource.store();
-            
-            // Update in local cache without triggering a save
-            store.update(parentKey, {
+            // Update the parent row LOCAL DISPLAY ONLY (NOT saved to Dynamics - SET rows only display sums)
+            const cleanParentKey = parentKey?._value || parentKey;
+            const parentSums = {
               baseamount: parseFloat(baseamount_sum.toFixed(2)),
               extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
               extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
@@ -3431,7 +3479,13 @@ $(async function () {
               extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
               tax: parseFloat(tax_sum.toFixed(2)),
               extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
-            });
+            };
+            
+            // Store in local cache (NOT database)
+            parentSumsCache[cleanParentKey] = parentSums;
+            
+            // Update the node's data directly for display
+            Object.assign(parentNode.data, parentSums);
             
             // Refresh to show updated values - use repaint to avoid reloading data
             treeList.repaint();
