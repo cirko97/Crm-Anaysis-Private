@@ -1,6 +1,21 @@
 const { read } = require("fs");
 
 async function form_onload(executionContext) {
+    // Wake up services for quoteGrid
+    const wakeUpServices = () => {
+        Xrm.WebApi.retrieveMultipleRecords("productpricelevel", "?$select=productpricelevelid&$top=1").catch(() => {});
+        Xrm.WebApi.deleteRecord("quotedetail", "00000000-0000-0000-0000-000000000000").catch(() => {});
+        Xrm.WebApi.createRecord("quotedetail", { quotedetailid: "00000000-0000-0000-0000-000000000000" }).catch(() => {});
+        Xrm.WebApi.retrieveMultipleRecords("product", "?$select=productid&$top=1").catch(() => {});
+        Xrm.WebApi.updateRecord("quotedetail", "00000000-0000-0000-0000-000000000000", { extreme_apiresponse: "test" }).catch(() => {});
+        Xrm.WebApi.retrieveMultipleRecords("pricelevel", "?$select=pricelevelid&$top=1").catch(() => {});
+    };
+    wakeUpServices();
+    for (let i = 1; i < 5; i++) {
+        setTimeout(wakeUpServices, i * 1000);
+    }
+    // END OF WAKE UP SERVICES
+
     const FORM_NEW = 1;
     const FORM_EDIT = 2;
     const formContext = executionContext.getFormContext();
