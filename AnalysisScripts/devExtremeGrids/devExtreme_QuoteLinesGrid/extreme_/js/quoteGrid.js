@@ -90,6 +90,55 @@ function clearAllCaches() {
   priceListCache.clear();
 }
 
+// Highlight updated cells/rows for visual feedback
+// Usage: highlightUpdatedCells(dataGrid, rowKey, ['fieldName1', 'fieldName2']) - highlights specific cells
+// Usage: highlightUpdatedCells(dataGrid, rowKey) - highlights entire row
+function highlightUpdatedCells(dataGrid, rowKey, fieldNames = null, durationMs = 2000) {
+  try {
+    const rowIndex = dataGrid.getRowIndexByKey(rowKey);
+    if (rowIndex < 0) return;
+    
+    const rowElement = dataGrid.getRowElement(rowIndex);
+    if (!rowElement || !rowElement[0]) return;
+    
+    if (fieldNames && fieldNames.length > 0) {
+      // Highlight specific cells
+      fieldNames.forEach(fieldName => {
+        const columnIndex = dataGrid.getVisibleColumnIndex(fieldName);
+        if (columnIndex >= 0) {
+          const cellElement = dataGrid.getCellElement(rowIndex, columnIndex);
+          // getCellElement returns jQuery-like object, access [0] for DOM element
+          if (cellElement && cellElement[0]) {
+            cellElement[0].classList.add('cell-update-highlight');
+            setTimeout(() => {
+              if (cellElement[0]) {
+                cellElement[0].classList.remove('cell-update-highlight');
+              }
+            }, durationMs);
+          }
+        }
+      });
+    } else {
+      // Highlight entire row
+      rowElement[0].classList.add('row-update-highlight');
+      setTimeout(() => {
+        if (rowElement[0]) {
+          rowElement[0].classList.remove('row-update-highlight');
+        }
+      }, durationMs);
+    }
+  } catch (e) {
+    console.log('Highlight error:', e);
+  }
+}
+
+// Highlight multiple rows at once (for batch operations)
+function highlightMultipleRows(dataGrid, rowKeys, fieldNames = null, durationMs = 2000) {
+  rowKeys.forEach(rowKey => {
+    highlightUpdatedCells(dataGrid, rowKey, fieldNames, durationMs);
+  });
+}
+
 // Debounce helper function to prevent excessive API calls during typing
 function debounce(func, wait) {
   let timeout;
@@ -1940,6 +1989,9 @@ async function setClientApiContext(Xrm, formContext) {
                       // Do so only if it is not parent item (SET)
 
                       if (currentRowData.extreme_isparentitem !== true) {
+                        // Always set the discount value for child elements
+                        newData.extreme_discount = value;
+                        
                         if (currentRowData.priceperunit !== null && currentRowData.quantity !== null && currentRowData.extreme_tax !== null) {
                           const recalcResult = recalculateAmounts({
 
@@ -4565,6 +4617,16 @@ async function setClientApiContext(Xrm, formContext) {
                   const productName = rowData.extreme_customproductname || 'this row';
                   const isParent = rowData.extreme_isparentitem === true;
                   
+                  // Check if this is a new unsaved row (no valid GUID)
+                  const isNewUnsavedRow = !rowData.quotedetailid || !isGuid(rowData.quotedetailid);
+                  
+                  if (isNewUnsavedRow) {
+                    // For new unsaved rows, just cancel the edit mode without any API calls
+                    dataGrid.cancelEditData();
+                    dataGrid.refresh();
+                    return;
+                  }
+                  
                   // Count children if parent
                   let childCount = 0;
                   if (isParent) {
@@ -5590,6 +5652,14 @@ async function setClientApiContext(Xrm, formContext) {
 
                           dataGrid.refresh();
                           Xrm.Utility.closeProgressIndicator();
+                          
+                          // Highlight all updated rows with discount-related fields
+                          const updatedRowKeys = allRecords.map(r => r.id);
+                          const discountFields = ['extreme_discount', 'extreme_fullpricewithdiscount', 'manualdiscountamount', 'extendedamount', 'baseamount', 'extreme_margin'];
+                          setTimeout(() => {
+                            highlightMultipleRows(dataGrid, updatedRowKeys, discountFields, 2500);
+                          }, 300); // Small delay to ensure grid is refreshed
+                          
                           formContext.data.refresh(false);
                         }
                       });
@@ -6542,6 +6612,16 @@ async function setClientApiContext(Xrm, formContext) {
                 changeType: 'update',
                 rowIndices: [dataGrid.getRowIndexByKey(parentQuoteLineGUID)]
               });
+              
+              // Highlight parent and all its children after batch recalculation
+              const childRowKeys = quoteLinesData._array
+                .filter(item => item.extreme_parentquoteline === parentQuoteLineGUID)
+                .map(item => item.quotedetailid);
+              const fieldsToHighlight = ['baseamount', 'priceperunit', 'extreme_margin', 'extreme_discount', 'extreme_fullpricewithdiscount', 'extendedamount', 'tax'];
+              setTimeout(() => {
+                highlightUpdatedCells(dataGrid, parentQuoteLineGUID, fieldsToHighlight, 2500);
+                highlightMultipleRows(dataGrid, childRowKeys, fieldsToHighlight, 2500);
+              }, 200);
             }
 
             // await getQuoteProducts(quoteIdForm);
@@ -6562,6 +6642,14 @@ async function setClientApiContext(Xrm, formContext) {
         onRowRemoving: async (e) => {
           // console.log('RowRemoving');
           // console.log(e);
+
+          // Check if this is a new unsaved row (no valid GUID)
+          const isNewUnsavedRow = !e.key || !isGuid(e.key);
+          
+          if (isNewUnsavedRow) {
+            // For new unsaved rows, just skip the API delete - grid will handle removal
+            return;
+          }
 
           Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
 
@@ -6935,6 +7023,16 @@ async function setClientApiContext(Xrm, formContext) {
           // Refresh grid data
           await getQuoteProducts(quoteIdForm);
           dataGrid.refresh();
+          
+          // Highlight all updated rows after refresh
+          setTimeout(() => {
+            const updatedRowKeys = updatesWithData.map(u => u.quotedetailid);
+            const fieldsToHighlight = ['extreme_supplierpriceperunit', 'extreme_supplierbaseamount', 'priceperunit', 'baseamount', 'extreme_fullpricewithdiscount', 'extendedamount'];
+            highlightMultipleRows(dataGrid, updatedRowKeys, fieldsToHighlight, 2500);
+            // Also highlight parent rows
+            highlightMultipleRows(dataGrid, Array.from(parentIdsToUpdate), fieldsToHighlight, 2500);
+          }, 300);
+          
           Xrm.Utility.closeProgressIndicator();
 
         } catch (error) {
