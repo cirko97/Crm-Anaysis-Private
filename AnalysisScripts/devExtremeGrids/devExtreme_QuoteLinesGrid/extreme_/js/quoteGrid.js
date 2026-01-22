@@ -5816,6 +5816,8 @@ async function setClientApiContext(Xrm, formContext) {
           // console.log('Editor Preparing');
           // console.log(e);
 
+          if(!e.row || !e.row.data) return;
+
           // if (e.dataField == "productid" && e.row.data.extreme_isparentitem === false) {
           //   // console.log('e.editorElement');
           //   // console.log(e.editorElement);
