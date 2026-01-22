@@ -3,29 +3,30 @@ const { read } = require("fs");
 async function form_onload(executionContext) {
     // Wake up services for quoteGrid
     const wakeUpServices = () => {
-        Xrm.WebApi.retrieveMultipleRecords("productpricelevel", "?$select=productpricelevelid&$top=1").catch(() => {});
-        Xrm.WebApi.retrieveMultipleRecords("product", "?$select=productid&$top=1").catch(() => {});
-        Xrm.WebApi.retrieveMultipleRecords("pricelevel", "?$select=pricelevelid&$top=1").catch(() => {});
-        
+        Xrm.WebApi.retrieveMultipleRecords("productpricelevel", "?$select=productpricelevelid&$top=1").catch(() => { });
+        Xrm.WebApi.retrieveMultipleRecords("product", "?$select=productid&$top=1").catch(() => { });
+        Xrm.WebApi.retrieveMultipleRecords("pricelevel", "?$select=pricelevelid&$top=1").catch(() => { });
+
         // Create, update, and delete quotedetail record to wake up the service
         var record = {};
         record["quoteid@odata.bind"] = "/quotes(4f4e3e9a-6ff7-f011-8406-002248868de6)";
-        
+
         Xrm.WebApi.createRecord("quotedetail", record)
             .then(createdRecord => {
                 const createdId = createdRecord.id;
                 Xrm.WebApi.updateRecord("quotedetail", createdId, { extreme_apiresponse: "test" })
                     .then(() => Xrm.WebApi.deleteRecord("quotedetail", createdId))
-                    .catch(() => {});
+                    .catch(() => { });
             })
-            .catch(() => {});
+            .catch(() => { });
     };
-    
-    wakeUpServices();
-    for (let i = 1; i < 10; i++) {
-        setTimeout(() => wakeUpServices(), i * 500);
+
+    // Run all wake up calls in background using setTimeout to not block UI
+    for (let i = 0; i < 5; i++) {
+        setTimeout(wakeUpServices, i * 500);
     }
     // END OF WAKE UP SERVICES
+
 
     const FORM_NEW = 1;
     const FORM_EDIT = 2;
@@ -236,16 +237,16 @@ async function form_onload(executionContext) {
             if (customerValue !== null && customerValue.length > 0) {
                 var customerId = customerValue[0].id;
                 const accTransaction = await Xrm.WebApi.retrieveRecord("account", customerId, "?$select=_transactioncurrencyid_value");
-                
+
                 if (accTransaction && accTransaction._transactioncurrencyid_value) {
                     var currentQuoteCurrency = formContext.getAttribute("transactioncurrencyid").getValue();
                     var newCustomerCurrencyId = accTransaction["_transactioncurrencyid_value"];
-                    
+
                     // Check if quote currency is different from new customer currency
                     // Remove curly braces for comparison
                     var currentQuoteCurrencyId = currentQuoteCurrency ? currentQuoteCurrency[0].id.replace(/[{}]/g, "").toLowerCase() : null;
                     var newCustomerCurrencyIdClean = newCustomerCurrencyId.replace(/[{}]/g, "").toLowerCase();
-                    
+
                     if (currentQuoteCurrencyId && currentQuoteCurrencyId !== newCustomerCurrencyIdClean) {
                         if (formType !== FORM_NEW) {
                             // Check if there are any quotedetails (quote products) for this quote
@@ -263,7 +264,7 @@ async function form_onload(executionContext) {
                                 return;
                             }
                         }
-                        
+
                         // No products or new form - update currency to match new customer
                         var transactionCurrencyLookup = [{
                             id: newCustomerCurrencyId,
@@ -271,7 +272,7 @@ async function form_onload(executionContext) {
                             entityType: "transactioncurrency"
                         }];
                         formContext.getAttribute("transactioncurrencyid").setValue(transactionCurrencyLookup);
-                        
+
                         if (formType !== FORM_NEW) {
                             const quoteIdForm = formContext.data.entity.getId().replace(/[{}]/g, "");
                             const fieldsToNull = [
@@ -400,7 +401,6 @@ async function form_onload(executionContext) {
 
         return createdOnDate;
     }
-
 }
 
 // async function ActivateQuote(primaryControl) {
