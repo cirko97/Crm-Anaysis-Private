@@ -94,3 +94,76 @@ input.currencyRates[type=number] {
 .textarea-fields {
   white-space: break-spaces !important;
 }
+
+/* Batch Add Popup Styles */
+.batch-add-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.batch-search-panel h4,
+.batch-selected-panel h4 {
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 2px solid #0078d4;
+  padding-bottom: 8px;
+}
+
+#batchSearchResults .dx-list-item,
+#batchSelectedItems .dx-list-item {
+  padding: 0 !important;
+  border: none !important;
+}
+
+#batchSearchResults .dx-list-item:hover,
+#batchSelectedItems .dx-list-item:hover {
+  background-color: #f5f5f5;
+}
+
+.batch-add-item-btn:hover {
+  opacity: 0.9;
+}
+
+/* Product icon style */
+.dx-icon-product:before {
+  content: "\f1b2";
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+}
+
+/* Hierarchy/Set icon already exists in DevExtreme */
+
+/* Exchange Rate Popup Styles */
+.exchange-rate-popup-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.rate-item:hover {
+  background-color: #f0f4f8 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.exchange-rate-input::-webkit-outer-spin-button,
+.exchange-rate-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.exchange-rate-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Discount container styles */
+.discount-container input:focus {
+  outline: none;
+  border-color: #0078d4;
+  background-color: #fff;
+}
+
+/* Exchange rate button styling */
+#exchangeRateBtn .dx-button {
+  border-radius: 4px;
+}
+
+#exchangeRateBtn .dx-button-content {
+  padding: 6px 12px;
+}

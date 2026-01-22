@@ -25,6 +25,9 @@ let selectedDescriptionItem = null;
 let primaryDefaultUnit = "KOM";
 let defaultDiscount = 0;
 
+// Track IDs that are currently being deleted to prevent double deletion attempts
+let deletingIds = new Set();
+
 // Cache for product info to avoid repeated API calls
 const productInfoCache = new Map();
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes cache expiry
@@ -88,6 +91,99 @@ function buildVatSettingsLookupMap(taxPercent) {
 function clearAllCaches() {
   productInfoCache.clear();
   priceListCache.clear();
+}
+
+// Show toast notification in parent window document
+// type: 'success' | 'warning' | 'error' | 'info'
+function showParentToast(message, type = 'success', durationMs = 3000) {
+  const parentDoc = window.parent.document;
+  
+  // Remove existing toast if any
+  const existingToast = parentDoc.getElementById('customParentToast');
+  if (existingToast) existingToast.remove();
+  
+  // Define colors based on type
+  const colors = {
+    success: { bg: '#28a745', icon: '✓' },
+    warning: { bg: '#ffc107', icon: '⚠', textColor: '#333' },
+    error: { bg: '#dc3545', icon: '✕' },
+    info: { bg: '#17a2b8', icon: 'ℹ' }
+  };
+  const config = colors[type] || colors.info;
+  
+  // Create toast container
+  const toast = parentDoc.createElement('div');
+  toast.id = 'customParentToast';
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${config.bg};
+    color: ${config.textColor || '#fff'};
+    padding: 14px 20px 14px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    z-index: 9999999;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    max-width: 400px;
+    animation: slideInToast 0.3s ease-out;
+  `;
+  
+  // Add animation styles if not exists
+  if (!parentDoc.getElementById('toastAnimationStyles')) {
+    const styleEl = parentDoc.createElement('style');
+    styleEl.id = 'toastAnimationStyles';
+    styleEl.textContent = `
+      @keyframes slideInToast {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes slideOutToast {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+      }
+    `;
+    parentDoc.head.appendChild(styleEl);
+  }
+  
+  // Icon
+  const iconSpan = parentDoc.createElement('span');
+  iconSpan.textContent = config.icon;
+  iconSpan.style.cssText = 'font-size: 18px;';
+  
+  // Message
+  const msgSpan = parentDoc.createElement('span');
+  msgSpan.textContent = message;
+  msgSpan.style.cssText = 'flex: 1;';
+  
+  // Close button
+  const closeBtn = parentDoc.createElement('span');
+  closeBtn.innerHTML = '&times;';
+  closeBtn.style.cssText = 'cursor: pointer; font-size: 20px; opacity: 0.8; margin-left: 8px;';
+  closeBtn.onmouseover = () => closeBtn.style.opacity = '1';
+  closeBtn.onmouseout = () => closeBtn.style.opacity = '0.8';
+  closeBtn.onclick = () => {
+    toast.style.animation = 'slideOutToast 0.3s ease-in forwards';
+    setTimeout(() => toast.remove(), 300);
+  };
+  
+  toast.appendChild(iconSpan);
+  toast.appendChild(msgSpan);
+  toast.appendChild(closeBtn);
+  parentDoc.body.appendChild(toast);
+  
+  // Auto remove after duration
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.style.animation = 'slideOutToast 0.3s ease-in forwards';
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, durationMs);
 }
 
 // Highlight updated cells/rows for visual feedback
@@ -2538,7 +2634,6 @@ async function setClientApiContext(Xrm, formContext) {
                       acceptCustomValue: false,
                       searchEnabled: true,
                       searchTimeout: SEARCH_TIMEOUT_MS, // Debounce search for better performance
-                      minSearchLength: 2, // Only search after 2 characters
                       searchExpr: ["extreme_paname30characters", "name"],
                       itemTemplate: function (data, index, container) {
                         var row = $("<div>").addClass("row text-wrap");
@@ -2808,6 +2903,26 @@ async function setClientApiContext(Xrm, formContext) {
                   if (e.oldData.extreme_parentquoteline) {
 
                     // console.log("CHILD UPDATED WITH PARENT QUOTE LINE");
+                    
+                    // First, update the child's data in quoteLinesData with the new values
+                    // This ensures the parent totals calculation uses the updated values
+                    const childUpdateData = {};
+                    if (e.newData.baseamount !== undefined) childUpdateData.baseamount = parseFloat(e.newData.baseamount) || 0;
+                    if (e.newData.extendedamount !== undefined) childUpdateData.extendedamount = parseFloat(e.newData.extendedamount) || 0;
+                    if (e.newData.extreme_fullpd !== undefined) childUpdateData.extreme_fullpd = parseFloat(e.newData.extreme_fullpd) || 0;
+                    if (e.newData.extreme_fullpricewithdiscount !== undefined) childUpdateData.extreme_fullpricewithdiscount = parseFloat(e.newData.extreme_fullpricewithdiscount) || 0;
+                    if (e.newData.manualdiscountamount !== undefined) childUpdateData.manualdiscountamount = parseFloat(e.newData.manualdiscountamount) || 0;
+                    if (e.newData.extreme_supplierbaseamount !== undefined) childUpdateData.extreme_supplierbaseamount = parseFloat(e.newData.extreme_supplierbaseamount) || 0;
+                    if (e.newData.tax !== undefined) childUpdateData.tax = parseFloat(e.newData.tax) || 0;
+                    if (e.newData.extreme_discount !== undefined) childUpdateData.extreme_discount = parseFloat(e.newData.extreme_discount) || 0;
+                    if (e.newData.priceperunit !== undefined) childUpdateData.priceperunit = parseFloat(e.newData.priceperunit) || 0;
+                    if (e.newData.extreme_margin !== undefined) childUpdateData.extreme_margin = parseFloat(e.newData.extreme_margin) || 0;
+                    if (e.newData.extreme_pd !== undefined) childUpdateData.extreme_pd = parseFloat(e.newData.extreme_pd) || 0;
+                    
+                    // Update the child in the local store FIRST
+                    if (Object.keys(childUpdateData).length > 0) {
+                      quoteLinesData.update(e.key, childUpdateData);
+                    }
 
                     let baseamount_sum = 0;
                     let extendedamount_sum = 0;
@@ -2818,27 +2933,29 @@ async function setClientApiContext(Xrm, formContext) {
                     let tax_sum = 0;
                     let avarageDiscountPercent = 0;
 
-                    quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.oldData.extreme_parentquoteline).forEach((e) => {
-                      baseamount_sum += e.baseamount;
-                      extendedamount_sum += e.extendedamount;
-                      extreme_fullpd_sum += e.extreme_fullpd;
-                      extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount;
-                      manualdiscountamount_sum += e.manualdiscountamount;
-                      extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
-                      tax_sum += e.tax;
+                    // Now calculate parent totals - the child's data is already updated in the array
+                    quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.oldData.extreme_parentquoteline).forEach((child) => {
+                      baseamount_sum += parseFloat(child.baseamount) || 0;
+                      extendedamount_sum += parseFloat(child.extendedamount) || 0;
+                      extreme_fullpd_sum += parseFloat(child.extreme_fullpd) || 0;
+                      extreme_fullpricewithdiscount_sum += parseFloat(child.extreme_fullpricewithdiscount) || 0;
+                      manualdiscountamount_sum += parseFloat(child.manualdiscountamount) || 0;
+                      extreme_supplierbaseamount_sum += parseFloat(child.extreme_supplierbaseamount) || 0;
+                      tax_sum += parseFloat(child.tax) || 0;
                     });
 
-                    avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+                    avarageDiscountPercent = baseamount_sum > 0 ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 : 0;
 
+                    // Update parent in local store only (SETs don't save to database)
                     quoteLinesData.update(e.oldData.extreme_parentquoteline, {
-                      baseamount: baseamount_sum.toFixed(2),
-                      extendedamount: extendedamount_sum.toFixed(2),
-                      extreme_fullpd: extreme_fullpd_sum.toFixed(2),
-                      extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
-                      manualdiscountamount: manualdiscountamount_sum.toFixed(2),
-                      extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
-                      tax: tax_sum.toFixed(2),
-                      extreme_discount: avarageDiscountPercent.toFixed(2)
+                      baseamount: parseFloat(baseamount_sum.toFixed(2)),
+                      extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+                      extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+                      extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+                      manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+                      extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+                      tax: parseFloat(tax_sum.toFixed(2)),
+                      extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
                     });
 
                     dataGrid.getController('data').updateItems({
@@ -3649,6 +3766,91 @@ async function setClientApiContext(Xrm, formContext) {
               precision: 2
             },
             allowEditing: true,
+            setCellValue: async function (newData, value, currentRowData) {
+              // Check if this is a parent SET
+              if (currentRowData.extreme_isparentitem === true) {
+                // This is a parent SET - distribute the new baseamount proportionally to children
+                newData.baseamount = value;
+                
+                const parentId = currentRowData.quotedetailid;
+                const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === parentId);
+                
+                if (childItems.length > 0) {
+                  // Calculate current total baseamount from children
+                  const currentTotalBaseAmount = childItems.reduce((sum, child) => sum + (parseFloat(child.baseamount) || 0), 0);
+                  
+                  // Calculate ratio for proportional distribution
+                  const ratio = currentTotalBaseAmount > 0 ? value / currentTotalBaseAmount : 1 / childItems.length;
+                  
+                  // Initialize parent totals
+                  let totalExtendedAmount = 0;
+                  let totalFullPriceWithDiscount = 0;
+                  let totalFullPd = 0;
+                  let totalManualdiscountamount = 0;
+                  let totalSupplierBaseAmount = 0;
+                  let totalTax = 0;
+                  
+                  // Recalculate each child with proportional baseamount
+                  childItems.forEach(child => {
+                    // Calculate new baseamount for this child
+                    let newChildBaseAmount;
+                    if (currentTotalBaseAmount > 0) {
+                      newChildBaseAmount = (parseFloat(child.baseamount) || 0) * ratio;
+                    } else {
+                      newChildBaseAmount = value / childItems.length;
+                    }
+                    
+                    // Calculate new priceperunit based on new baseamount
+                    const quantity = child.quantity || 1;
+                    const newPricePerUnit = newChildBaseAmount / quantity;
+                    
+                    // Recalculate with new values
+                    const childRecalc = recalculateAmounts({
+                      quantity: quantity,
+                      supplierPricePerUnit: child.extreme_supplierpriceperunit || 0,
+                      supplierDiscount: child.extreme_supplierdiscount || 0,
+                      margin: child.extreme_margin || defaultMargin,
+                      pricePerUnit: newPricePerUnit,
+                      baseAmount: newChildBaseAmount,
+                      discount: child.extreme_discount || 0,
+                      TaxPercent: child.extreme_tax || 0
+                    });
+                    
+                    // Update child in local store
+                    quoteLinesData.update(child.quotedetailid, {
+                      priceperunit: newPricePerUnit,
+                      baseamount: newChildBaseAmount,
+                      extreme_fullpricewithdiscount: childRecalc.fullPriceWithDiscount,
+                      manualdiscountamount: childRecalc.manualDiscountAmount || childRecalc.customDiscountAmount,
+                      tax: childRecalc.tax,
+                      extendedamount: childRecalc.extendedAmount,
+                      extreme_pd: childRecalc.pdPerUnit,
+                      extreme_fullpd: childRecalc.fullPd,
+                      extreme_margin: childRecalc.margin
+                    });
+                    
+                    // Accumulate totals
+                    totalExtendedAmount += parseFloat(childRecalc.extendedAmount) || 0;
+                    totalFullPriceWithDiscount += parseFloat(childRecalc.fullPriceWithDiscount) || 0;
+                    totalFullPd += parseFloat(childRecalc.fullPd) || 0;
+                    totalManualdiscountamount += parseFloat(childRecalc.manualDiscountAmount || childRecalc.customDiscountAmount) || 0;
+                    totalSupplierBaseAmount += parseFloat(child.extreme_supplierbaseamount) || 0;
+                    totalTax += parseFloat(childRecalc.tax) || 0;
+                  });
+                  
+                  // Set parent totals
+                  newData.extendedamount = parseFloat(totalExtendedAmount.toFixed(2));
+                  newData.extreme_fullpricewithdiscount = parseFloat(totalFullPriceWithDiscount.toFixed(2));
+                  newData.extreme_fullpd = parseFloat(totalFullPd.toFixed(2));
+                  newData.manualdiscountamount = parseFloat(totalManualdiscountamount.toFixed(2));
+                  newData.extreme_supplierbaseamount = parseFloat(totalSupplierBaseAmount.toFixed(2));
+                  newData.tax = parseFloat(totalTax.toFixed(2));
+                }
+              } else {
+                // Regular item - just set the value
+                newData.baseamount = value;
+              }
+            },
             customizeText: function (cellInfo) {
               return cellInfo.valueText === "" || cellInfo.valueText === null ? cellInfo.valueText : cellInfo.valueText + ` ${quoteCurrencySymbol}`;
             }
@@ -3701,7 +3903,66 @@ async function setClientApiContext(Xrm, formContext) {
                 };
               }
               else {
+                // This is a parent SET - propagate discount to children and recalculate totals
                 newData.extreme_discount = value;
+                
+                // Get all child items for this parent SET
+                const parentId = currentRowData.quotedetailid;
+                const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === parentId);
+                
+                if (childItems.length > 0) {
+                  // Initialize parent totals
+                  let totalBaseAmount = 0;
+                  let totalExtendedAmount = 0;
+                  let totalFullPriceWithDiscount = 0;
+                  let totalFullPd = 0;
+                  let totalManualdiscountamount = 0;
+                  let totalSupplierBaseAmount = 0;
+                  let totalTax = 0;
+                  
+                  // Recalculate each child with new discount
+                  childItems.forEach(child => {
+                    const childRecalc = recalculateAmounts({
+                      quantity: child.quantity || 1,
+                      supplierPricePerUnit: child.extreme_supplierpriceperunit || 0,
+                      supplierDiscount: child.extreme_supplierdiscount || 0,
+                      margin: child.extreme_margin || defaultMargin,
+                      pricePerUnit: child.priceperunit || null,
+                      baseAmount: child.baseamount || null,
+                      discount: value,
+                      TaxPercent: child.extreme_tax || 0
+                    });
+                    
+                    // Update child in local store
+                    quoteLinesData.update(child.quotedetailid, {
+                      extreme_discount: value,
+                      extreme_fullpricewithdiscount: childRecalc.fullPriceWithDiscount,
+                      manualdiscountamount: childRecalc.manualDiscountAmount || childRecalc.customDiscountAmount,
+                      tax: childRecalc.tax,
+                      extendedamount: childRecalc.extendedAmount,
+                      extreme_pd: childRecalc.pdPerUnit,
+                      extreme_fullpd: childRecalc.fullPd
+                    });
+                    
+                    // Accumulate totals from recalculated child
+                    totalBaseAmount += parseFloat(child.baseamount) || 0;
+                    totalExtendedAmount += parseFloat(childRecalc.extendedAmount) || 0;
+                    totalFullPriceWithDiscount += parseFloat(childRecalc.fullPriceWithDiscount) || 0;
+                    totalFullPd += parseFloat(childRecalc.fullPd) || 0;
+                    totalManualdiscountamount += parseFloat(childRecalc.manualDiscountAmount || childRecalc.customDiscountAmount) || 0;
+                    totalSupplierBaseAmount += parseFloat(child.extreme_supplierbaseamount) || 0;
+                    totalTax += parseFloat(childRecalc.tax) || 0;
+                  });
+                  
+                  // Set parent totals
+                  newData.baseamount = parseFloat(totalBaseAmount.toFixed(2));
+                  newData.extendedamount = parseFloat(totalExtendedAmount.toFixed(2));
+                  newData.extreme_fullpricewithdiscount = parseFloat(totalFullPriceWithDiscount.toFixed(2));
+                  newData.extreme_fullpd = parseFloat(totalFullPd.toFixed(2));
+                  newData.manualdiscountamount = parseFloat(totalManualdiscountamount.toFixed(2));
+                  newData.extreme_supplierbaseamount = parseFloat(totalSupplierBaseAmount.toFixed(2));
+                  newData.tax = parseFloat(totalTax.toFixed(2));
+                }
               }
             },
             customizeText: function (cellInfo) {
@@ -4210,7 +4471,6 @@ async function setClientApiContext(Xrm, formContext) {
               acceptCustomValue: false,
               searchEnabled: true,
               searchTimeout: SEARCH_TIMEOUT_MS, // Debounce search for better performance
-              minSearchLength: 2, // Only search after 2 characters
               searchExpr: ["extreme_paname30characters", "name"],
               itemTemplate: function (data, index, container) {
                 var row = $("<div>").addClass("row text-wrap");
@@ -4627,12 +4887,19 @@ async function setClientApiContext(Xrm, formContext) {
                     return;
                   }
                   
+                  // Check if already being deleted
+                  if (deletingIds.has(rowData.quotedetailid)) {
+                    return; // Already being deleted, skip
+                  }
+                  
                   // Count children if parent
                   let childCount = 0;
+                  let childItems = [];
                   if (isParent) {
-                    childCount = quoteLinesData._array.filter(
+                    childItems = quoteLinesData._array.filter(
                       item => item.extreme_parentquoteline === rowData.quotedetailid
-                    ).length;
+                    );
+                    childCount = childItems.length;
                   }
                   
                   const confirmMessage = isParent && childCount > 0
@@ -4651,47 +4918,73 @@ async function setClientApiContext(Xrm, formContext) {
                   Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
                   
                   try {
-                    const deletePromises = [];
                     const idsToRemove = [rowData.quotedetailid];
                     
-                    // If parent, also delete children
-                    if (isParent) {
-                      const childItems = quoteLinesData._array.filter(
-                        item => item.extreme_parentquoteline === rowData.quotedetailid
-                      );
+                    // If parent, collect children IDs
+                    if (isParent && childItems.length > 0) {
                       childItems.forEach(child => idsToRemove.push(child.quotedetailid));
                     }
                     
-                    // Delete all records in parallel
-                    idsToRemove.forEach(id => {
-                      deletePromises.push(Xrm.WebApi.deleteRecord("quotedetail", `${id}`));
-                      quoteLinesData.remove(id);
-                    });
+                    // Mark all IDs as being deleted to prevent onRowRemoving from re-deleting
+                    idsToRemove.forEach(id => deletingIds.add(id));
                     
-                    await Promise.all(deletePromises);
-                    
-                    // Reorder remaining parent items
-                    const reorderPromises = [];
-                    const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
-                    parentItems.forEach((item, i) => {
-                      const newSeq = parseInt((i + 1) + "00");
-                      if (item.sequencenumber !== newSeq) {
-                        reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
-                        item.sequencenumber = newSeq;
-                      }
-                    });
-                    
-                    // Fire-and-forget reorder (don't wait)
-                    if (reorderPromises.length > 0) {
-                      Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
+                    // Delete children first, then parent (to avoid FK issues)
+                    if (isParent && childItems.length > 0) {
+                      const childDeletePromises = childItems.map(child => 
+                        Xrm.WebApi.deleteRecord("quotedetail", `${child.quotedetailid}`)
+                          .catch(err => {
+                            // Ignore 404 errors (already deleted)
+                            if (!err.message?.includes('does not exist') && !err.message?.includes('ObjectDoesNotExist')) {
+                              throw err;
+                            }
+                          })
+                      );
+                      await Promise.all(childDeletePromises);
+                      
+                      // Remove children from local store
+                      childItems.forEach(child => quoteLinesData.remove(child.quotedetailid));
                     }
+                    
+                    // Now delete the parent/item itself
+                    await Xrm.WebApi.deleteRecord("quotedetail", `${rowData.quotedetailid}`)
+                      .catch(err => {
+                        if (!err.message?.includes('does not exist') && !err.message?.includes('ObjectDoesNotExist')) {
+                          throw err;
+                        }
+                      });
+                    
+                    // Remove from local store
+                    quoteLinesData.remove(rowData.quotedetailid);
+                    
+                    // Reorder remaining parent items (fire-and-forget)
+                    setTimeout(() => {
+                      const reorderPromises = [];
+                      const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
+                      parentItems.forEach((item, i) => {
+                        const newSeq = parseInt((i + 1) + "00");
+                        if (item.sequencenumber !== newSeq) {
+                          reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                          item.sequencenumber = newSeq;
+                        }
+                      });
+                      if (reorderPromises.length > 0) {
+                        Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
+                      }
+                    }, 100);
                     
                     dataGrid.refresh();
                     Xrm.Utility.closeProgressIndicator();
                     
+                    // Clear deletingIds after a delay
+                    setTimeout(() => {
+                      idsToRemove.forEach(id => deletingIds.delete(id));
+                    }, 2000);
+                    
                     // Refresh form in background (don't await)
                     formContext.data.refresh(false);
                   } catch (error) {
+                    // Clear deletingIds on error
+                    deletingIds.clear();
                     Xrm.Utility.closeProgressIndicator();
                     Xrm.Navigation.openErrorDialog({
                       details: error,
@@ -4750,39 +5043,91 @@ async function setClientApiContext(Xrm, formContext) {
                   Xrm.Utility.showProgressIndicator(`Deleting ${selectedRows.length} rows... Please wait...`);
 
                   try {
-                    const idsToRemove = new Set();
-
-                    // Collect all IDs to delete (including children of parent items)
-                    selectedRows.forEach(row => {
-                      idsToRemove.add(row.quotedetailid);
-                      
-                      // If parent item, also collect all child IDs
-                      if (row.extreme_isparentitem === true) {
-                        const childItems = quoteLinesData._array.filter(
-                          item => item.extreme_parentquoteline === row.quotedetailid
-                        );
-                        childItems.forEach(child => idsToRemove.add(child.quotedetailid));
-                      }
+                    // Separate parent items and regular items
+                    const parentRows = selectedRows.filter(row => row.extreme_isparentitem === true);
+                    const regularRows = selectedRows.filter(row => row.extreme_isparentitem !== true);
+                    
+                    // Collect all child IDs for parent items
+                    const allChildIds = [];
+                    parentRows.forEach(parent => {
+                      const children = quoteLinesData._array.filter(
+                        item => item.extreme_parentquoteline === parent.quotedetailid
+                      );
+                      children.forEach(child => allChildIds.push(child.quotedetailid));
                     });
-
-                    const idsArray = Array.from(idsToRemove);
-
-                    // Batch delete all records in parallel with chunking for large sets
-                    await processBatchesInParallel(idsArray, async (id) => {
-                      await Xrm.WebApi.deleteRecord("quotedetail", `${id}`);
-                      quoteLinesData.remove(id);
-                      return id;
-                    });
+                    
+                    // Collect all IDs to delete
+                    const allIdsToDelete = new Set();
+                    allChildIds.forEach(id => allIdsToDelete.add(id));
+                    regularRows.forEach(row => allIdsToDelete.add(row.quotedetailid));
+                    parentRows.forEach(row => allIdsToDelete.add(row.quotedetailid));
+                    
+                    // Mark all IDs as being deleted
+                    allIdsToDelete.forEach(id => deletingIds.add(id));
+                    
+                    // Delete in order: 1) child items of sets, 2) regular items and children in selection, 3) parent items
+                    // This ensures we don't have FK constraint issues
+                    
+                    // Step 1: Delete all child items first (children of parent items)
+                    if (allChildIds.length > 0) {
+                      await processBatchesInParallel(allChildIds, async (id) => {
+                        try {
+                          await Xrm.WebApi.deleteRecord("quotedetail", `${id}`);
+                        } catch (err) {
+                          // Ignore 404 errors
+                          if (!err.message?.includes('does not exist') && !err.message?.includes('ObjectDoesNotExist')) {
+                            console.warn('Delete child warning:', err);
+                          }
+                        }
+                        quoteLinesData.remove(id);
+                        return id;
+                      });
+                    }
+                    
+                    // Step 2: Delete regular items (non-parent)
+                    if (regularRows.length > 0) {
+                      await processBatchesInParallel(regularRows.map(r => r.quotedetailid), async (id) => {
+                        try {
+                          await Xrm.WebApi.deleteRecord("quotedetail", `${id}`);
+                        } catch (err) {
+                          if (!err.message?.includes('does not exist') && !err.message?.includes('ObjectDoesNotExist')) {
+                            console.warn('Delete item warning:', err);
+                          }
+                        }
+                        quoteLinesData.remove(id);
+                        return id;
+                      });
+                    }
+                    
+                    // Step 3: Delete parent items last
+                    if (parentRows.length > 0) {
+                      await processBatchesInParallel(parentRows.map(r => r.quotedetailid), async (id) => {
+                        try {
+                          await Xrm.WebApi.deleteRecord("quotedetail", `${id}`);
+                        } catch (err) {
+                          if (!err.message?.includes('does not exist') && !err.message?.includes('ObjectDoesNotExist')) {
+                            console.warn('Delete parent warning:', err);
+                          }
+                        }
+                        quoteLinesData.remove(id);
+                        return id;
+                      });
+                    }
 
                     // Clear selection and refresh grid immediately
                     dataGrid.clearSelection();
                     dataGrid.refresh();
                     Xrm.Utility.closeProgressIndicator();
                     
+                    // Clear deletingIds after a delay
+                    setTimeout(() => {
+                      allIdsToDelete.forEach(id => deletingIds.delete(id));
+                    }, 2000);
+                    
                     // Refresh form in background (don't block UI)
                     formContext.data.refresh(false);
 
-                    // Lazy reorder in background (fire-and-forget) - fixes sequence numbers without blocking UI
+                    // Lazy reorder in background (fire-and-forget)
                     setTimeout(async () => {
                       try {
                         const parentItems = quoteLinesData._array
@@ -4814,7 +5159,6 @@ async function setClientApiContext(Xrm, formContext) {
                           }
                         });
 
-                        // Execute reorder in batches (background, no await needed in main flow)
                         if (reorderUpdates.length > 0) {
                           await processBatchesInParallel(reorderUpdates, async ({ id, seq }) => {
                             return Xrm.WebApi.updateRecord("quotedetail", `${id}`, { sequencenumber: seq });
@@ -4823,9 +5167,11 @@ async function setClientApiContext(Xrm, formContext) {
                       } catch (err) {
                         console.warn('Background reorder warning:', err);
                       }
-                    }, 500); // Start after 500ms to not interfere with UI
+                    }, 500);
 
                   } catch (error) {
+                    // Clear deletingIds on error
+                    deletingIds.clear();
                     Xrm.Utility.closeProgressIndicator();
                     Xrm.Navigation.openErrorDialog({
                       details: error,
@@ -5266,6 +5612,416 @@ async function setClientApiContext(Xrm, formContext) {
               widget: 'dxButton',
               locateInMenu: "auto",
               options: {
+                icon: 'selectall',
+                text: 'Batch Add',
+                width: 'auto',
+                disabled: !isDraftStatus,
+                onClick: async function(e) {
+                  // Array to store selected items for batch add
+                  let selectedItemsForBatch = [];
+
+                  // Create custom popup in parent window document (like description popup)
+                  const parentDoc = window.parent.document;
+                  
+                  // Remove existing popup if any
+                  const existingPopup = parentDoc.getElementById('batchAddPopupOverlay');
+                  if (existingPopup) existingPopup.remove();
+                  
+                  // Create overlay
+                  const overlay = parentDoc.createElement('div');
+                  overlay.id = 'batchAddPopupOverlay';
+                  overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 999999;
+                  `;
+                  
+                  // Create popup container
+                  const popup = parentDoc.createElement('div');
+                  popup.style.cssText = `
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                    width: 900px;
+                    max-width: 90%;
+                    height: 550px;
+                    max-height: 85%;
+                    display: flex;
+                    flex-direction: column;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                  `;
+                  
+                  // Create header
+                  const header = parentDoc.createElement('div');
+                  header.style.cssText = `
+                    padding: 16px 20px;
+                    border-bottom: 1px solid #e0e0e0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%);
+                    border-radius: 8px 8px 0 0;
+                  `;
+                  
+                  const title = parentDoc.createElement('span');
+                  title.style.cssText = 'font-size: 16px; font-weight: 600; color: #fff;';
+                  title.textContent = 'Batch Add Products & Sets';
+                  
+                  const closeBtn = parentDoc.createElement('button');
+                  closeBtn.innerHTML = '&times;';
+                  closeBtn.style.cssText = `
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    color: #fff;
+                    padding: 0;
+                    line-height: 1;
+                  `;
+                  closeBtn.onmouseover = () => closeBtn.style.opacity = '0.7';
+                  closeBtn.onmouseout = () => closeBtn.style.opacity = '1';
+                  closeBtn.onclick = () => overlay.remove();
+                  
+                  header.appendChild(title);
+                  header.appendChild(closeBtn);
+                  
+                  // Create body with two panels
+                  const body = parentDoc.createElement('div');
+                  body.style.cssText = 'display: flex; flex: 1; overflow: hidden;';
+                  
+                  // Left panel - Search
+                  const leftPanel = parentDoc.createElement('div');
+                  leftPanel.style.cssText = `
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    border-right: 1px solid #e0e0e0;
+                    padding: 15px;
+                  `;
+                  
+                  const searchTitle = parentDoc.createElement('h4');
+                  searchTitle.textContent = 'Search Products & Sets';
+                  searchTitle.style.cssText = 'margin: 0 0 10px 0; color: #333; font-size: 14px;';
+                  
+                  const searchInput = parentDoc.createElement('input');
+                  searchInput.type = 'text';
+                  searchInput.placeholder = 'Type to search products or sets...';
+                  searchInput.style.cssText = `
+                    width: 100%;
+                    height: 36px;
+                    padding: 0 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    box-sizing: border-box;
+                  `;
+                  
+                  const searchResultsList = parentDoc.createElement('div');
+                  searchResultsList.style.cssText = `
+                    flex: 1;
+                    overflow-y: auto;
+                    margin-top: 10px;
+                    border: 1px solid #eee;
+                    border-radius: 4px;
+                  `;
+                  searchResultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Type at least 2 characters to search...</div>';
+                  
+                  leftPanel.appendChild(searchTitle);
+                  leftPanel.appendChild(searchInput);
+                  leftPanel.appendChild(searchResultsList);
+                  
+                  // Right panel - Selected items
+                  const rightPanel = parentDoc.createElement('div');
+                  rightPanel.style.cssText = `
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    padding: 15px;
+                  `;
+                  
+                  const selectedTitle = parentDoc.createElement('h4');
+                  selectedTitle.textContent = 'Selected Items';
+                  selectedTitle.style.cssText = 'margin: 0 0 5px 0; color: #333; font-size: 14px;';
+                  
+                  const selectedCount = parentDoc.createElement('span');
+                  selectedCount.textContent = '0 item(s) selected';
+                  selectedCount.style.cssText = 'font-size: 12px; color: #666; margin-bottom: 10px; display: block;';
+                  
+                  const selectedItemsList = parentDoc.createElement('div');
+                  selectedItemsList.style.cssText = `
+                    flex: 1;
+                    overflow-y: auto;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 5px;
+                  `;
+                  selectedItemsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No items selected</div>';
+                  
+                  rightPanel.appendChild(selectedTitle);
+                  rightPanel.appendChild(selectedCount);
+                  rightPanel.appendChild(selectedItemsList);
+                  
+                  body.appendChild(leftPanel);
+                  body.appendChild(rightPanel);
+                  
+                  // Create footer with buttons
+                  const footer = parentDoc.createElement('div');
+                  footer.style.cssText = `
+                    padding: 12px 20px;
+                    border-top: 1px solid #e0e0e0;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                    background: #f9f9f9;
+                    border-radius: 0 0 8px 8px;
+                  `;
+                  
+                  const cancelBtn = parentDoc.createElement('button');
+                  cancelBtn.textContent = 'Cancel';
+                  cancelBtn.style.cssText = `
+                    padding: 8px 20px;
+                    border: 1px solid #ddd;
+                    background: #fff;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                  `;
+                  cancelBtn.onclick = () => overlay.remove();
+                  
+                  const addBtn = parentDoc.createElement('button');
+                  addBtn.textContent = 'Add Selected';
+                  addBtn.style.cssText = `
+                    padding: 8px 20px;
+                    border: none;
+                    background: #28a745;
+                    color: #fff;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                  `;
+                  addBtn.onmouseover = () => addBtn.style.background = '#218838';
+                  addBtn.onmouseout = () => addBtn.style.background = '#28a745';
+                  addBtn.onclick = async () => {
+                    if (selectedItemsForBatch.length === 0) {
+                      showParentToast('Please select at least one item to add.', 'warning', 3000);
+                      return;
+                    }
+                    
+                    overlay.remove();
+                    const totalItems = selectedItemsForBatch.length;
+                    
+                    for (let i = 0; i < selectedItemsForBatch.length; i++) {
+                      const item = selectedItemsForBatch[i];
+                      Xrm.Utility.showProgressIndicator(`Adding product ${i + 1}/${totalItems}... Please wait...`);
+                      
+                      try {
+                        await addBatchItem(item, quoteIdForm, quoteLinesData, dataGrid, Xrm, formContext, recalculateAmounts, currenciesArray, quoteCurrencySymbol, vatSettingsArray, defaultMargin);
+                      } catch (error) {
+                        console.error(`Error adding item ${item.name}:`, error);
+                      }
+                    }
+                    
+                    Xrm.Utility.closeProgressIndicator();
+                    
+                    // Refresh the grid and form
+                    await setClientApiContext(Xrm, formContext);
+                    formContext.data.refresh(true);
+                    
+                    showParentToast(`Successfully added ${totalItems} item(s).`, 'success', 3000);
+                  };
+                  
+                  footer.appendChild(cancelBtn);
+                  footer.appendChild(addBtn);
+                  
+                  popup.appendChild(header);
+                  popup.appendChild(body);
+                  popup.appendChild(footer);
+                  overlay.appendChild(popup);
+                  parentDoc.body.appendChild(overlay);
+                  
+                  // Focus on search input
+                  searchInput.focus();
+                  
+                  // Function to update selected items list display
+                  const updateSelectedList = () => {
+                    selectedCount.textContent = `${selectedItemsForBatch.length} item(s) selected`;
+                    if (selectedItemsForBatch.length === 0) {
+                      selectedItemsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No items selected</div>';
+                      return;
+                    }
+                    
+                    selectedItemsList.innerHTML = '';
+                    selectedItemsForBatch.forEach((item, idx) => {
+                      const itemDiv = parentDoc.createElement('div');
+                      itemDiv.style.cssText = 'display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee;';
+                      
+                      const icon = parentDoc.createElement('span');
+                      icon.innerHTML = item.isSet ? '&#128193;' : '&#128230;';
+                      icon.style.cssText = `margin-right: 10px; font-size: 16px;`;
+                      
+                      const info = parentDoc.createElement('div');
+                      info.style.cssText = 'flex: 1; overflow: hidden;';
+                      info.innerHTML = `
+                        <div style="font-weight: 600; font-size: 12px;">${item.productnumber}</div>
+                        <div style="font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</div>
+                      `;
+                      
+                      const removeBtn = parentDoc.createElement('span');
+                      removeBtn.innerHTML = '&times;';
+                      removeBtn.style.cssText = 'cursor: pointer; color: #d32f2f; font-size: 18px; padding: 5px;';
+                      removeBtn.onclick = () => {
+                        selectedItemsForBatch.splice(idx, 1);
+                        updateSelectedList();
+                        // Update search results to show Add button again
+                        const existingBtn = searchResultsList.querySelector(`[data-productid="${item.productid}"] .add-item-btn`);
+                        if (existingBtn) {
+                          existingBtn.textContent = 'Add';
+                          existingBtn.style.backgroundColor = '#0078d4';
+                          existingBtn.style.cursor = 'pointer';
+                        }
+                      };
+                      
+                      itemDiv.appendChild(icon);
+                      itemDiv.appendChild(info);
+                      itemDiv.appendChild(removeBtn);
+                      selectedItemsList.appendChild(itemDiv);
+                    });
+                  };
+                  
+                  // Debounced search function
+                  let searchTimeout;
+                  searchInput.oninput = () => {
+                    clearTimeout(searchTimeout);
+                    const searchValue = searchInput.value.trim();
+                    
+                    if (searchValue.length < 2) {
+                      searchResultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Type at least 2 characters to search...</div>';
+                      return;
+                    }
+                    
+                    searchResultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Searching...</div>';
+                    
+                    searchTimeout = setTimeout(async () => {
+                      try {
+                        const filter = `$filter=(contains(productnumber,'${searchValue}') or contains(name,'${searchValue}')) and statecode eq 0`;
+                        const results = await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,name,productnumber,extreme_isparent,_defaultuomid_value,_pricelevelid_value,producttypecode&${filter}&$top=50`);
+                        
+                        if (results.entities.length === 0) {
+                          searchResultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No results found</div>';
+                          return;
+                        }
+                        
+                        searchResultsList.innerHTML = '';
+                        results.entities.forEach(item => {
+                          const isSet = item.extreme_isparent === true;
+                          const isSelected = selectedItemsForBatch.some(s => s.productid === item.productid);
+                          
+                          const itemDiv = parentDoc.createElement('div');
+                          itemDiv.setAttribute('data-productid', item.productid);
+                          itemDiv.style.cssText = 'display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
+                          itemDiv.onmouseover = () => itemDiv.style.backgroundColor = '#f5f5f5';
+                          itemDiv.onmouseout = () => itemDiv.style.backgroundColor = '';
+                          
+                          const icon = parentDoc.createElement('span');
+                          icon.innerHTML = isSet ? '&#128193;' : '&#128230;';
+                          icon.style.cssText = `margin-right: 12px; font-size: 20px; color: ${isSet ? '#ff6b35' : '#0078d4'};`;
+                          
+                          const info = parentDoc.createElement('div');
+                          info.style.cssText = 'flex: 1;';
+                          info.innerHTML = `
+                            <div style="font-weight: 600; font-size: 13px;">${item.productnumber}</div>
+                            <div style="font-size: 12px; color: #666;">${item.name}</div>
+                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background-color: ${isSet ? '#fff3e0' : '#e3f2fd'}; color: ${isSet ? '#ff6b35' : '#0078d4'}; margin-top: 3px; display: inline-block;">${isSet ? 'Set' : 'Product'}</span>
+                          `;
+                          
+                          const addItemBtn = parentDoc.createElement('button');
+                          addItemBtn.className = 'add-item-btn';
+                          addItemBtn.textContent = isSelected ? 'Added' : 'Add';
+                          addItemBtn.style.cssText = `
+                            padding: 5px 15px;
+                            background-color: ${isSelected ? '#ccc' : '#0078d4'};
+                            color: #fff;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: ${isSelected ? 'default' : 'pointer'};
+                            font-size: 12px;
+                          `;
+                          
+                          if (!isSelected) {
+                            addItemBtn.onclick = (evt) => {
+                              evt.stopPropagation();
+                              
+                              selectedItemsForBatch.push({
+                                productid: item.productid,
+                                name: item.name,
+                                productnumber: item.productnumber,
+                                isSet: isSet,
+                                defaultuomid: item._defaultuomid_value,
+                                pricelevelid: item._pricelevelid_value,
+                                producttypecode: item.producttypecode
+                              });
+                              
+                              addItemBtn.textContent = 'Added';
+                              addItemBtn.style.backgroundColor = '#ccc';
+                              addItemBtn.style.cursor = 'default';
+                              addItemBtn.onclick = null;
+                              
+                              updateSelectedList();
+                            };
+                          }
+                          
+                          itemDiv.appendChild(icon);
+                          itemDiv.appendChild(info);
+                          itemDiv.appendChild(addItemBtn);
+                          searchResultsList.appendChild(itemDiv);
+                        });
+                      } catch (error) {
+                        console.error('Search error:', error);
+                        searchResultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Search error. Please try again.</div>';
+                      }
+                    }, SEARCH_TIMEOUT_MS);
+                  };
+                  
+                  // Close on overlay click (outside popup)
+                  overlay.onclick = (evt) => {
+                    if (evt.target === overlay) {
+                      overlay.remove();
+                    }
+                  };
+                  
+                  // Close on Escape key
+                  const escHandler = (evt) => {
+                    if (evt.key === 'Escape') {
+                      overlay.remove();
+                      parentDoc.removeEventListener('keydown', escHandler);
+                    }
+                  };
+                  parentDoc.addEventListener('keydown', escHandler);
+                }
+              }
+            },
+            {
+              location: 'before',
+              locateInMenu: "auto",
+              template() {
+                return $('<div>')
+                  .addClass('spacer')
+                  .text('')
+              },
+            },
+            {
+              location: 'before',
+              widget: 'dxButton',
+              locateInMenu: "auto",
+              options: {
                 icon: "triangledown",
                 text: 'Compact',
                 width: 'auto',
@@ -5492,18 +6248,31 @@ async function setClientApiContext(Xrm, formContext) {
               location: 'after',
               locateInMenu: "auto",
               template() {
-                const $div = $('<div>').addClass('exchange-rates');
-                const $ul = $('<ul>').css({
-                  'list-style-type': 'none',
-                  'padding': '0',
-                  'margin': '0',
+                const $div = $('<div>').addClass('exchange-rates').css({
                   'display': 'flex',
-                  'flex-wrap': 'wrap',
-                  'justify-content': 'center'
+                  'align-items': 'center',
+                  'gap': '10px'
                 });
 
-                // Dodaj input za osnovni popust
-                const $input = $('<input>').attr({
+                // Discount input container
+                const $discountContainer = $('<div>').addClass('discount-container').css({
+                  'display': 'flex',
+                  'align-items': 'center',
+                  'padding': '4px 10px',
+                  'border': '1px solid #e0e0e0',
+                  'border-radius': '4px',
+                  'background-color': '#fff',
+                  'box-shadow': '0 1px 3px rgba(0, 0, 0, 0.08)'
+                });
+
+                const $discountLabel = $('<span>').text('Disc(%):').css({
+                  'font-size': '12px',
+                  'font-weight': '500',
+                  'color': '#555',
+                  'margin-right': '6px'
+                });
+
+                const $discountInput = $('<input>').attr({
                   type: 'number',
                   id: 'discountInput',
                   class: 'currencyRates',
@@ -5512,15 +6281,16 @@ async function setClientApiContext(Xrm, formContext) {
                   min: 0,
                   max: 100
                 }).css({
-                  'max-width': '50px',
-                  'height': '28px',
-                  'margin': '0 5px',
-                  'padding': '0 5px',
-                  'border': 'none',
+                  'width': '55px',
+                  'height': '26px',
+                  'padding': '0 6px',
+                  'border': '1px solid #ddd',
                   'border-radius': '3px',
-                  'background-color': '#fff',
+                  'background-color': '#fafafa',
+                  'font-size': '12px',
+                  'text-align': 'center',
                   '-webkit-appearance': 'none',
-                  '-moz-appearance': 'textfield;'
+                  '-moz-appearance': 'textfield'
                 }).on('change', async function () {
                   const discountValue = parseFloat($(this).val());
                   if (isNaN(discountValue) || discountValue < 0 || discountValue > 100) {
@@ -5541,14 +6311,11 @@ async function setClientApiContext(Xrm, formContext) {
                       async function (success) {
                         if (success.confirmed) {
                           Xrm.Utility.showProgressIndicator('Updating discount... Please wait...');
-                          // Use batch processing for large datasets
                           const allRecords = [];
                           
-                          // First prepare all non-parent (child) rows
                           quoteLinesData._array.forEach(row => {
                             if (!row.extreme_isparentitem) {
                               row.extreme_discount = discountValue;
-                              // Recalculate amounts for each row
                               const recalcResult = recalculateAmounts({
                                 quantity: row.quantity,
                                 supplierPricePerUnit: row.extreme_supplierpriceperunit,
@@ -5574,7 +6341,6 @@ async function setClientApiContext(Xrm, formContext) {
                               row.extreme_discount = recalcResult.discountPercentage;
                               row.extreme_supplierdiscount = recalcResult.supplierDiscountPercentage;
 
-                              // Prepare record for update
                               allRecords.push({
                                 id: row.quotedetailid,
                                 record: {
@@ -5596,9 +6362,7 @@ async function setClientApiContext(Xrm, formContext) {
                             }
                           });
 
-                          // Now prepare all parent (set) rows by summing their children
                           quoteLinesData._array.filter(row => row.extreme_isparentitem).forEach(parentRow => {
-                            // Find all children for this parent
                             const children = quoteLinesData._array.filter(child => child.extreme_parentquoteline === parentRow.quotedetailid);
                             let baseamount_sum = 0;
                             let extendedamount_sum = 0;
@@ -5616,7 +6380,6 @@ async function setClientApiContext(Xrm, formContext) {
                               extreme_supplierbaseamount_sum += child.extreme_supplierbaseamount || 0;
                               tax_sum += child.tax || 0;
                             });
-                            // Calculate average discount percent for parent
                             let avarageDiscountPercent = 0;
                             if (baseamount_sum !== 0) {
                               avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
@@ -5629,7 +6392,6 @@ async function setClientApiContext(Xrm, formContext) {
                             parentRow.extreme_supplierbaseamount = parseFloat(extreme_supplierbaseamount_sum.toFixed(2));
                             parentRow.tax = parseFloat(tax_sum.toFixed(2));
                             parentRow.extreme_discount = parseFloat(avarageDiscountPercent.toFixed(2));
-                            // Prepare record for update
                             allRecords.push({
                               id: parentRow.quotedetailid,
                               record: {
@@ -5645,7 +6407,6 @@ async function setClientApiContext(Xrm, formContext) {
                             });
                           });
 
-                          // Execute all updates in parallel batches
                           await processBatchesInParallel(allRecords, async ({ id, record }) => {
                             return Xrm.WebApi.updateRecord("quotedetail", id, record);
                           });
@@ -5653,12 +6414,11 @@ async function setClientApiContext(Xrm, formContext) {
                           dataGrid.refresh();
                           Xrm.Utility.closeProgressIndicator();
                           
-                          // Highlight all updated rows with discount-related fields
                           const updatedRowKeys = allRecords.map(r => r.id);
                           const discountFields = ['extreme_discount', 'extreme_fullpricewithdiscount', 'manualdiscountamount', 'extendedamount', 'baseamount', 'extreme_margin'];
                           setTimeout(() => {
                             highlightMultipleRows(dataGrid, updatedRowKeys, discountFields, 2500);
-                          }, 300); // Small delay to ensure grid is refreshed
+                          }, 300);
                           
                           formContext.data.refresh(false);
                         }
@@ -5666,91 +6426,328 @@ async function setClientApiContext(Xrm, formContext) {
                   }
                 });
 
-                const $li = $('<li>').append(`Disc(%): `).append($input).css({
-                  'margin': '0 10px',
-                  'padding': '0 0 0 5px',
-                  'border': '1px solid #eee',
-                  'border-radius': '3px',
-                  'background-color': '#fff',
-                  'box-shadow': '0 4px 8px rgba(0, 0, 0, 0.1)'
-                });
+                $discountContainer.append($discountLabel, $discountInput);
 
-                $ul.append($li);
+                // Exchange Rate Button
+                const $exchangeRateBtn = $('<div>').attr('id', 'exchangeRateBtn');
+                
+                setTimeout(() => {
+                  $('#exchangeRateBtn').dxButton({
+                    icon: 'money',
+                    text: 'Exchange Rates',
+                    stylingMode: 'outlined',
+                    type: 'normal',
+                    disabled: !isDraftStatus,
+                    onClick: function() {
+                      // Store original values to detect changes
+                      const originalRates = {};
+                      $.each(jsonForConverting, function(currency, rate) {
+                        if (rate !== 1) {
+                          originalRates[currency] = rate;
+                        }
+                      });
 
-                $.each(jsonForConverting, function (currency, rate) {
+                      const currencyColors = {
+                        'EUR': '#0052cc',
+                        'USD': '#28a745',
+                        'CHF': '#dc3545',
+                        'RSD': '#6f42c1',
+                        'MKD': '#fd7e14',
+                        'GBP': '#17a2b8'
+                      };
+
+                      // Create custom popup in parent window document (like description popup)
+                      const parentDoc = window.parent.document;
+                      
+                      // Remove existing popup if any
+                      const existingPopup = parentDoc.getElementById('exchangeRatePopupOverlay');
+                      if (existingPopup) existingPopup.remove();
+                      
+                      // Create overlay
+                      const overlay = parentDoc.createElement('div');
+                      overlay.id = 'exchangeRatePopupOverlay';
+                      overlay.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.5);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 999999;
+                      `;
+                      
+                      // Create popup container
+                      const popup = parentDoc.createElement('div');
+                      popup.style.cssText = `
+                        background: white;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                        width: 500px;
+                        max-width: 90%;
+                        display: flex;
+                        flex-direction: column;
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                      `;
+                      
+                      // Create header
+                      const header = parentDoc.createElement('div');
+                      header.style.cssText = `
+                        padding: 16px 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border-radius: 8px 8px 0 0;
+                      `;
+                      
+                      const titleContainer = parentDoc.createElement('div');
+                      const title = parentDoc.createElement('div');
+                      title.style.cssText = 'font-size: 16px; font-weight: 600; color: #fff;';
+                      title.textContent = 'Currency Exchange Rates';
+                      const subtitle = parentDoc.createElement('div');
+                      subtitle.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.9); margin-top: 2px;';
+                      subtitle.textContent = 'Adjust exchange rates relative to the quote currency';
+                      titleContainer.appendChild(title);
+                      titleContainer.appendChild(subtitle);
+                      
+                      const closeBtn = parentDoc.createElement('button');
+                      closeBtn.innerHTML = '&times;';
+                      closeBtn.style.cssText = `
+                        background: none;
+                        border: none;
+                        font-size: 24px;
+                        cursor: pointer;
+                        color: #fff;
+                        padding: 0;
+                        line-height: 1;
+                      `;
+                      closeBtn.onmouseover = () => closeBtn.style.opacity = '0.7';
+                      closeBtn.onmouseout = () => closeBtn.style.opacity = '1';
+                      closeBtn.onclick = () => overlay.remove();
+                      
+                      header.appendChild(titleContainer);
+                      header.appendChild(closeBtn);
+                      
+                      // Create body with currency inputs
+                      const body = parentDoc.createElement('div');
+                      body.style.cssText = 'padding: 20px;';
+                      
+                      const ratesGrid = parentDoc.createElement('div');
+                      ratesGrid.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;';
+                      
+                      // Store input references for saving
+                      const inputRefs = {};
+                      
+                      // Create input for each currency
+                      Object.entries(jsonForConverting).forEach(([currency, rate]) => {
+                        if (rate !== 1) {
+                          const rateItem = parentDoc.createElement('div');
+                          rateItem.style.cssText = `
+                            background-color: #f8f9fa;
+                            border: 1px solid #e9ecef;
+                            border-radius: 8px;
+                            padding: 12px 15px;
+                          `;
+                          
+                          const currencyHeader = parentDoc.createElement('div');
+                          currencyHeader.style.cssText = 'display: flex; align-items: center; margin-bottom: 8px;';
+                          
+                          const badge = parentDoc.createElement('span');
+                          badge.textContent = currency;
+                          badge.style.cssText = `
+                            background-color: ${currencyColors[currency] || '#6c757d'};
+                            color: #fff;
+                            padding: 3px 10px;
+                            border-radius: 4px;
+                            font-size: 12px;
+                            font-weight: 600;
+                            letter-spacing: 0.5px;
+                          `;
+                          
+                          const currencyName = parentDoc.createElement('span');
+                          currencyName.textContent = getCurrencyFullName(currency);
+                          currencyName.style.cssText = 'margin-left: 10px; font-size: 11px; color: #6c757d;';
+                          
+                          currencyHeader.appendChild(badge);
+                          currencyHeader.appendChild(currencyName);
+                          
+                          const rateInput = parentDoc.createElement('input');
+                          rateInput.type = 'number';
+                          rateInput.step = '0.0001';
+                          rateInput.value = rate;
+                          rateInput.dataset.currency = currency;
+                          rateInput.style.cssText = `
+                            width: 100%;
+                            height: 36px;
+                            padding: 0 12px;
+                            border: 1px solid #ced4da;
+                            border-radius: 6px;
+                            font-size: 14px;
+                            font-weight: 500;
+                            text-align: right;
+                            background-color: #fff;
+                            box-sizing: border-box;
+                          `;
+                          rateInput.onfocus = () => {
+                            rateInput.style.borderColor = currencyColors[currency] || '#0078d4';
+                            rateInput.style.boxShadow = `0 0 0 3px ${currencyColors[currency] || '#0078d4'}20`;
+                          };
+                          rateInput.onblur = () => {
+                            rateInput.style.borderColor = '#ced4da';
+                            rateInput.style.boxShadow = 'none';
+                          };
+                          
+                          inputRefs[currency] = rateInput;
+                          
+                          rateItem.appendChild(currencyHeader);
+                          rateItem.appendChild(rateInput);
+                          ratesGrid.appendChild(rateItem);
+                        }
+                      });
+                      
+                      body.appendChild(ratesGrid);
+                      
+                      // Create footer with buttons
+                      const footer = parentDoc.createElement('div');
+                      footer.style.cssText = `
+                        padding: 12px 20px;
+                        border-top: 1px solid #e0e0e0;
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 10px;
+                        background: #f9f9f9;
+                        border-radius: 0 0 8px 8px;
+                      `;
+                      
+                      const cancelBtn = parentDoc.createElement('button');
+                      cancelBtn.textContent = 'Cancel';
+                      cancelBtn.style.cssText = `
+                        padding: 8px 20px;
+                        border: 1px solid #ddd;
+                        background: #fff;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 14px;
+                      `;
+                      cancelBtn.onclick = () => overlay.remove();
+                      
+                      const saveBtn = parentDoc.createElement('button');
+                      saveBtn.textContent = 'Save Changes';
+                      saveBtn.style.cssText = `
+                        padding: 8px 20px;
+                        border: none;
+                        background: #28a745;
+                        color: #fff;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                      `;
+                      saveBtn.onmouseover = () => saveBtn.style.background = '#218838';
+                      saveBtn.onmouseout = () => saveBtn.style.background = '#28a745';
+                      saveBtn.onclick = async () => {
+                        // Check for changes and apply them
+                        const changedRates = [];
+                        
+                        Object.entries(originalRates).forEach(([currency, originalRate]) => {
+                          const newValue = parseFloat(inputRefs[currency].value);
+                          if (!isNaN(newValue) && newValue !== originalRate) {
+                            changedRates.push({ currency, newValue, originalRate });
+                          }
+                        });
+                        
+                        if (changedRates.length === 0) {
+                          DevExpress.ui.notify('No changes detected.', 'info', 2000);
+                          overlay.remove();
+                          return;
+                        }
+                        
+                        overlay.remove();
+                        
+                        // Apply changes
+                        for (const { currency, newValue } of changedRates) {
+                          Xrm.Utility.showProgressIndicator(`Updating ${currency} exchange rate...`);
+                          
+                          // Update the hidden input value for calculations
+                          $(`#${currency}`).val(newValue);
+                          jsonForConverting[currency] = newValue;
+                          
+                          // Update quote record
+                          switch (currency) {
+                            case "EUR":
+                              await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_euroexchangerate: newValue });
+                              break;
+                            case "USD":
+                              await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_dollarexchangerate: newValue });
+                              break;
+                            case "CHF":
+                              await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_chfexchangerate: newValue });
+                              break;
+                            case "RSD":
+                              await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_rsdexchangerate: newValue });
+                              break;
+                            case "MKD":
+                              await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_macedoniandenarexchangerate: newValue });
+                              break;
+                            case "GBP":
+                              await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_gbpexchangerate: newValue });
+                              break;
+                          }
+                          
+                          // Apply exchange rate change to quote lines
+                          await exchangeRateChange(currency, newValue);
+                        }
+                        
+                        Xrm.Utility.closeProgressIndicator();
+                        DevExpress.ui.notify(`Successfully updated ${changedRates.length} exchange rate(s).`, 'success', 3000);
+                      };
+                      
+                      footer.appendChild(cancelBtn);
+                      footer.appendChild(saveBtn);
+                      
+                      popup.appendChild(header);
+                      popup.appendChild(body);
+                      popup.appendChild(footer);
+                      overlay.appendChild(popup);
+                      parentDoc.body.appendChild(overlay);
+                      
+                      // Close on overlay click (outside popup)
+                      overlay.onclick = (evt) => {
+                        if (evt.target === overlay) {
+                          overlay.remove();
+                        }
+                      };
+                      
+                      // Close on Escape key
+                      const escHandler = (evt) => {
+                        if (evt.key === 'Escape') {
+                          overlay.remove();
+                          parentDoc.removeEventListener('keydown', escHandler);
+                        }
+                      };
+                      parentDoc.addEventListener('keydown', escHandler);
+                    }
+                  });
+                }, 100);
+
+                // Hidden inputs for storing current rates (needed for calculations)
+                const $hiddenRates = $('<div>').css({ 'display': 'none' });
+                $.each(jsonForConverting, function(currency, rate) {
                   if (rate !== 1) {
-                    const $input = $('<input>').attr({
-                      type: 'number',
-                      id: currency,
-                      class: 'currencyRates',
-                      value: rate,
-                      disabled: !isDraftStatus,
-                    }).css({
-                      'max-width': '50px',
-                      'height': '28px',
-                      'margin': '0 5px',
-                      'padding': '0 5px',
-                      'border': 'none',
-                      'border-radius': '3px',
-                      'background-color': '#fff',
-                      '-webkit-appearance': 'none',
-                      '-moz-appearance': 'textfield;'
-                    }).on('change', async function () {
-                      Xrm.Utility.showProgressIndicator(`Changing exchange rate for ${currency}`);
-                      const newValue = $(this).val();
-                      // console.log(`New value for ${currency}: ${newValue} ${typeof (newValue)}`);
-                      switch (currency) {
-                        case "EUR":
-                          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_euroexchangerate: parseFloat(newValue) });
-                          await exchangeRateChange(currency, newValue);
-
-                          break;
-                        case "USD":
-                          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_dollarexchangerate: parseFloat(newValue) });
-                          await exchangeRateChange(currency, newValue);
-
-                          break;
-                        case "CHF":
-                          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_chfexchangerate: parseFloat(newValue) });
-                          await exchangeRateChange(currency, newValue);
-
-                          break;
-                        case "RSD":
-                          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_rsdexchangerate: parseFloat(newValue) });
-                          await exchangeRateChange(currency, newValue);
-
-                          break;
-                        case "MKD":
-                          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_macedoniandenarexchangerate: parseFloat(newValue) });
-                          await exchangeRateChange(currency, newValue);
-
-                          break;
-                        case "GBP":
-                          await Xrm.WebApi.updateRecord("quote", `${quoteIdForm}`, { extreme_gbpexchangerate: parseFloat(newValue) });
-                          await exchangeRateChange(currency, newValue);
-
-                          break;
-                        default:
-
-                          break;
-                      }
-                      Xrm.Utility.closeProgressIndicator();
-                    });
-
-                    const $li = $('<li>').append(`${currency}: `).append($input).css({
-                      'margin': '0 10px',
-                      'padding': '0 0 0 5px',
-                      'border': '1px solid #eee',
-                      'border-radius': '3px',
-                      'background-color': '#fff',
-                      'box-shadow': '0 4px 8px rgba(0, 0, 0, 0.1)'
-                    });
-
-                    $ul.append($li);
+                    $hiddenRates.append(
+                      $('<input>').attr({
+                        type: 'hidden',
+                        id: currency,
+                        value: rate
+                      })
+                    );
                   }
                 });
 
-                $div.append($ul);
+                $div.append($discountContainer, $exchangeRateBtn, $hiddenRates);
                 return $div;
               },
             }
@@ -6585,30 +7582,33 @@ async function setClientApiContext(Xrm, formContext) {
               let manualdiscountamount_sum = 0;
               let extreme_supplierbaseamount_sum = 0;
               let tax_sum = 0;
-              avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+              let avarageDiscountPercent = 0;
 
-              quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((e) => {
-                baseamount_sum += e.baseamount;
-                extendedamount_sum += e.extendedamount;
-                extreme_fullpd_sum += e.extreme_fullpd;
-                extreme_fullpricewithdiscount_sum += e.extreme_fullpricewithdiscount;
-                manualdiscountamount_sum += e.manualdiscountamount;
-                extreme_supplierbaseamount_sum += e.extreme_supplierbaseamount;
-                tax_sum += e.tax;
+              quoteLinesData._array.filter((item) => item.extreme_parentquoteline === parentQuoteLineGUID).forEach((child) => {
+                baseamount_sum += parseFloat(child.baseamount) || 0;
+                extendedamount_sum += parseFloat(child.extendedamount) || 0;
+                extreme_fullpd_sum += parseFloat(child.extreme_fullpd) || 0;
+                extreme_fullpricewithdiscount_sum += parseFloat(child.extreme_fullpricewithdiscount) || 0;
+                manualdiscountamount_sum += parseFloat(child.manualdiscountamount) || 0;
+                extreme_supplierbaseamount_sum += parseFloat(child.extreme_supplierbaseamount) || 0;
+                tax_sum += parseFloat(child.tax) || 0;
               });
 
-              avarageDiscountPercent = ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100;
+              avarageDiscountPercent = baseamount_sum > 0 ? ((baseamount_sum - extreme_fullpricewithdiscount_sum) / baseamount_sum) * 100 : 0;
 
+              // Update parent in local store
               quoteLinesData.update(parentQuoteLineGUID, {
-                baseamount: baseamount_sum.toFixed(2),
-                extendedamount: extendedamount_sum.toFixed(2),
-                extreme_fullpd: extreme_fullpd_sum.toFixed(2),
-                extreme_fullpricewithdiscount: extreme_fullpricewithdiscount_sum.toFixed(2),
-                manualdiscountamount: manualdiscountamount_sum.toFixed(2),
-                extreme_supplierbaseamount: extreme_supplierbaseamount_sum.toFixed(2),
-                tax: tax_sum.toFixed(2),
-                extreme_discount: avarageDiscountPercent.toFixed(2)
+                baseamount: parseFloat(baseamount_sum.toFixed(2)),
+                extendedamount: parseFloat(extendedamount_sum.toFixed(2)),
+                extreme_fullpd: parseFloat(extreme_fullpd_sum.toFixed(2)),
+                extreme_fullpricewithdiscount: parseFloat(extreme_fullpricewithdiscount_sum.toFixed(2)),
+                manualdiscountamount: parseFloat(manualdiscountamount_sum.toFixed(2)),
+                extreme_supplierbaseamount: parseFloat(extreme_supplierbaseamount_sum.toFixed(2)),
+                tax: parseFloat(tax_sum.toFixed(2)),
+                extreme_discount: parseFloat(avarageDiscountPercent.toFixed(2))
               });
+
+              // Parent SET only updates locally - no database save needed
 
               dataGrid.getController('data').updateItems({
                 changeType: 'update',
@@ -6652,60 +7652,106 @@ async function setClientApiContext(Xrm, formContext) {
             // For new unsaved rows, just skip the API delete - grid will handle removal
             return;
           }
+          
+          // Check if already being deleted by another process (single delete button or Delete Selected)
+          if (deletingIds.has(e.key)) {
+            // Already being deleted, just remove from local store and skip API call
+            quoteLinesData.remove(e.key);
+            return;
+          }
+          
+          // Mark as deleting to prevent double deletion
+          deletingIds.add(e.key);
 
           Xrm.Utility.showProgressIndicator('Deleting... Please wait...');
 
           try {
-            const deletePromises = [];
             const idsToRemove = [e.key];
+            let childItems = [];
 
             // Check if the item is a parent item - collect all child IDs
             if (e.data.extreme_isparentitem === true) {
-              const childItems = quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.key);
-              childItems.forEach(child => idsToRemove.push(child.quotedetailid));
+              childItems = quoteLinesData._array.filter((item) => item.extreme_parentquoteline === e.key);
+              childItems.forEach(child => {
+                idsToRemove.push(child.quotedetailid);
+                deletingIds.add(child.quotedetailid);
+              });
             }
 
-            // Batch delete all records in parallel
-            idsToRemove.forEach(id => {
-              deletePromises.push(Xrm.WebApi.deleteRecord("quotedetail", `${id}`));
-              quoteLinesData.remove(id);
-            });
-
-            await Promise.all(deletePromises);
-
-            // Batch reorder - collect all updates first, then execute in parallel
-            const reorderPromises = [];
-            const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
-            const childItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null);
-
-            parentItems.forEach((item, i) => {
-              const newSeq = parseInt((i + 1) + "00");
-              if (item.sequencenumber !== newSeq) {
-                reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
-                item.sequencenumber = newSeq;
-              }
-            });
-
-            childItems.forEach((item, i) => {
-              const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === item.extreme_parentquoteline)?.sequencenumber || 0;
-              const newSeq = parentSeq + (i + 1);
-              if (item.sequencenumber !== newSeq) {
-                reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
-                item.sequencenumber = newSeq;
-              }
-            });
-
-            // Execute reorder in parallel (fire and forget for speed)
-            if (reorderPromises.length > 0) {
-              Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
+            // Delete children first, then parent (to avoid FK constraint issues)
+            if (childItems.length > 0) {
+              const childDeletePromises = childItems.map(child => 
+                Xrm.WebApi.deleteRecord("quotedetail", `${child.quotedetailid}`)
+                  .catch(err => {
+                    // Ignore 404/ObjectDoesNotExist errors (already deleted)
+                    if (!err.message?.includes('does not exist') && !err.message?.includes('ObjectDoesNotExist')) {
+                      throw err;
+                    }
+                  })
+              );
+              await Promise.all(childDeletePromises);
+              
+              // Remove children from local store
+              childItems.forEach(child => quoteLinesData.remove(child.quotedetailid));
             }
+            
+            // Now delete the parent/item itself
+            await Xrm.WebApi.deleteRecord("quotedetail", `${e.key}`)
+              .catch(err => {
+                // Ignore 404/ObjectDoesNotExist errors (already deleted)
+                if (!err.message?.includes('does not exist') && !err.message?.includes('ObjectDoesNotExist')) {
+                  throw err;
+                }
+              });
+            
+            // Remove from local store
+            quoteLinesData.remove(e.key);
+
+            // Batch reorder in background (fire and forget)
+            setTimeout(() => {
+              try {
+                const reorderPromises = [];
+                const parentItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline === null);
+                const remainingChildItems = quoteLinesData._array.filter(item => item.extreme_parentquoteline !== null);
+
+                parentItems.forEach((item, i) => {
+                  const newSeq = parseInt((i + 1) + "00");
+                  if (item.sequencenumber !== newSeq) {
+                    reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                    item.sequencenumber = newSeq;
+                  }
+                });
+
+                remainingChildItems.forEach((item, i) => {
+                  const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === item.extreme_parentquoteline)?.sequencenumber || 0;
+                  const newSeq = parentSeq + (i + 1);
+                  if (item.sequencenumber !== newSeq) {
+                    reorderPromises.push(Xrm.WebApi.updateRecord("quotedetail", `${item.quotedetailid}`, { sequencenumber: newSeq }));
+                    item.sequencenumber = newSeq;
+                  }
+                });
+
+                if (reorderPromises.length > 0) {
+                  Promise.all(reorderPromises).catch(err => console.warn('Reorder warning:', err));
+                }
+              } catch (reorderError) {
+                console.warn('Reorder error:', reorderError);
+              }
+            }, 100);
 
             dataGrid.refresh();
             Xrm.Utility.closeProgressIndicator();
             
+            // Clear deletingIds after a delay
+            setTimeout(() => {
+              idsToRemove.forEach(id => deletingIds.delete(id));
+            }, 2000);
+            
             // Refresh form in background (don't block UI)
             formContext.data.refresh(false);
           } catch (error) {
+            // Clear deletingIds on error
+            deletingIds.clear();
             Xrm.Utility.closeProgressIndicator();
             Xrm.Navigation.openErrorDialog({
               details: error,
@@ -7367,4 +8413,347 @@ async function deleteCaseLine(caseLineId) {
       });
     }
   );
+}
+
+// Batch add item function - adds a single product or set to the quote
+async function addBatchItem(item, quoteIdForm, quoteLinesData, dataGrid, Xrm, formContext, recalculateAmounts, currenciesArray, quoteCurrencySymbol, vatSettingsArray, defaultMargin) {
+  const isSet = item.isSet;
+  
+  // Get product details
+  const productInfo = await getCachedProductInfo(Xrm, item.productid, "description,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value,_pricelevelid_value,_defaultuomid_value,producttypecode");
+  
+  // Get VAT setting from array (no API call)
+  const vatSettingFromArray = productInfo.producttypecode ? 
+    vatSettingsArray.find(vs => vs.productTypeCode === productInfo.producttypecode) : null;
+  const vatSetting = vatSettingFromArray ? vatSettingFromArray.id : null;
+  const vatGroup = vatSettingFromArray ? vatSettingFromArray.idVatGroup : null;
+  const defaultTax = vatSettingFromArray ? vatSettingFromArray.vat : 0;
+
+  // Get price list info if available
+  let supplierPricePerUnit = 0;
+  let priceListPPU = null;
+  let priceListCurrency = null;
+  let priceListMargin = defaultMargin;
+
+  if (productInfo._pricelevelid_value) {
+    try {
+      const priceListItemInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${productInfo._pricelevelid_value} and _productid_value eq ${item.productid})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
+      
+      if (priceListItemInfo.entities.length > 0) {
+        priceListPPU = priceListItemInfo.entities[0].amount;
+        priceListMargin = priceListItemInfo.entities[0].pricelevelid?.extreme_defaultsalesmargin ?? defaultMargin;
+        
+        const currencyId = priceListItemInfo.entities[0]._transactioncurrencyid_value;
+        const currencyInfo = currenciesArray.find(c => c.transactioncurrencyid === currencyId);
+        priceListCurrency = currencyInfo?.currencysymbol;
+
+        if (quoteCurrencySymbol !== priceListCurrency && priceListCurrency) {
+          const currencyRate = currencyInfo?.isocurrencycode ? ($(`#${currencyInfo.isocurrencycode}`).val() || 1) : 1;
+          supplierPricePerUnit = priceListPPU * currencyRate;
+        } else {
+          supplierPricePerUnit = priceListPPU;
+        }
+      }
+    } catch (e) {
+      console.warn('Price list lookup failed:', e);
+    }
+  }
+
+  // Get default discount from UI
+  const discountInputVal = parseFloat($('#discountInput').val()) || 0;
+
+  // Calculate amounts
+  let recalcResult = { quantity: 1, supplierBaseAmount: 0, pricePerUnit: 0, baseAmount: 0, fullPriceWithDiscount: 0, customDiscountAmount: 0, tax: 0, extendedAmount: 0, pdPerUnit: 0, fullPd: 0 };
+  
+  if (!isSet && supplierPricePerUnit > 0) {
+    recalcResult = recalculateAmounts({
+      quantity: 1,
+      supplierPricePerUnit: supplierPricePerUnit,
+      supplierDiscount: 0,
+      margin: priceListMargin,
+      discount: discountInputVal,
+      TaxPercent: defaultTax
+    });
+  }
+
+  // Build the record
+  const record = {};
+  record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`;
+  record.extreme_customproductname = item.name;
+  record["productid@odata.bind"] = `/products(${item.productid})`;
+  record.ispriceoverridden = true;
+  record.extreme_isparentitem = isSet;
+  record.sequencenumber = parseInt((quoteLinesData._array.filter(i => i.extreme_parentquoteline === null).length + 1) + "00");
+
+  if (productInfo._defaultuomid_value) {
+    record["uomid@odata.bind"] = `/uoms(${productInfo._defaultuomid_value})`;
+  }
+
+  if (productInfo.description) {
+    record.extreme_productdescription = productInfo.description;
+  }
+
+  if (productInfo._extreme_area_value) {
+    record["extreme_Area@odata.bind"] = `/extreme_areas(${productInfo._extreme_area_value})`;
+  }
+  if (productInfo._extreme_technology_value) {
+    record["extreme_Technology@odata.bind"] = `/extreme_technologies(${productInfo._extreme_technology_value})`;
+  }
+  if (productInfo._extreme_supplier_value) {
+    record["extreme_VendorSupplier@odata.bind"] = `/accounts(${productInfo._extreme_supplier_value})`;
+  }
+
+  if (!isSet) {
+    if (productInfo.producttypecode) record.extreme_producttype = productInfo.producttypecode;
+    if (vatSetting) record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${vatSetting})`;
+    if (vatGroup) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatGroup})`;
+    if (productInfo._pricelevelid_value) record["extreme_pricelist@odata.bind"] = `/pricelevels(${productInfo._pricelevelid_value})`;
+    if (priceListPPU) record.extreme_pricelistpriceperunit = priceListPPU;
+    if (priceListCurrency) record.extreme_pricelistcurrency = priceListCurrency;
+    
+    record.quantity = 1;
+    record.extreme_margin = priceListMargin;
+    record.extreme_discount = discountInputVal;
+    record.extreme_supplierdiscount = 0;
+    
+    if (supplierPricePerUnit) record.extreme_supplierpriceperunit = Number(parseFloat(supplierPricePerUnit).toFixed(4));
+    if (recalcResult.supplierBaseAmount) record.extreme_supplierbaseamount = Number(parseFloat(recalcResult.supplierBaseAmount).toFixed(4));
+    if (recalcResult.pricePerUnit) record.priceperunit = Number(parseFloat(recalcResult.pricePerUnit).toFixed(4));
+    if (recalcResult.baseAmount) record.baseamount = Number(parseFloat(recalcResult.baseAmount).toFixed(4));
+    if (recalcResult.fullPriceWithDiscount) record.extreme_fullpricewithdiscount = recalcResult.fullPriceWithDiscount;
+    if (recalcResult.customDiscountAmount) record.manualdiscountamount = Number(parseFloat(recalcResult.customDiscountAmount).toFixed(4));
+    if (recalcResult.tax) record.tax = Number(parseFloat(recalcResult.tax).toFixed(4));
+    if (defaultTax) record.extreme_tax = defaultTax;
+    if (recalcResult.extendedAmount) record.extendedamount = Number(parseFloat(recalcResult.extendedAmount).toFixed(4));
+    if (recalcResult.pdPerUnit) record.extreme_pd = recalcResult.pdPerUnit;
+    if (recalcResult.fullPd) record.extreme_fullpd = recalcResult.fullPd;
+  }
+
+  // Create the quote detail
+  const createResult = await Xrm.WebApi.createRecord("quotedetail", record);
+  const newQuoteDetailId = createResult.id;
+
+  // Add to local store
+  const storeRecord = {
+    quotedetailid: newQuoteDetailId,
+    productid: item.productid,
+    productnumber: item.productnumber,
+    extreme_customproductname: item.name,
+    extreme_productdescription: productInfo.description || '',
+    uomid: productInfo._defaultuomid_value,
+    quantity: 1,
+    extreme_isparentitem: isSet,
+    extreme_parentquoteline: null,
+    sequencenumber: record.sequencenumber,
+    extreme_area: productInfo._extreme_area_value,
+    extreme_technology: productInfo._extreme_technology_value,
+    extreme_vendorsupplier: productInfo._extreme_supplier_value,
+    extreme_producttype: productInfo.producttypecode,
+    extreme_vatsetting: vatSetting,
+    extreme_tax: defaultTax,
+    extreme_pricelist: productInfo._pricelevelid_value,
+    extreme_pricelistpriceperunit: priceListPPU || 0,
+    extreme_pricelistcurrency: priceListCurrency || '',
+    extreme_supplierpriceperunit: supplierPricePerUnit || 0,
+    extreme_supplierbaseamount: recalcResult.supplierBaseAmount || 0,
+    extreme_supplierdiscount: 0,
+    extreme_margin: priceListMargin,
+    priceperunit: recalcResult.pricePerUnit || 0,
+    baseamount: recalcResult.baseAmount || 0,
+    extreme_discount: discountInputVal,
+    manualdiscountamount: recalcResult.customDiscountAmount || 0,
+    extreme_fullpricewithdiscount: recalcResult.fullPriceWithDiscount || 0,
+    tax: recalcResult.tax || 0,
+    extreme_pd: recalcResult.pdPerUnit || 0,
+    extreme_fullpd: recalcResult.fullPd || 0,
+    extendedamount: recalcResult.extendedAmount || 0,
+    extreme_createasset: false
+  };
+
+  quoteLinesData.insert(storeRecord);
+
+  // If it's a set, add child products
+  if (isSet) {
+    try {
+      const childProducts = await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,description,_pricelevelid_value,_defaultuomid_value,extreme_isparent,name,_extreme_parentproduct_value,productnumber,producttypecode&$filter=_extreme_parentproduct_value eq ${item.productid}`);
+      
+      if (childProducts.entities.length > 0) {
+        let parentBaseAmountSum = 0;
+        let parentExtendedAmountSum = 0;
+        let parentFullPdSum = 0;
+        let parentFullPriceWithDiscountSum = 0;
+        let parentDiscountAmountSum = 0;
+        let parentSupplierBaseAmountSum = 0;
+        let parentTaxSum = 0;
+
+        for (let idx = 0; idx < childProducts.entities.length; idx++) {
+          const childProduct = childProducts.entities[idx];
+          
+          // Get child product info
+          const childInfo = await getCachedProductInfo(Xrm, childProduct.productid, "_pricelevelid_value,_defaultuomid_value,name,producttypecode,_extreme_area_value,_extreme_supplier_value,_extreme_technology_value");
+          
+          const childVatSetting = childInfo.producttypecode ? vatSettingsArray.find(vs => vs.productTypeCode === childInfo.producttypecode) : null;
+          const childVatSettingId = childVatSetting ? childVatSetting.id : null;
+          const childVatGroupId = childVatSetting ? childVatSetting.idVatGroup : null;
+          const childTax = childVatSetting ? childVatSetting.vat : 0;
+
+          let childSupplierPPU = 0;
+          let childPriceListPPU = null;
+          let childPriceListCurrency = null;
+          let childPriceListMargin = defaultMargin;
+
+          if (childInfo._pricelevelid_value) {
+            try {
+              const childPriceListInfo = await Xrm.WebApi.retrieveMultipleRecords("productpricelevel", `?$select=amount,_transactioncurrencyid_value&$filter=(_pricelevelid_value eq ${childInfo._pricelevelid_value} and _productid_value eq ${childProduct.productid})&$expand=pricelevelid($select=extreme_defaultsalesmargin)`);
+              
+              if (childPriceListInfo.entities.length > 0) {
+                childPriceListPPU = childPriceListInfo.entities[0].amount;
+                childPriceListMargin = childPriceListInfo.entities[0].pricelevelid?.extreme_defaultsalesmargin ?? defaultMargin;
+                
+                const childCurrencyId = childPriceListInfo.entities[0]._transactioncurrencyid_value;
+                const childCurrencyInfo = currenciesArray.find(c => c.transactioncurrencyid === childCurrencyId);
+                childPriceListCurrency = childCurrencyInfo?.currencysymbol;
+
+                if (quoteCurrencySymbol !== childPriceListCurrency && childPriceListCurrency) {
+                  const childCurrencyRate = childCurrencyInfo?.isocurrencycode ? ($(`#${childCurrencyInfo.isocurrencycode}`).val() || 1) : 1;
+                  childSupplierPPU = childPriceListPPU * childCurrencyRate;
+                } else {
+                  childSupplierPPU = childPriceListPPU;
+                }
+              }
+            } catch (e) {
+              console.warn('Child price list lookup failed:', e);
+            }
+          }
+
+          let childRecalcResult = { quantity: 1, supplierBaseAmount: 0, pricePerUnit: 0, baseAmount: 0, fullPriceWithDiscount: 0, customDiscountAmount: 0, tax: 0, extendedAmount: 0, pdPerUnit: 0, fullPd: 0 };
+          
+          if (childSupplierPPU > 0) {
+            childRecalcResult = recalculateAmounts({
+              quantity: 1,
+              supplierPricePerUnit: childSupplierPPU,
+              supplierDiscount: 0,
+              margin: childPriceListMargin,
+              discount: discountInputVal,
+              TaxPercent: childTax
+            });
+          }
+
+          // Create child record
+          const childRecord = {};
+          childRecord["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`;
+          childRecord["productid@odata.bind"] = `/products(${childProduct.productid})`;
+          childRecord["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${newQuoteDetailId})`;
+          childRecord.extreme_customproductname = childProduct.name;
+          childRecord.ispriceoverridden = true;
+          childRecord.extreme_isparentitem = false;
+          childRecord.sequencenumber = parseInt((quoteLinesData._array.filter(i => i.extreme_parentquoteline === null).length) + "00") + (idx + 1);
+
+          if (childInfo._defaultuomid_value) childRecord["uomid@odata.bind"] = `/uoms(${childInfo._defaultuomid_value})`;
+          if (childProduct.description) childRecord.extreme_productdescription = childProduct.description;
+          if (childInfo.producttypecode) childRecord.extreme_producttype = childInfo.producttypecode;
+          if (childVatSettingId) childRecord["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${childVatSettingId})`;
+          if (childVatGroupId) childRecord["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${childVatGroupId})`;
+          if (childInfo._extreme_area_value) childRecord["extreme_Area@odata.bind"] = `/extreme_areas(${childInfo._extreme_area_value})`;
+          if (childInfo._extreme_technology_value) childRecord["extreme_Technology@odata.bind"] = `/extreme_technologies(${childInfo._extreme_technology_value})`;
+          if (childInfo._extreme_supplier_value) childRecord["extreme_VendorSupplier@odata.bind"] = `/accounts(${childInfo._extreme_supplier_value})`;
+          if (childInfo._pricelevelid_value) childRecord["extreme_pricelist@odata.bind"] = `/pricelevels(${childInfo._pricelevelid_value})`;
+          if (childPriceListPPU) childRecord.extreme_pricelistpriceperunit = childPriceListPPU;
+          if (childPriceListCurrency) childRecord.extreme_pricelistcurrency = childPriceListCurrency;
+
+          childRecord.quantity = 1;
+          childRecord.extreme_margin = childPriceListMargin;
+          childRecord.extreme_discount = discountInputVal;
+          childRecord.extreme_supplierdiscount = 0;
+          if (childSupplierPPU) childRecord.extreme_supplierpriceperunit = Number(parseFloat(childSupplierPPU).toFixed(4));
+          if (childRecalcResult.supplierBaseAmount) childRecord.extreme_supplierbaseamount = Number(parseFloat(childRecalcResult.supplierBaseAmount).toFixed(4));
+          if (childRecalcResult.pricePerUnit) childRecord.priceperunit = Number(parseFloat(childRecalcResult.pricePerUnit).toFixed(4));
+          if (childRecalcResult.baseAmount) childRecord.baseamount = Number(parseFloat(childRecalcResult.baseAmount).toFixed(4));
+          if (childRecalcResult.fullPriceWithDiscount) childRecord.extreme_fullpricewithdiscount = childRecalcResult.fullPriceWithDiscount;
+          if (childRecalcResult.customDiscountAmount) childRecord.manualdiscountamount = Number(parseFloat(childRecalcResult.customDiscountAmount).toFixed(4));
+          if (childRecalcResult.tax) childRecord.tax = Number(parseFloat(childRecalcResult.tax).toFixed(4));
+          if (childTax) childRecord.extreme_tax = childTax;
+          if (childRecalcResult.extendedAmount) childRecord.extendedamount = Number(parseFloat(childRecalcResult.extendedAmount).toFixed(4));
+          if (childRecalcResult.pdPerUnit) childRecord.extreme_pd = childRecalcResult.pdPerUnit;
+          if (childRecalcResult.fullPd) childRecord.extreme_fullpd = childRecalcResult.fullPd;
+
+          const childCreateResult = await Xrm.WebApi.createRecord("quotedetail", childRecord);
+
+          // Add child to store
+          const childStoreRecord = {
+            quotedetailid: childCreateResult.id,
+            productid: childProduct.productid,
+            productnumber: childProduct.productnumber,
+            extreme_customproductname: childProduct.name,
+            extreme_productdescription: childProduct.description || '',
+            uomid: childInfo._defaultuomid_value,
+            quantity: 1,
+            extreme_isparentitem: false,
+            extreme_parentquoteline: newQuoteDetailId,
+            sequencenumber: childRecord.sequencenumber,
+            extreme_area: childInfo._extreme_area_value,
+            extreme_technology: childInfo._extreme_technology_value,
+            extreme_vendorsupplier: childInfo._extreme_supplier_value,
+            extreme_producttype: childInfo.producttypecode,
+            extreme_vatsetting: childVatSettingId,
+            extreme_tax: childTax,
+            extreme_pricelist: childInfo._pricelevelid_value,
+            extreme_pricelistpriceperunit: childPriceListPPU || 0,
+            extreme_pricelistcurrency: childPriceListCurrency || '',
+            extreme_supplierpriceperunit: childSupplierPPU || 0,
+            extreme_supplierbaseamount: childRecalcResult.supplierBaseAmount || 0,
+            extreme_supplierdiscount: 0,
+            extreme_margin: childPriceListMargin,
+            priceperunit: childRecalcResult.pricePerUnit || 0,
+            baseamount: childRecalcResult.baseAmount || 0,
+            extreme_discount: discountInputVal,
+            manualdiscountamount: childRecalcResult.customDiscountAmount || 0,
+            extreme_fullpricewithdiscount: childRecalcResult.fullPriceWithDiscount || 0,
+            tax: childRecalcResult.tax || 0,
+            extreme_pd: childRecalcResult.pdPerUnit || 0,
+            extreme_fullpd: childRecalcResult.fullPd || 0,
+            extendedamount: childRecalcResult.extendedAmount || 0,
+            extreme_createasset: false
+          };
+
+          quoteLinesData.insert(childStoreRecord);
+
+          // Sum up for parent
+          parentBaseAmountSum += childRecalcResult.baseAmount || 0;
+          parentExtendedAmountSum += childRecalcResult.extendedAmount || 0;
+          parentFullPdSum += childRecalcResult.fullPd || 0;
+          parentFullPriceWithDiscountSum += childRecalcResult.fullPriceWithDiscount || 0;
+          parentDiscountAmountSum += childRecalcResult.customDiscountAmount || 0;
+          parentSupplierBaseAmountSum += childRecalcResult.supplierBaseAmount || 0;
+          parentTaxSum += childRecalcResult.tax || 0;
+        }
+
+        // Update parent with sums
+        quoteLinesData.update(newQuoteDetailId, {
+          baseamount: parentBaseAmountSum,
+          extendedamount: parentExtendedAmountSum,
+          extreme_fullpd: parentFullPdSum,
+          extreme_fullpricewithdiscount: parentFullPriceWithDiscountSum,
+          manualdiscountamount: parentDiscountAmountSum,
+          extreme_supplierbaseamount: parentSupplierBaseAmountSum,
+          tax: parentTaxSum
+        });
+      }
+    } catch (error) {
+      console.error('Error adding child products:', error);
+    }
+  }
+}
+
+// Helper function to get full currency name from code
+function getCurrencyFullName(currencyCode) {
+  const currencyNames = {
+    'EUR': 'Euro',
+    'USD': 'US Dollar',
+    'CHF': 'Swiss Franc',
+    'RSD': 'Serbian Dinar',
+    'MKD': 'Macedonian Denar',
+    'GBP': 'British Pound'
+  };
+  return currencyNames[currencyCode] || currencyCode;
 }
