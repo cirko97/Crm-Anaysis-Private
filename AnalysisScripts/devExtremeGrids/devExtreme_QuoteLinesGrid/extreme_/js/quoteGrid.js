@@ -4541,7 +4541,7 @@ async function setClientApiContext(Xrm, formContext) {
           },
           {
             type: 'buttons',
-            width: 100,
+            width: 70,
             buttons: [
               {
                 hint: 'Description',
@@ -4752,121 +4752,121 @@ async function setClientApiContext(Xrm, formContext) {
                   setTimeout(() => textarea.focus(), 100);
                 },
               },
-              {
-                hint: 'Duplicate',
-                icon: 'copy',
-                visible: isDraftStatus,
-                async onClick(e) {
-                  const rowData = e.row.data;
-                  const productName = rowData.extreme_customproductname || 'this row';
+              // {
+              //   hint: 'Duplicate',
+              //   icon: 'copy',
+              //   visible: isDraftStatus,
+              //   async onClick(e) {
+              //     const rowData = e.row.data;
+              //     const productName = rowData.extreme_customproductname || 'this row';
                   
-                  // Don't allow duplicating parent items (sets)
-                  if (rowData.extreme_isparentitem === true) {
-                    await Xrm.Navigation.openAlertDialog({
-                      title: "Cannot Duplicate",
-                      text: "Cannot duplicate a set (parent item). Please duplicate individual items instead."
-                    });
-                    return;
-                  }
+              //     // Don't allow duplicating parent items (sets)
+              //     if (rowData.extreme_isparentitem === true) {
+              //       await Xrm.Navigation.openAlertDialog({
+              //         title: "Cannot Duplicate",
+              //         text: "Cannot duplicate a set (parent item). Please duplicate individual items instead."
+              //       });
+              //       return;
+              //     }
                   
-                  Xrm.Utility.showProgressIndicator('Duplicating... Please wait...');
+              //     Xrm.Utility.showProgressIndicator('Duplicating... Please wait...');
                   
-                  try {
-                    // Build record for new quotedetail
-                    const record = {};
-                    record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`;
+              //     try {
+              //       // Build record for new quotedetail
+              //       const record = {};
+              //       record["quoteid@odata.bind"] = `/quotes(${quoteIdForm})`;
                     
-                    // Copy all relevant fields
-                    if (rowData.extreme_customproductname) record.extreme_customproductname = rowData.extreme_customproductname + " (Copy)";
-                    if (rowData.extreme_productdescription) record.extreme_productdescription = rowData.extreme_productdescription;
-                    if (rowData.extreme_pricelistpriceperunit || rowData.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = rowData.extreme_pricelistpriceperunit;
-                    if (rowData.extreme_pricelistcurrency) record.extreme_pricelistcurrency = rowData.extreme_pricelistcurrency;
-                    if (rowData.extreme_supplierpriceperunit || rowData.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(rowData.extreme_supplierpriceperunit).toFixed(4));
-                    if (rowData.quantity || rowData.quantity === 0) record.quantity = rowData.quantity;
-                    if (rowData.extreme_supplierbaseamount || rowData.extreme_supplierbaseamount === 0) record.extreme_supplierbaseamount = Number(parseFloat(rowData.extreme_supplierbaseamount).toFixed(4));
-                    if (rowData.extreme_supplierdiscount || rowData.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = rowData.extreme_supplierdiscount;
-                    if (rowData.extreme_margin || rowData.extreme_margin === 0) record.extreme_margin = rowData.extreme_margin;
-                    if (rowData.priceperunit || rowData.priceperunit === 0) record.priceperunit = rowData.priceperunit;
-                    if (rowData.baseamount || rowData.baseamount === 0) record.baseamount = Number(parseFloat(rowData.baseamount).toFixed(4));
-                    if (rowData.extreme_discount || rowData.extreme_discount === 0) record.extreme_discount = rowData.extreme_discount;
-                    if (rowData.manualdiscountamount || rowData.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(rowData.manualdiscountamount).toFixed(4));
-                    if (rowData.extreme_pricewithdiscount || rowData.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = rowData.extreme_pricewithdiscount;
-                    if (rowData.extreme_fullpricewithdiscount || rowData.extreme_fullpricewithdiscount === 0) record.extreme_fullpricewithdiscount = rowData.extreme_fullpricewithdiscount;
-                    if (rowData.extreme_tax || rowData.extreme_tax === 0) record.extreme_tax = rowData.extreme_tax;
-                    if (rowData.tax || rowData.tax === 0) record.tax = Number(parseFloat(rowData.tax).toFixed(4));
-                    if (rowData.extreme_pd || rowData.extreme_pd === 0) record.extreme_pd = rowData.extreme_pd;
-                    if (rowData.extreme_fullpd || rowData.extreme_fullpd === 0) record.extreme_fullpd = rowData.extreme_fullpd;
-                    if (rowData.extendedamount || rowData.extendedamount === 0) record.extendedamount = Number(parseFloat(rowData.extendedamount).toFixed(4));
-                    if (typeof rowData.extreme_createasset === "boolean") record.extreme_createasset = rowData.extreme_createasset;
-                    if (rowData.extreme_producttype) record.extreme_producttype = rowData.extreme_producttype;
+              //       // Copy all relevant fields
+              //       if (rowData.extreme_customproductname) record.extreme_customproductname = rowData.extreme_customproductname + " (Copy)";
+              //       if (rowData.extreme_productdescription) record.extreme_productdescription = rowData.extreme_productdescription;
+              //       if (rowData.extreme_pricelistpriceperunit || rowData.extreme_pricelistpriceperunit === 0) record.extreme_pricelistpriceperunit = rowData.extreme_pricelistpriceperunit;
+              //       if (rowData.extreme_pricelistcurrency) record.extreme_pricelistcurrency = rowData.extreme_pricelistcurrency;
+              //       if (rowData.extreme_supplierpriceperunit || rowData.extreme_supplierpriceperunit === 0) record.extreme_supplierpriceperunit = Number(parseFloat(rowData.extreme_supplierpriceperunit).toFixed(4));
+              //       if (rowData.quantity || rowData.quantity === 0) record.quantity = rowData.quantity;
+              //       if (rowData.extreme_supplierbaseamount || rowData.extreme_supplierbaseamount === 0) record.extreme_supplierbaseamount = Number(parseFloat(rowData.extreme_supplierbaseamount).toFixed(4));
+              //       if (rowData.extreme_supplierdiscount || rowData.extreme_supplierdiscount === 0) record.extreme_supplierdiscount = rowData.extreme_supplierdiscount;
+              //       if (rowData.extreme_margin || rowData.extreme_margin === 0) record.extreme_margin = rowData.extreme_margin;
+              //       if (rowData.priceperunit || rowData.priceperunit === 0) record.priceperunit = rowData.priceperunit;
+              //       if (rowData.baseamount || rowData.baseamount === 0) record.baseamount = Number(parseFloat(rowData.baseamount).toFixed(4));
+              //       if (rowData.extreme_discount || rowData.extreme_discount === 0) record.extreme_discount = rowData.extreme_discount;
+              //       if (rowData.manualdiscountamount || rowData.manualdiscountamount === 0) record.manualdiscountamount = Number(parseFloat(rowData.manualdiscountamount).toFixed(4));
+              //       if (rowData.extreme_pricewithdiscount || rowData.extreme_pricewithdiscount === 0) record.extreme_pricewithdiscount = rowData.extreme_pricewithdiscount;
+              //       if (rowData.extreme_fullpricewithdiscount || rowData.extreme_fullpricewithdiscount === 0) record.extreme_fullpricewithdiscount = rowData.extreme_fullpricewithdiscount;
+              //       if (rowData.extreme_tax || rowData.extreme_tax === 0) record.extreme_tax = rowData.extreme_tax;
+              //       if (rowData.tax || rowData.tax === 0) record.tax = Number(parseFloat(rowData.tax).toFixed(4));
+              //       if (rowData.extreme_pd || rowData.extreme_pd === 0) record.extreme_pd = rowData.extreme_pd;
+              //       if (rowData.extreme_fullpd || rowData.extreme_fullpd === 0) record.extreme_fullpd = rowData.extreme_fullpd;
+              //       if (rowData.extendedamount || rowData.extendedamount === 0) record.extendedamount = Number(parseFloat(rowData.extendedamount).toFixed(4));
+              //       if (typeof rowData.extreme_createasset === "boolean") record.extreme_createasset = rowData.extreme_createasset;
+              //       if (rowData.extreme_producttype) record.extreme_producttype = rowData.extreme_producttype;
                     
-                    // Lookups
-                    if (rowData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${rowData.extreme_pricelist})`;
-                    if (rowData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${rowData.extreme_area})`;
-                    if (rowData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${rowData.extreme_technology})`;
-                    if (rowData.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${rowData.extreme_vendorsupplier})`;
-                    if (rowData.extreme_vatsetting) {
-                      record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${rowData.extreme_vatsetting})`;
-                      const vatSetting = vatSettingsArray.find(item => item.id === rowData.extreme_vatsetting);
-                      if (vatSetting) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatSetting.idVatGroup})`;
-                    }
+              //       // Lookups
+              //       if (rowData.extreme_pricelist) record["extreme_pricelist@odata.bind"] = `/pricelevels(${rowData.extreme_pricelist})`;
+              //       if (rowData.extreme_area) record["extreme_Area@odata.bind"] = `/extreme_areas(${rowData.extreme_area})`;
+              //       if (rowData.extreme_technology) record["extreme_Technology@odata.bind"] = `/extreme_technologies(${rowData.extreme_technology})`;
+              //       if (rowData.extreme_vendorsupplier) record["extreme_VendorSupplier@odata.bind"] = `/accounts(${rowData.extreme_vendorsupplier})`;
+              //       if (rowData.extreme_vatsetting) {
+              //         record["extreme_VATSetting@odata.bind"] = `/extreme_vatsettings(${rowData.extreme_vatsetting})`;
+              //         const vatSetting = vatSettingsArray.find(item => item.id === rowData.extreme_vatsetting);
+              //         if (vatSetting) record["extreme_VATGroup@odata.bind"] = `/extreme_vatgroups(${vatSetting.idVatGroup})`;
+              //       }
                     
-                    // Product or custom product
-                    if (rowData.productid && rowData.extreme_customproductid) {
-                      // Custom product
-                      record.extreme_customproductid = rowData.extreme_customproductid;
-                      if (rowData.extreme_uomid) record.extreme_uomid = rowData.extreme_uomid;
-                    } else if (rowData.productid) {
-                      // Real product
-                      record["productid@odata.bind"] = `/products(${rowData.productid})`;
-                      if (rowData.uomid) record["uomid@odata.bind"] = `/uoms(${rowData.uomid})`;
-                    }
+              //       // Product or custom product
+              //       if (rowData.productid && rowData.extreme_customproductid) {
+              //         // Custom product
+              //         record.extreme_customproductid = rowData.extreme_customproductid;
+              //         if (rowData.extreme_uomid) record.extreme_uomid = rowData.extreme_uomid;
+              //       } else if (rowData.productid) {
+              //         // Real product
+              //         record["productid@odata.bind"] = `/products(${rowData.productid})`;
+              //         if (rowData.uomid) record["uomid@odata.bind"] = `/uoms(${rowData.uomid})`;
+              //       }
                     
-                    record.ispriceoverridden = true;
-                    record.extreme_isparentitem = false;
+              //       record.ispriceoverridden = true;
+              //       record.extreme_isparentitem = false;
                     
-                    // If original row is a child of a set, copy to same parent
-                    if (rowData.extreme_parentquoteline) {
-                      record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${rowData.extreme_parentquoteline})`;
-                      // Sequence after siblings
-                      const siblings = quoteLinesData._array.filter(item => item.extreme_parentquoteline === rowData.extreme_parentquoteline);
-                      const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === rowData.extreme_parentquoteline)?.sequencenumber || 0;
-                      record.sequencenumber = parentSeq + siblings.length + 1;
-                    } else {
-                      // New parent-level item
-                      record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00");
-                    }
+              //       // If original row is a child of a set, copy to same parent
+              //       if (rowData.extreme_parentquoteline) {
+              //         record["extreme_ParentQuoteLine@odata.bind"] = `/quotedetails(${rowData.extreme_parentquoteline})`;
+              //         // Sequence after siblings
+              //         const siblings = quoteLinesData._array.filter(item => item.extreme_parentquoteline === rowData.extreme_parentquoteline);
+              //         const parentSeq = quoteLinesData._array.find(p => p.quotedetailid === rowData.extreme_parentquoteline)?.sequencenumber || 0;
+              //         record.sequencenumber = parentSeq + siblings.length + 1;
+              //       } else {
+              //         // New parent-level item
+              //         record.sequencenumber = parseInt((quoteLinesData._array.filter(item => item.extreme_parentquoteline === null).length + 1) + "00");
+              //       }
                     
-                    const result = await Xrm.WebApi.createRecord("quotedetail", record);
-                    const newId = result.id;
+              //       const result = await Xrm.WebApi.createRecord("quotedetail", record);
+              //       const newId = result.id;
                     
-                    // Add to local store
-                    const newRowData = {
-                      ...rowData,
-                      quotedetailid: newId,
-                      extreme_customproductname: rowData.extreme_customproductname + " (Copy)",
-                      sequencenumber: record.sequencenumber,
-                      productnumber: rowData.extreme_customproductid || rowData.productnumber
-                    };
+              //       // Add to local store
+              //       const newRowData = {
+              //         ...rowData,
+              //         quotedetailid: newId,
+              //         extreme_customproductname: rowData.extreme_customproductname + " (Copy)",
+              //         sequencenumber: record.sequencenumber,
+              //         productnumber: rowData.extreme_customproductid || rowData.productnumber
+              //       };
                     
-                    quoteLinesData.insert(newRowData);
-                    dataGrid.refresh();
+              //       quoteLinesData.insert(newRowData);
+              //       dataGrid.refresh();
                     
-                    Xrm.Utility.closeProgressIndicator();
+              //       Xrm.Utility.closeProgressIndicator();
                     
-                    // Refresh form in background
-                    formContext.data.refresh(false);
+              //       // Refresh form in background
+              //       formContext.data.refresh(false);
                     
-                  } catch (error) {
-                    Xrm.Utility.closeProgressIndicator();
-                    Xrm.Navigation.openErrorDialog({
-                      details: error,
-                      errorCode: 400,
-                      message: error.message
-                    });
-                  }
-                }
-              },
+              //     } catch (error) {
+              //       Xrm.Utility.closeProgressIndicator();
+              //       Xrm.Navigation.openErrorDialog({
+              //         details: error,
+              //         errorCode: 400,
+              //         message: error.message
+              //       });
+              //     }
+              //   }
+              // },
               {
                 name: 'delete',
                 hint: 'Delete',
@@ -6702,7 +6702,7 @@ async function setClientApiContext(Xrm, formContext) {
                         }
                         
                         Xrm.Utility.closeProgressIndicator();
-                        DevExpress.ui.notify(`Successfully updated ${changedRates.length} exchange rate(s).`, 'success', 3000);
+                        showParentToast(`Successfully updated ${changedRates.length} exchange rate(s).`, 'success', 3000);
                       };
                       
                       footer.appendChild(cancelBtn);
