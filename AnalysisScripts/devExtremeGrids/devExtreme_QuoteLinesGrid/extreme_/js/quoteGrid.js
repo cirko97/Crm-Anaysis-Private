@@ -186,6 +186,428 @@ function showParentToast(message, type = 'success', durationMs = 3000) {
   }, durationMs);
 }
 
+// Show help popup with grid instructions in parent window document
+function showHelpPopup() {
+  const parentDoc = window.parent.document;
+  
+  // Language translations
+  const translations = {
+    srb: {
+      title: 'Uputstvo za rad sa Quote Lines gridom',
+      closeBtn: 'Zatvori',
+      sections: [
+        {
+          icon: '➕',
+          title: 'Dodavanje stavki',
+          items: [
+            '<strong>Add existing</strong> - Dodaj postojeći proizvod iz kataloga',
+            '<strong>Add new</strong> - Kreiraj novu stavku sa prilagođenim nazivom',
+            '<strong>Add existing set</strong> - Dodaj postojeći SET proizvod (grupu proizvoda)',
+            '<strong>Add new set</strong> - Kreiraj novi SET sa child stavkama',
+            '<strong>Batch Add</strong> - Masovno dodavanje više proizvoda odjednom'
+          ]
+        },
+        {
+          icon: '✏️',
+          title: 'Uređivanje stavki',
+          items: [
+            'Kliknite na bilo koju ćeliju da je direktno izmenite',
+            'Možete menjati: količinu, cenu, popust, maržu, itd.',
+            'Kod SET-ova: promena na parent-u se automatski propagira na child stavke',
+            'Ikonica <strong>✎</strong> otvara detaljan opis proizvoda',
+            'Ikonica <strong>🗑️</strong> briše stavku'
+          ]
+        },
+        {
+          icon: '📊',
+          title: 'Prikazi grida',
+          items: [
+            '<strong>Compact</strong> - Prikazuje samo osnovne kolone (ID, Naziv, Količina, Cena, Iznos)',
+            '<strong>Extended</strong> - Prikazuje sve kolone uključujući maržu, profit, PDV, itd.',
+            '<strong>Classify</strong> - Pomaže u klasifikaciji proizvoda (Area, Technology, Vendor)'
+          ]
+        },
+        {
+          icon: '💰',
+          title: 'Popust i Exchange Rates',
+          items: [
+            '<strong>Disc(%)</strong> - Default popust koji se primenjuje na nove stavke',
+            'Možete promeniti popust i primeniti ga na sve postojeće stavke',
+            '<strong>Exchange Rates</strong> - Postavite kurseve za konverziju cena iz price lista'
+          ]
+        },
+        {
+          icon: '🔄',
+          title: 'Drag & Drop',
+          items: [
+            'Prevucite stavke da promenite redosled',
+            'Možete prevući stavku u SET da je dodate kao child',
+            'Prevucite child iz SET-a van da je učinite samostalnom'
+          ]
+        },
+        {
+          icon: '☑️',
+          title: 'Selekcija i masovne akcije',
+          items: [
+            'Koristite checkbox-ove za selekciju više stavki',
+            '<strong>Delete Selected</strong> dugme se pojavljuje kada selektujete stavke',
+            'Možete selektovati sve pomoću checkbox-a u header-u'
+          ]
+        },
+        {
+          icon: '📦',
+          title: 'SET-ovi (Grupe proizvoda)',
+          items: [
+            'SET je parent stavka koja grupiše više child stavki',
+            'Kliknite na strelicu levo da proširite/skupite SET',
+            'Vrednosti SET-a su automatski zbir child stavki',
+            'Promena popusta na SET-u se primenjuje na sve child-ove'
+          ]
+        }
+      ]
+    },
+    eng: {
+      title: 'Guide for working with Quote Lines grid',
+      closeBtn: 'Close',
+      sections: [
+        {
+          icon: '➕',
+          title: 'Adding items',
+          items: [
+            '<strong>Add existing</strong> - Add an existing product from the catalog',
+            '<strong>Add new</strong> - Create a new item with a custom name',
+            '<strong>Add existing set</strong> - Add an existing SET product (product group)',
+            '<strong>Add new set</strong> - Create a new SET with child items',
+            '<strong>Batch Add</strong> - Bulk add multiple products at once'
+          ]
+        },
+        {
+          icon: '✏️',
+          title: 'Editing items',
+          items: [
+            'Click on any cell to edit it directly',
+            'You can change: quantity, price, discount, margin, etc.',
+            'For SETs: changes on parent automatically propagate to child items',
+            'Icon <strong>✎</strong> opens detailed product description',
+            'Icon <strong>🗑️</strong> deletes the item'
+          ]
+        },
+        {
+          icon: '📊',
+          title: 'Grid views',
+          items: [
+            '<strong>Compact</strong> - Shows only basic columns (ID, Name, Quantity, Price, Amount)',
+            '<strong>Extended</strong> - Shows all columns including margin, profit, VAT, etc.',
+            '<strong>Classify</strong> - Helps with product classification (Area, Technology, Vendor)'
+          ]
+        },
+        {
+          icon: '💰',
+          title: 'Discount and Exchange Rates',
+          items: [
+            '<strong>Disc(%)</strong> - Default discount applied to new items',
+            'You can change the discount and apply it to all existing items',
+            '<strong>Exchange Rates</strong> - Set exchange rates for price conversion from price lists'
+          ]
+        },
+        {
+          icon: '🔄',
+          title: 'Drag & Drop',
+          items: [
+            'Drag items to change their order',
+            'You can drag an item into a SET to add it as a child',
+            'Drag a child out of a SET to make it standalone'
+          ]
+        },
+        {
+          icon: '☑️',
+          title: 'Selection and bulk actions',
+          items: [
+            'Use checkboxes to select multiple items',
+            '<strong>Delete Selected</strong> button appears when you select items',
+            'You can select all using the checkbox in the header'
+          ]
+        },
+        {
+          icon: '📦',
+          title: 'SETs (Product groups)',
+          items: [
+            'SET is a parent item that groups multiple child items',
+            'Click on the arrow on the left to expand/collapse SET',
+            'SET values are automatically the sum of child items',
+            'Changing discount on SET applies to all children'
+          ]
+        }
+      ]
+    }
+  };
+  
+  let currentLang = 'srb';
+  
+  // Remove existing popup if any
+  const existingPopup = parentDoc.getElementById('helpPopupOverlay');
+  if (existingPopup) existingPopup.remove();
+  
+  // Create overlay
+  const overlay = parentDoc.createElement('div');
+  overlay.id = 'helpPopupOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+  `;
+  
+  // Add animation styles if not exists
+  if (!parentDoc.getElementById('helpPopupStyles')) {
+    const styleEl = parentDoc.createElement('style');
+    styleEl.id = 'helpPopupStyles';
+    styleEl.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { transform: translateY(30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .help-section { margin-bottom: 16px; }
+      .help-section:last-child { margin-bottom: 0; }
+      .help-section h4 { 
+        margin: 0 0 8px 0; 
+        color: #2196F3; 
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .help-section ul { 
+        margin: 0; 
+        padding-left: 20px;
+        color: #555;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .help-section li { margin-bottom: 4px; }
+      .help-icon { font-size: 16px; }
+      .lang-toggle {
+        display: flex;
+        gap: 0;
+        margin-right: 15px;
+      }
+      .lang-btn {
+        padding: 4px 10px;
+        border: 1px solid rgba(255,255,255,0.5);
+        background: transparent;
+        color: rgba(255,255,255,0.7);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .lang-btn:first-child {
+        border-radius: 4px 0 0 4px;
+        border-right: none;
+      }
+      .lang-btn:last-child {
+        border-radius: 0 4px 4px 0;
+      }
+      .lang-btn.active {
+        background: rgba(255,255,255,0.2);
+        color: #fff;
+        border-color: rgba(255,255,255,0.8);
+      }
+      .lang-btn:hover:not(.active) {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+      }
+    `;
+    parentDoc.head.appendChild(styleEl);
+  }
+  
+  // Create popup
+  const popup = parentDoc.createElement('div');
+  popup.style.cssText = `
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    width: 600px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+  `;
+  
+  // Header
+  const header = parentDoc.createElement('div');
+  header.style.cssText = `
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: #fff;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  `;
+  
+  // Header left side with icon and title
+  const headerLeft = parentDoc.createElement('div');
+  headerLeft.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+  headerLeft.innerHTML = '<span style="font-size: 22px;">📋</span>';
+  
+  const titleSpan = parentDoc.createElement('span');
+  titleSpan.id = 'helpPopupTitle';
+  titleSpan.style.cssText = 'font-size: 18px; font-weight: 600;';
+  titleSpan.textContent = translations[currentLang].title;
+  headerLeft.appendChild(titleSpan);
+  
+  // Header right side with language toggle and close button
+  const headerRight = parentDoc.createElement('div');
+  headerRight.style.cssText = 'display: flex; align-items: center;';
+  
+  // Language toggle
+  const langToggle = parentDoc.createElement('div');
+  langToggle.className = 'lang-toggle';
+  
+  const srbBtn = parentDoc.createElement('button');
+  srbBtn.className = 'lang-btn active';
+  srbBtn.textContent = 'SRB';
+  srbBtn.onclick = () => switchLanguage('srb');
+  
+  const engBtn = parentDoc.createElement('button');
+  engBtn.className = 'lang-btn';
+  engBtn.textContent = 'ENG';
+  engBtn.onclick = () => switchLanguage('eng');
+  
+  langToggle.appendChild(srbBtn);
+  langToggle.appendChild(engBtn);
+  headerRight.appendChild(langToggle);
+  
+  // Close button in header
+  const closeBtn = parentDoc.createElement('span');
+  closeBtn.innerHTML = '&times;';
+  closeBtn.style.cssText = `
+    font-size: 28px;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+  `;
+  closeBtn.onmouseover = () => closeBtn.style.opacity = '1';
+  closeBtn.onmouseout = () => closeBtn.style.opacity = '0.8';
+  closeBtn.onclick = () => overlay.remove();
+  headerRight.appendChild(closeBtn);
+  
+  header.appendChild(headerLeft);
+  header.appendChild(headerRight);
+  
+  // Body with scrollable content
+  const body = parentDoc.createElement('div');
+  body.id = 'helpPopupBody';
+  body.style.cssText = `
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  `;
+  
+  // Function to render body content
+  function renderBody(lang) {
+    const t = translations[lang];
+    let html = '';
+    t.sections.forEach(section => {
+      html += `
+        <div class="help-section">
+          <h4><span class="help-icon">${section.icon}</span> ${section.title}</h4>
+          <ul>
+            ${section.items.map(item => `<li>${item}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+    });
+    return html;
+  }
+  
+  body.innerHTML = renderBody(currentLang);
+  
+  // Footer
+  const footer = parentDoc.createElement('div');
+  footer.style.cssText = `
+    padding: 12px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+  `;
+  
+  const closeFooterBtn = parentDoc.createElement('button');
+  closeFooterBtn.id = 'helpPopupCloseBtn';
+  closeFooterBtn.textContent = translations[currentLang].closeBtn;
+  closeFooterBtn.style.cssText = `
+    padding: 10px 24px;
+    background: #17a2b8;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  `;
+  closeFooterBtn.onmouseover = () => closeFooterBtn.style.background = '#138496';
+  closeFooterBtn.onmouseout = () => closeFooterBtn.style.background = '#17a2b8';
+  closeFooterBtn.onclick = () => overlay.remove();
+  footer.appendChild(closeFooterBtn);
+  
+  // Function to switch language
+  function switchLanguage(lang) {
+    currentLang = lang;
+    const t = translations[lang];
+    
+    // Update title
+    parentDoc.getElementById('helpPopupTitle').textContent = t.title;
+    
+    // Update body
+    parentDoc.getElementById('helpPopupBody').innerHTML = renderBody(lang);
+    
+    // Update close button
+    parentDoc.getElementById('helpPopupCloseBtn').textContent = t.closeBtn;
+    
+    // Update toggle buttons
+    srbBtn.className = lang === 'srb' ? 'lang-btn active' : 'lang-btn';
+    engBtn.className = lang === 'eng' ? 'lang-btn active' : 'lang-btn';
+  }
+  
+  popup.appendChild(header);
+  popup.appendChild(body);
+  popup.appendChild(footer);
+  overlay.appendChild(popup);
+  parentDoc.body.appendChild(overlay);
+  
+  // Close on overlay click (outside popup)
+  overlay.onclick = (evt) => {
+    if (evt.target === overlay) {
+      overlay.remove();
+    }
+  };
+  
+  // Close on Escape key
+  const escHandler = (evt) => {
+    if (evt.key === 'Escape') {
+      overlay.remove();
+      parentDoc.removeEventListener('keydown', escHandler);
+    }
+  };
+  parentDoc.addEventListener('keydown', escHandler);
+}
+
 // Highlight updated cells/rows for visual feedback
 // Usage: highlightUpdatedCells(dataGrid, rowKey, ['fieldName1', 'fieldName2']) - highlights specific cells
 // Usage: highlightUpdatedCells(dataGrid, rowKey) - highlights entire row
@@ -6254,6 +6676,35 @@ async function setClientApiContext(Xrm, formContext) {
                   'gap': '10px'
                 });
 
+                // Help button with question mark icon
+                const $helpBtn = $('<div>').addClass('help-btn').css({
+                  'display': 'flex',
+                  'align-items': 'center',
+                  'justify-content': 'center',
+                  'width': '26px',
+                  'height': '26px',
+                  'border-radius': '50%',
+                  'background-color': '#17a2b8',
+                  'color': '#fff',
+                  'font-size': '14px',
+                  'font-weight': 'bold',
+                  'cursor': 'pointer',
+                  'box-shadow': '0 2px 4px rgba(0, 0, 0, 0.15)',
+                  'transition': 'all 0.2s ease'
+                }).text('?').on('mouseenter', function() {
+                  $(this).css({
+                    'background-color': '#138496',
+                    'transform': 'scale(1.1)'
+                  });
+                }).on('mouseleave', function() {
+                  $(this).css({
+                    'background-color': '#17a2b8',
+                    'transform': 'scale(1)'
+                  });
+                }).on('click', function() {
+                  showHelpPopup();
+                });
+
                 // Discount input container
                 const $discountContainer = $('<div>').addClass('discount-container').css({
                   'display': 'flex',
@@ -6747,7 +7198,7 @@ async function setClientApiContext(Xrm, formContext) {
                   }
                 });
 
-                $div.append($discountContainer, $exchangeRateBtn, $hiddenRates);
+                $div.append($helpBtn, $discountContainer, $exchangeRateBtn, $hiddenRates);
                 return $div;
               },
             }
