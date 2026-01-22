@@ -4,15 +4,26 @@ async function form_onload(executionContext) {
     // Wake up services for quoteGrid
     const wakeUpServices = () => {
         Xrm.WebApi.retrieveMultipleRecords("productpricelevel", "?$select=productpricelevelid&$top=1").catch(() => {});
-        Xrm.WebApi.deleteRecord("quotedetail", "00000000-0000-0000-0000-000000000000").catch(() => {});
-        Xrm.WebApi.createRecord("quotedetail", { quotedetailid: "00000000-0000-0000-0000-000000000000" }).catch(() => {});
         Xrm.WebApi.retrieveMultipleRecords("product", "?$select=productid&$top=1").catch(() => {});
-        Xrm.WebApi.updateRecord("quotedetail", "00000000-0000-0000-0000-000000000000", { extreme_apiresponse: "test" }).catch(() => {});
         Xrm.WebApi.retrieveMultipleRecords("pricelevel", "?$select=pricelevelid&$top=1").catch(() => {});
+        
+        // Create, update, and delete quotedetail record to wake up the service
+        var record = {};
+        record["quoteid@odata.bind"] = "/quotes(4f4e3e9a-6ff7-f011-8406-002248868de6)";
+        
+        Xrm.WebApi.createRecord("quotedetail", record)
+            .then(createdRecord => {
+                const createdId = createdRecord.id;
+                Xrm.WebApi.updateRecord("quotedetail", createdId, { extreme_apiresponse: "test" })
+                    .then(() => Xrm.WebApi.deleteRecord("quotedetail", createdId))
+                    .catch(() => {});
+            })
+            .catch(() => {});
     };
+    
     wakeUpServices();
-    for (let i = 1; i < 5; i++) {
-        setTimeout(wakeUpServices, i * 1000);
+    for (let i = 1; i < 10; i++) {
+        setTimeout(() => wakeUpServices(), i * 500);
     }
     // END OF WAKE UP SERVICES
 
