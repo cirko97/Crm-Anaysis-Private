@@ -7216,6 +7216,9 @@ async function setClientApiContext(Xrm, formContext) {
           // console.log('ROW PREPARED');
           // console.log(e);
 
+          // Safety check for cells array
+          const hasCell1 = e.cells && e.cells[1] && e.cells[1].cellElement && e.cells[1].cellElement[0];
+
           if (typeof (e.isNewRow) === 'undefined' && e.rowType === "data" && (e.data.extreme_isparentitem === true || e.data.extreme_isparentitem === false) &&
             (
               // (e.data.extreme_producttype === null || e.data.extreme_producttype === undefined) ||
@@ -7224,7 +7227,7 @@ async function setClientApiContext(Xrm, formContext) {
               (e.data.extreme_vendorsupplier === null || e.data.extreme_vendorsupplier === undefined)
             )
           ) {
-            e.rowElement[0].style.backgroundColor = "#fce3c2";
+            if (e.rowElement && e.rowElement[0]) e.rowElement[0].style.backgroundColor = "#fce3c2";
           }
           // else if (e.rowType === "data" && e.data.extreme_isparentitem === true &&
           //   (
@@ -7243,24 +7246,28 @@ async function setClientApiContext(Xrm, formContext) {
               (item.extreme_vendorsupplier === null || item.extreme_vendorsupplier === undefined)
             )
           )) {
-            e.cells[1].cellElement[0].style.backgroundColor = "#fce3c2";
+            if (hasCell1) e.cells[1].cellElement[0].style.backgroundColor = "#fce3c2";
           }
           else {
-            e.rowElement[0].style.backgroundColor = "#fff";
+            if (e.rowElement && e.rowElement[0]) e.rowElement[0].style.backgroundColor = "#fff";
           }
 
           if (e.rowType === 'data' && !e.data.extreme_isparentitem && e.data.quotedetailid) {
             // console.log('REMOVED EXPAND FOR ', e.data.quotedetailid);
             // console.log(dataGrid.hasEditData());
             // console.log(e.cells[1].cellElement[0]);
-            e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
-            e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
+            if (hasCell1 && e.cells[1].cellElement[0].childNodes[0]) {
+              e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+              e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
+            }
             // e.cells[1].cellElement[0].style.display = "none";
             // e.cells[2]?.cellElement?.[0].setAttribute('colspan', '2');
           }
           else if (e.rowType === 'data' && $('#classifyBtn').dxButton('instance').option('disabled') === true) {
-            e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
-            e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
+            if (hasCell1 && e.cells[1].cellElement[0].childNodes[0]) {
+              e.cells[1].cellElement[0].childNodes[0].classList.remove('dx-datagrid-group-closed');
+              e.cells[1].cellElement[0].classList.remove('dx-datagrid-expand');
+            }
           }
 
         },
