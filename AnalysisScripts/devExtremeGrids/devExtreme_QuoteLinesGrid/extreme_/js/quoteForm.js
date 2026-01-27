@@ -1,6 +1,17 @@
 const { read } = require("fs");
 
 async function form_onload(executionContext) {
+    // Get DummyQuoteGuid from configuration
+    let dummyQuoteGuid = null;
+    try {
+        const configResults = await Xrm.WebApi.retrieveMultipleRecords("extreme_configuration", "?$select=extreme_value&$filter=extreme_key eq 'DummyQuoteGuid'&$top=1");
+        if (configResults.entities && configResults.entities.length > 0) {
+            dummyQuoteGuid = configResults.entities[0]["extreme_value"];
+        }
+    } catch (error) {
+        console.log("Error retrieving DummyQuoteGuid: " + error.message);
+    }
+
     // Wake up services for quoteGrid
     const wakeUpServices = () => {
         Xrm.WebApi.retrieveMultipleRecords("productpricelevel", "?$select=productpricelevelid&$top=1").catch(() => { });
@@ -8,17 +19,19 @@ async function form_onload(executionContext) {
         Xrm.WebApi.retrieveMultipleRecords("pricelevel", "?$select=pricelevelid&$top=1").catch(() => { });
 
         // Create, update, and delete quotedetail record to wake up the service
-        var record = {};
-        record["quoteid@odata.bind"] = "/quotes(4f4e3e9a-6ff7-f011-8406-002248868de6)";
+        if (dummyQuoteGuid) {
+            var record = {};
+            record["quoteid@odata.bind"] = `/quotes(${dummyQuoteGuid})`;
 
-        Xrm.WebApi.createRecord("quotedetail", record)
-            .then(createdRecord => {
-                const createdId = createdRecord.id;
-                Xrm.WebApi.updateRecord("quotedetail", createdId, { extreme_apiresponse: "test" })
-                    .then(() => Xrm.WebApi.deleteRecord("quotedetail", createdId))
-                    .catch(() => { });
-            })
-            .catch(() => { });
+            Xrm.WebApi.createRecord("quotedetail", record)
+                .then(createdRecord => {
+                    const createdId = createdRecord.id;
+                    Xrm.WebApi.updateRecord("quotedetail", createdId, { extreme_apiresponse: "test" })
+                        .then(() => Xrm.WebApi.deleteRecord("quotedetail", createdId))
+                        .catch(() => { });
+                })
+                .catch(() => { });
+        }
     };
 
     // Run all wake up calls in background using setTimeout to not block UI
