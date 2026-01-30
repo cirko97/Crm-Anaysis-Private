@@ -3720,10 +3720,13 @@ async function setClientApiContext(Xrm, formContext) {
               // Ensure productInfo has a fallback if not fetched
               if (!productInfo) productInfo = {};
               
-              const priceListMargin = priceListItemInfo.entities ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] !== null ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : currentRowData.extreme_margin : currentRowData.extreme_margin;
-              const priceListItemAmount = priceListItemInfo.entities ? priceListItemInfo.entities[0].amount : 0;
-              const priceListItemAmountFormatted = priceListItemInfo.entities ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
-              const priceListItemCurrency = priceListItemInfo.entities ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value).currencysymbol : null;
+              // Check if priceListItemInfo has valid entities (not empty array)
+              const hasPriceListItem = priceListItemInfo.entities && priceListItemInfo.entities.length > 0;
+              
+              const priceListMargin = hasPriceListItem ? (priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] !== null ? priceListItemInfo.entities[0]["pricelevelid"]["extreme_defaultsalesmargin"] : defaultMargin) : defaultMargin;
+              const priceListItemAmount = hasPriceListItem ? priceListItemInfo.entities[0].amount : 0;
+              const priceListItemAmountFormatted = hasPriceListItem ? priceListItemInfo.entities[0]["amount@OData.Community.Display.V1.FormattedValue"] : null;
+              const priceListItemCurrency = hasPriceListItem ? currenciesArray.find((item) => item.transactioncurrencyid === priceListItemInfo.entities[0]._transactioncurrencyid_value)?.currencysymbol : null;
 
               // console.log('SET CELL VALUES');
               // console.log(priceListItemAmount);
@@ -3747,18 +3750,24 @@ async function setClientApiContext(Xrm, formContext) {
               }
               newData.extreme_customproductname = productInfo.name;
               if (productInfo._defaultuomid_value !== null) newData.uomid = productInfo._defaultuomid_value;
-              if (productInfo._pricelevelid_value && !isAddingSet) {
-                if (priceListItemInfo.entities) newData.extreme_pricelist = productInfo._pricelevelid_value;
-                if (priceListItemInfo.entities) newData.extreme_pricelistpriceperunit = priceListItemAmount;
-                if (priceListItemInfo.entities) newData.extreme_pricelistcurrency = priceListItemCurrency;
-                if (quoteCurrencySymbol !== priceListItemCurrency && priceListItemInfo.entities) {
+              if (productInfo._pricelevelid_value && !isAddingSet && hasPriceListItem) {
+                newData.extreme_pricelist = productInfo._pricelevelid_value;
+                newData.extreme_pricelistpriceperunit = priceListItemAmount;
+                newData.extreme_pricelistcurrency = priceListItemCurrency;
+                if (quoteCurrencySymbol !== priceListItemCurrency && priceListItemCurrency) {
                   newData.extreme_supplierpriceperunit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                   supplierPricePerUnit = priceListItemAmount * $(`#${currenciesArray.find((item) => item.currencysymbol == priceListItemCurrency).isocurrencycode}`).val();
                 } else {
                   newData.extreme_supplierpriceperunit = priceListItemAmount;
                   supplierPricePerUnit = priceListItemAmount;
                 }
-              };
+              }
+
+              // If no price list item exists, set default values with quantity 1 and prices 0
+              if (!hasPriceListItem && !isAddingSet) {
+                supplierPricePerUnit = 0;
+                newData.extreme_supplierpriceperunit = 0;
+              }
 
               if (currentRowData.extreme_margin !== null &&
                 supplierPricePerUnit !== null &&
