@@ -592,13 +592,6 @@ function showHelpPopup() {
   overlay.appendChild(popup);
   parentDoc.body.appendChild(overlay);
   
-  // Close on overlay click (outside popup)
-  overlay.onclick = (evt) => {
-    if (evt.target === overlay) {
-      overlay.remove();
-    }
-  };
-  
   // Close on Escape key
   const escHandler = (evt) => {
     if (evt.key === 'Escape') {
@@ -5163,9 +5156,6 @@ async function setClientApiContext(Xrm, formContext) {
                   const closePopup = () => overlay.remove();
                   closeBtn.onclick = closePopup;
                   cancelBtn.onclick = closePopup;
-                  overlay.onclick = (evt) => {
-                    if (evt.target === overlay) closePopup();
-                  };
                   
                   // ESC key to close
                   const escHandler = (evt) => {
@@ -6086,8 +6076,8 @@ async function setClientApiContext(Xrm, formContext) {
                     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
                     width: 900px;
                     max-width: 90%;
-                    height: 550px;
-                    max-height: 85%;
+                    height: 700px;
+                    max-height: 90%;
                     display: flex;
                     flex-direction: column;
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -6296,11 +6286,24 @@ async function setClientApiContext(Xrm, formContext) {
                     selectedItemsList.innerHTML = '';
                     selectedItemsForBatch.forEach((item, idx) => {
                       const itemDiv = parentDoc.createElement('div');
-                      itemDiv.style.cssText = 'display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee;';
+                      itemDiv.style.cssText = 'display: flex; align-items: center; padding: 6px 8px; border-bottom: 1px solid #eee;';
+                      
+                      // Determine icon based on type
+                      let selIcon, selColor;
+                      if (item.isSet) {
+                        selIcon = '&#128193;'; // 📁 folder
+                        selColor = '#ff6b35';
+                      } else if (!item.isSet && item.producttypecode === 3) {
+                        selIcon = '&#128295;'; // 🔧 wrench
+                        selColor = '#7b1fa2';
+                      } else {
+                        selIcon = '&#128230;'; // 📦 package
+                        selColor = '#0078d4';
+                      }
                       
                       const icon = parentDoc.createElement('span');
-                      icon.innerHTML = item.isSet ? '&#128193;' : '&#128230;';
-                      icon.style.cssText = `margin-right: 10px; font-size: 16px;`;
+                      icon.innerHTML = selIcon;
+                      icon.style.cssText = `margin-right: 10px; font-size: 15px; color: ${selColor};`;
                       
                       const info = parentDoc.createElement('div');
                       info.style.cssText = 'flex: 1; overflow: hidden;';
@@ -6315,12 +6318,21 @@ async function setClientApiContext(Xrm, formContext) {
                       removeBtn.onclick = () => {
                         selectedItemsForBatch.splice(idx, 1);
                         updateSelectedList();
-                        // Update search results to show Add button again
+                        // Update search results to show Add button again and re-attach onclick
                         const existingBtn = searchResultsList.querySelector(`[data-productid="${item.productid}"] .add-item-btn`);
                         if (existingBtn) {
                           existingBtn.textContent = 'Add';
                           existingBtn.style.backgroundColor = '#0078d4';
                           existingBtn.style.cursor = 'pointer';
+                          existingBtn.onclick = (evt) => {
+                            evt.stopPropagation();
+                            selectedItemsForBatch.push(item);
+                            existingBtn.textContent = 'Added';
+                            existingBtn.style.backgroundColor = '#ccc';
+                            existingBtn.style.cursor = 'default';
+                            existingBtn.onclick = null;
+                            updateSelectedList();
+                          };
                         }
                       };
                       
@@ -6357,24 +6369,43 @@ async function setClientApiContext(Xrm, formContext) {
                         searchResultsList.innerHTML = '';
                         results.entities.forEach(item => {
                           const isSet = item.extreme_isparent === true;
+                          const isService = !isSet && item.producttypecode === 3;
                           const isSelected = selectedItemsForBatch.some(s => s.productid === item.productid);
+                          
+                          // Determine icon, color and label based on type
+                          let itemIcon, itemColor, itemBgColor, itemLabel;
+                          if (isSet) {
+                            itemIcon = '&#128193;'; // 📁 folder
+                            itemColor = '#ff6b35';
+                            itemBgColor = '#fff3e0';
+                            itemLabel = 'Set';
+                          } else if (isService) {
+                            itemIcon = '&#128295;'; // 🔧 wrench
+                            itemColor = '#7b1fa2';
+                            itemBgColor = '#f3e5f5';
+                            itemLabel = 'Service';
+                          } else {
+                            itemIcon = '&#128230;'; // 📦 package
+                            itemColor = '#0078d4';
+                            itemBgColor = '#e3f2fd';
+                            itemLabel = 'Product';
+                          }
                           
                           const itemDiv = parentDoc.createElement('div');
                           itemDiv.setAttribute('data-productid', item.productid);
-                          itemDiv.style.cssText = 'display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
+                          itemDiv.style.cssText = 'display: flex; align-items: center; padding: 6px 10px; border-bottom: 1px solid #eee; cursor: pointer;';
                           itemDiv.onmouseover = () => itemDiv.style.backgroundColor = '#f5f5f5';
                           itemDiv.onmouseout = () => itemDiv.style.backgroundColor = '';
                           
                           const icon = parentDoc.createElement('span');
-                          icon.innerHTML = isSet ? '&#128193;' : '&#128230;';
-                          icon.style.cssText = `margin-right: 12px; font-size: 20px; color: ${isSet ? '#ff6b35' : '#0078d4'};`;
+                          icon.innerHTML = itemIcon;
+                          icon.style.cssText = `margin-right: 10px; font-size: 17px; color: ${itemColor};`;
                           
                           const info = parentDoc.createElement('div');
-                          info.style.cssText = 'flex: 1;';
+                          info.style.cssText = 'flex: 1; overflow: hidden;';
                           info.innerHTML = `
-                            <div style="font-weight: 600; font-size: 13px;">${item.productnumber}</div>
-                            <div style="font-size: 12px; color: #666;">${item.name}</div>
-                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background-color: ${isSet ? '#fff3e0' : '#e3f2fd'}; color: ${isSet ? '#ff6b35' : '#0078d4'}; margin-top: 3px; display: inline-block;">${isSet ? 'Set' : 'Product'}</span>
+                            <div style="font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.productnumber} <span style="font-weight: 400; color: #666;">- ${item.name}</span></div>
+                            <span style="font-size: 10px; padding: 1px 6px; border-radius: 3px; background-color: ${itemBgColor}; color: ${itemColor}; display: inline-block;">${itemLabel}</span>
                           `;
                           
                           const addItemBtn = parentDoc.createElement('button');
@@ -6423,13 +6454,6 @@ async function setClientApiContext(Xrm, formContext) {
                         searchResultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Search error. Please try again.</div>';
                       }
                     }, SEARCH_TIMEOUT_MS);
-                  };
-                  
-                  // Close on overlay click (outside popup)
-                  overlay.onclick = (evt) => {
-                    if (evt.target === overlay) {
-                      overlay.remove();
-                    }
                   };
                   
                   // Close on Escape key
@@ -7177,13 +7201,6 @@ async function setClientApiContext(Xrm, formContext) {
                       popup.appendChild(footer);
                       overlay.appendChild(popup);
                       parentDoc.body.appendChild(overlay);
-                      
-                      // Close on overlay click (outside popup)
-                      overlay.onclick = (evt) => {
-                        if (evt.target === overlay) {
-                          overlay.remove();
-                        }
-                      };
                       
                       // Close on Escape key
                       const escHandler = (evt) => {
