@@ -6306,10 +6306,13 @@ async function setClientApiContext(Xrm, formContext) {
                       icon.style.cssText = `margin-right: 10px; font-size: 15px; color: ${selColor};`;
                       
                       const info = parentDoc.createElement('div');
-                      info.style.cssText = 'flex: 1; overflow: hidden;';
+                      info.style.cssText = 'flex: 1; min-width: 0; overflow: hidden;';
+                      const selFullName = `${item.productnumber} - ${item.name}`;
+                      const selNameShort = selFullName.length > 50 ? selFullName.substring(0, 50) + '...' : selFullName;
+                      const selNameSafe = selFullName.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                      const selNameShortSafe = selNameShort.replace(/</g, '&lt;');
                       info.innerHTML = `
-                        <div style="font-weight: 600; font-size: 12px;">${item.productnumber}</div>
-                        <div style="font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</div>
+                        <div style="font-weight: 600; font-size: 12px;" title="${selNameSafe}">${selNameShortSafe}</div>
                       `;
                       
                       const removeBtn = parentDoc.createElement('span');
@@ -6359,7 +6362,7 @@ async function setClientApiContext(Xrm, formContext) {
                     searchTimeout = setTimeout(async () => {
                       try {
                         const filter = `$filter=(contains(productnumber,'${searchValue}') or contains(name,'${searchValue}')) and statecode eq 0`;
-                        const results = await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,name,productnumber,extreme_isparent,_defaultuomid_value,_pricelevelid_value,producttypecode&${filter}&$top=50`);
+                        const results = await Xrm.WebApi.retrieveMultipleRecords("product", `?$select=productid,name,description,productnumber,extreme_isparent,_defaultuomid_value,_pricelevelid_value,producttypecode&${filter}&$top=50`);
                         
                         if (results.entities.length === 0) {
                           searchResultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No results found</div>';
@@ -6402,10 +6405,19 @@ async function setClientApiContext(Xrm, formContext) {
                           icon.style.cssText = `margin-right: 10px; font-size: 17px; color: ${itemColor};`;
                           
                           const info = parentDoc.createElement('div');
-                          info.style.cssText = 'flex: 1; overflow: hidden;';
+                          info.style.cssText = 'flex: 1; min-width: 0; overflow: hidden;';
+                          const fullName = `${item.productnumber} - ${item.name}`;
+                          const nameShort = fullName.length > 50 ? fullName.substring(0, 50) + '...' : fullName;
+                          const nameSafe = fullName.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                          const nameShortSafe = nameShort.replace(/</g, '&lt;');
+                          const descText = item.description || '';
+                          const descShort = descText.length > 50 ? descText.substring(0, 50) + '...' : descText;
+                          const descSafe = descText.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                          const descShortSafe = descShort.replace(/</g, '&lt;');
+                          const descHtml = descText ? `<div style="font-size: 10px; color: #888; margin-top: 1px; cursor: default;" title="${descSafe}">${descShortSafe}</div>` : '';
                           info.innerHTML = `
-                            <div style="font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.productnumber} <span style="font-weight: 400; color: #666;">- ${item.name}</span></div>
-                            <span style="font-size: 10px; padding: 1px 6px; border-radius: 3px; background-color: ${itemBgColor}; color: ${itemColor}; display: inline-block;">${itemLabel}</span>
+                            <div style="font-weight: 600; font-size: 12px;" title="${nameSafe}">${nameShortSafe}</div>
+                            ${descHtml}
                           `;
                           
                           const addItemBtn = parentDoc.createElement('button');
