@@ -8432,7 +8432,7 @@ async function setClientApiContext(Xrm, formContext) {
           discount = ((baseAmount - fullPriceWithDiscount) / baseAmount) * 100;
         }
 
-        const manualDiscountAmount = baseAmount - fullPriceWithDiscount;
+        const manualDiscountAmount = Math.max(0, baseAmount - fullPriceWithDiscount);
         const tax = fullPriceWithDiscount * taxRate;
         const extendedAmount = fullPriceWithDiscount + tax;
         const supplierDiscountAmount = supplierPricePerUnit * (supplierDiscount / 100);
