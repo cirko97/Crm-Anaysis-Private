@@ -671,6 +671,30 @@ async function setClientApiContext(Xrm, formContext) {
 
                                 const item = importingFromQuoteNumOfItems.pop();
                                 importingFromQuote = item;
+
+                                // Seed the first imported line's asset from the last used asset on this case
+                                // (mirrors the manual add-row branch in onInitNewRow). Subsequent imported lines
+                                // inherit this asset via onRowInserted (importingFromQuote.extreme_asset = e.data.extreme_asset).
+                                // Without an asset the required-field validation blocks saveEditData, so onRowInserted
+                                // (where the time entry is created) never runs.
+                                if (!importingFromQuote.extreme_asset) {
+                                  await Xrm.WebApi.retrieveMultipleRecords("extreme_caseline", `?$select=_extreme_asset_value&$filter=_extreme_case_value eq ${caseIdForm}&$orderby=createdon desc&$top=1`).then(
+                                    function success(assetResults) {
+                                      if (assetResults.entities.length > 0) {
+                                        const lastAssetId = assetResults.entities[0]["_extreme_asset_value"];
+                                        const lastAsset = assetsArray.find(a => a.id === lastAssetId);
+                                        if (lastAsset) {
+                                          importingFromQuote.extreme_asset = lastAsset.id;
+                                          importingFromQuote.extreme_assetType = lastAsset.extreme_isparent === true ? 'Set' : (lastAsset.extreme_parentasset ? 'Component' : 'Regular');
+                                        }
+                                      }
+                                    },
+                                    function (error) {
+                                      console.error("Error retrieving last used asset for import:", error);
+                                    }
+                                  );
+                                }
+
                                 dataGrid.addRow();
                               }
 
@@ -720,8 +744,9 @@ async function setClientApiContext(Xrm, formContext) {
             e.data.extreme_producttypecode = importingFromQuote.extreme_type;
             e.data.extreme_unit = importingFromQuote.extreme_unit;
             e.data.owner = usersArray.find(item => item.id === userId.toLowerCase()).id;
+            e.data.ownername = usersArray.find(item => item.id === userId.toLowerCase()).name;
 
-            if (e.data.extreme_asset !== undefined || e.data.extreme_asset !== null) {
+            if (e.data.extreme_asset !== undefined && e.data.extreme_asset !== null) {
               setTimeout(() => {
                 // console.log('extreme_asset: ', e.data.extreme_asset);
                 // console.log("Saving DataGrid...");
