@@ -245,7 +245,7 @@ async function setClientApiContext(Xrm, formContext) {
   }
   async function getAssetsLookUp(accountId) {
     assetsArray = [];
-    await Xrm.WebApi.retrieveMultipleRecords("extreme_asset", `?$select=extreme_isparent,_extreme_parentasset_value,extreme_assetid,extreme_name,extreme_serialnumber&$filter=_extreme_account_value eq ${accountId}`).then(
+    await Xrm.WebApi.retrieveMultipleRecords("extreme_asset", `?$select=extreme_isparent,_extreme_parentasset_value,extreme_assetid,extreme_name,extreme_serialnumber&$filter=_extreme_account_value eq ${accountId} and statecode eq 0`).then(
       function success(results) {
         // console.log(results);
         for (var i = 0; i < results.entities.length; i++) {
